@@ -1,0 +1,13 @@
+namespace Em68030
+{
+    [default_interface]
+    runtimeclass SettingsWindow : Microsoft.UI.Xaml.Controls.ContentDialog
+    {
+        SettingsWindow();
+
+        // Show the dialog with the given XamlRoot parent.
+        // Returns Primary if OK was pressed.
+        Windows.Foundation.IAsyncOperation<Microsoft.UI.Xaml.Controls.ContentDialogResult>
+            ShowAsync(Microsoft.UI.Xaml.UIElement parent);
+    }
+}

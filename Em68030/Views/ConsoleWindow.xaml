@@ -1,0 +1,40 @@
+<Window
+    x:Class="Em68030.ConsoleWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Console">
+
+    <Grid Background="#FF0C0C0C">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Terminal output area -->
+        <TextBox x:Name="OutputBox" Grid.Row="0"
+                 TextWrapping="NoWrap"
+                 AcceptsReturn="True"
+                 IsReadOnly="True"
+                 FontFamily="Consolas" FontSize="14"
+                 Background="#FF0C0C0C" Foreground="#FF00FF00"
+                 BorderThickness="0"
+                 Padding="4"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <TextBox.Resources>
+                <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FF00FF00" />
+                <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FF00FF00" />
+                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FF0C0C0C" />
+                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FF0C0C0C" />
+            </TextBox.Resources>
+        </TextBox>
+
+        <!-- Bottom toolbar -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#FF2D2D30" Padding="0,2">
+            <Button x:Name="ScrollbackButton" Content="Log"
+                    Background="#FF3E3E42" Foreground="#FFD4D4D4"
+                    BorderBrush="#FF555555" Padding="8,3" Margin="4"
+                    ToolTipService.ToolTip="Toggle between live screen and full scrollback log" />
+        </StackPanel>
+    </Grid>
+</Window>

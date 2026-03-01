@@ -1,0 +1,33 @@
+# Visual Studio
+.vs/
+
+# Build output
+x64/
+Debug/
+Release/
+
+# NuGet packages
+packages/
+
+# MSBuild intermediate
+obj/
+
+# User-specific settings
+*.vcxproj.user
+
+# Build-generated XAML metadata
+XamlMetaDataProvider.cpp
+XamlMetaDataProvider.idl
+
+# Application config (contains local paths)
+appsettings.json
+
+# Archives
+*.7z
+*.zip
+
+# Misc
+*.txt
+*.png
+!screenshot.png
+*.url

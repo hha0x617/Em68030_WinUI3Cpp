@@ -1,0 +1,16 @@
+namespace Em68030
+{
+    [default_interface]
+    runtimeclass MemoryByteCell : Microsoft.UI.Xaml.Data.INotifyPropertyChanged
+    {
+        MemoryByteCell();
+
+        String EditText;
+        Boolean IsModified{ get; };
+        Boolean IsSelected;
+        UInt32 Address{ get; };
+        UInt8 OriginalValue{ get; };
+        Int32 Row;
+        Int32 Column;
+    }
+}

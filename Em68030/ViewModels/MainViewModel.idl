@@ -1,0 +1,144 @@
+import "ViewModels\RelayCommand.idl";
+import "ViewModels\DisasmLineViewModel.idl";
+import "ViewModels\MemoryDumpRow.idl";
+
+namespace Em68030
+{
+    [default_interface]
+    runtimeclass MainViewModel : Microsoft.UI.Xaml.Data.INotifyPropertyChanged
+    {
+        MainViewModel();
+
+        // ====================================================================
+        // Data registers D0-D7
+        // ====================================================================
+        UInt32 D0;
+        UInt32 D1;
+        UInt32 D2;
+        UInt32 D3;
+        UInt32 D4;
+        UInt32 D5;
+        UInt32 D6;
+        UInt32 D7;
+
+        // ====================================================================
+        // Address registers A0-A7
+        // ====================================================================
+        UInt32 A0;
+        UInt32 A1;
+        UInt32 A2;
+        UInt32 A3;
+        UInt32 A4;
+        UInt32 A5;
+        UInt32 A6;
+        UInt32 A7;
+
+        // ====================================================================
+        // Special registers
+        // ====================================================================
+        UInt32 PC;
+        UInt32 SR;
+        UInt32 SSP;
+        UInt32 VBR;
+        UInt32 CACR;
+
+        // ====================================================================
+        // FPU registers
+        // ====================================================================
+        Double FP0;
+        Double FP1;
+        Double FP2;
+        Double FP3;
+        Double FP4;
+        Double FP5;
+        Double FP6;
+        Double FP7;
+        UInt32 FPCR;
+        UInt32 FPSR;
+        UInt32 FPIAR;
+
+        // ====================================================================
+        // Flags
+        // ====================================================================
+        Boolean FlagX;
+        Boolean FlagN;
+        Boolean FlagZ;
+        Boolean FlagV;
+        Boolean FlagC;
+        Boolean FlagS;
+        Boolean FlagT;
+        Int32 InterruptMask;
+
+        // ====================================================================
+        // State properties
+        // ====================================================================
+        Boolean IsRunning;
+        Boolean IsMemoryEditMode;
+        Boolean IsRegisterEditMode;
+        Boolean IsHalted{ get; };
+        Boolean IsStopped{ get; };
+        String StopReason{ get; };
+        Int64 CycleCount{ get; };
+        String EstimatedMHz{ get; };
+
+        // ====================================================================
+        // File / display properties
+        // ====================================================================
+        Boolean ShowLst;
+        Boolean HasLstFile{ get; };
+        Boolean HasProgramLoaded{ get; };
+        String LoadedFileName;
+        UInt32 MemoryDumpAddress;
+
+        // ====================================================================
+        // Observable collections
+        // ====================================================================
+        Windows.Foundation.Collections.IObservableVector<DisasmLineViewModel> DisassemblyLines{ get; };
+        Windows.Foundation.Collections.IObservableVector<MemoryDumpRow> MemoryDumpRows{ get; };
+
+        // ====================================================================
+        // Commands
+        // ====================================================================
+        RelayCommand StepCommand{ get; };
+        RelayCommand RunCommand{ get; };
+        RelayCommand StopCommand{ get; };
+        RelayCommand ResetCommand{ get; };
+        RelayCommand EditMemoryCommand{ get; };
+        RelayCommand ApplyMemoryCommand{ get; };
+        RelayCommand CancelMemoryCommand{ get; };
+        RelayCommand EditRegistersCommand{ get; };
+        RelayCommand ApplyRegistersCommand{ get; };
+        RelayCommand CancelRegistersCommand{ get; };
+        RelayCommand ToggleTraceCommand{ get; };
+
+        // ====================================================================
+        // Methods
+        // ====================================================================
+        void SendConsoleChar(UInt8 ch);
+
+        void LoadBinaryFile(String path, UInt32 loadAddress);
+        void LoadSRecordFile(String path);
+        // LoadElfFile returns structured result -- not projected; use from C++ only.
+        // Declared here for IDL completeness but callers typically use native API.
+
+        void NavigateMemoryDump(UInt32 address);
+        void NavigateDisassembly(UInt32 address);
+        void NavigateToProgram();
+
+        void Step();
+        void Run();
+        void RunToCursor(UInt32 address);
+        void Stop();
+        void DoReset();
+
+        void SetPCToCursor(UInt32 address);
+        void ToggleBreakpoint(UInt32 address);
+
+        void ToggleTrace();
+        void ResetDisasmFollowPC();
+
+        void UpdateDisassembly();
+        void UpdateMemoryDump();
+        void RefreshAll();
+    }
+}

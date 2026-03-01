@@ -1,0 +1,9 @@
+namespace Em68030
+{
+    [default_interface]
+    runtimeclass RelayCommand : Microsoft.UI.Xaml.Input.ICommand
+    {
+        RelayCommand();
+        void RaiseCanExecuteChanged();
+    }
+}

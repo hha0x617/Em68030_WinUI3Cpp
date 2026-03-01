@@ -1,0 +1,8 @@
+namespace Em68030
+{
+    [default_interface]
+    runtimeclass ConsoleWindow : Microsoft.UI.Xaml.Window
+    {
+        ConsoleWindow();
+    }
+}

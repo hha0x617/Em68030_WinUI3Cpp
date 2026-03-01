@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B1A2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
+    <RootNamespace>Em68030</RootNamespace>
+    <MinimumVisualStudioVersion>18.0</MinimumVisualStudioVersion>
+    <AppContainerApplication>false</AppContainerApplication>
+    <AppxPackage>false</AppxPackage>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <ProjectName>Em68030</ProjectName>
+    <TargetName>Em68030</TargetName>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <MinimumTargetPlatform>10.0.17763.0</MinimumTargetPlatform>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <TargetPlatformVersion>10.0.26100.7705</TargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformMinVersion>10.0.17763.0</WindowsTargetPlatformMinVersion>
+    <UseWinUI>true</UseWinUI>
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <CppWinRTOptimized>true</CppWinRTOptimized>
+    <CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge>
+    <CppWinRTGenerateWindowsMetadata>true</CppWinRTGenerateWindowsMetadata>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup>
+    <OutDir>$(ProjectDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>$(ProjectDir);$(ProjectDir)ThirdParty;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;DISABLE_XAML_GENERATED_MAIN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)ThirdParty;$(IntDir);$(IntDir)Views;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>windowsapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <EntryPointSymbol>wWinMainCRTStartup</EntryPointSymbol>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;DISABLE_XAML_GENERATED_MAIN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <Optimization>MaxSpeed</Optimization>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)ThirdParty;$(IntDir);$(IntDir)Views;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>windowsapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <EntryPointSymbol>wWinMainCRTStartup</EntryPointSymbol>
+    </Link>
+  </ItemDefinitionGroup>
+  <!-- Precompiled Header -->
+  <ItemGroup>
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <!-- Core Engine (plain C++) -->
+  <ItemGroup>
+    <ClInclude Include="Core\BusErrorException.h" />
+    <ClInclude Include="Core\Memory.h" />
+    <ClInclude Include="Core\Mmu.h" />
+    <ClInclude Include="Core\Alu.h" />
+    <ClInclude Include="Core\Fpu.h" />
+    <ClInclude Include="Core\MC68030.h" />
+    <ClInclude Include="Core\AddressingModes.h" />
+    <ClInclude Include="Core\InstructionDecoder.h" />
+    <ClInclude Include="Core\FpuInstructionDecoder.h" />
+    <ClInclude Include="Core\Disassembler.h" />
+    <ClCompile Include="Core\Memory.cpp" />
+    <ClCompile Include="Core\Mmu.cpp" />
+    <ClCompile Include="Core\Alu.cpp" />
+    <ClCompile Include="Core\Fpu.cpp" />
+    <ClCompile Include="Core\MC68030.cpp" />
+    <ClCompile Include="Core\AddressingModes.cpp" />
+    <ClCompile Include="Core\InstructionDecoder.cpp" />
+    <ClCompile Include="Core\FpuInstructionDecoder.cpp" />
+    <ClCompile Include="Core\Disassembler.cpp" />
+  </ItemGroup>
+  <!-- IO Devices (plain C++) -->
+  <ItemGroup>
+    <ClInclude Include="IO\IMemoryMappedDevice.h" />
+    <ClInclude Include="IO\ConsoleDevice.h" />
+    <ClInclude Include="IO\HddDevice.h" />
+    <ClInclude Include="IO\Mk48t02Device.h" />
+    <ClInclude Include="IO\LanceDevice.h" />
+    <ClInclude Include="IO\VirtualNetworkHandler.h" />
+    <ClInclude Include="IO\Mvme147IoSpaceDevice.h" />
+    <ClInclude Include="IO\PccDevice.h" />
+    <ClInclude Include="IO\Z8530Device.h" />
+    <ClInclude Include="IO\Wd33c93Device.h" />
+    <ClInclude Include="IO\ScsiDisk.h" />
+    <ClInclude Include="IO\ScsiCdrom.h" />
+    <ClInclude Include="IO\FileLoader.h" />
+    <ClCompile Include="IO\ConsoleDevice.cpp" />
+    <ClCompile Include="IO\HddDevice.cpp" />
+    <ClCompile Include="IO\Mk48t02Device.cpp" />
+    <ClCompile Include="IO\LanceDevice.cpp" />
+    <ClCompile Include="IO\VirtualNetworkHandler.cpp" />
+    <ClCompile Include="IO\Mvme147IoSpaceDevice.cpp" />
+    <ClCompile Include="IO\PccDevice.cpp" />
+    <ClCompile Include="IO\Z8530Device.cpp" />
+    <ClCompile Include="IO\Wd33c93Device.cpp" />
+    <ClCompile Include="IO\ScsiDisk.cpp" />
+    <ClCompile Include="IO\ScsiCdrom.cpp" />
+    <ClCompile Include="IO\FileLoader.cpp" />
+  </ItemGroup>
+  <!-- Config -->
+  <ItemGroup>
+    <ClInclude Include="Config\EmulatorConfig.h" />
+    <ClCompile Include="Config\EmulatorConfig.cpp" />
+  </ItemGroup>
+  <!-- Vt100Terminal (plain C++) -->
+  <ItemGroup>
+    <ClInclude Include="Views\Vt100Terminal.h" />
+    <ClCompile Include="Views\Vt100Terminal.cpp" />
+  </ItemGroup>
+  <!-- Third-party headers -->
+  <ItemGroup>
+    <ClInclude Include="ThirdParty\nlohmann\json.hpp" />
+  </ItemGroup>
+  <!-- Precompiled header -->
+  <ItemGroup>
+    <ClInclude Include="pch.h" />
+  </ItemGroup>
+  <!-- IDL Files (MIDL compilation for C++/WinRT) -->
+  <ItemGroup>
+    <Midl Include="App.idl" />
+    <Midl Include="MainWindow.idl" />
+    <Midl Include="ViewModels\RelayCommand.idl" />
+    <Midl Include="ViewModels\DisasmLineViewModel.idl" />
+    <Midl Include="ViewModels\MemoryByteCell.idl" />
+    <Midl Include="ViewModels\MemoryDumpRow.idl" />
+    <Midl Include="ViewModels\MainViewModel.idl" />
+    <Midl Include="Views\ConsoleWindow.idl" />
+    <Midl Include="Views\BreakpointsWindow.idl" />
+    <Midl Include="Views\SettingsWindow.idl" />
+    <Midl Include="Views\InputDialog.idl" />
+  </ItemGroup>
+  <!-- XAML Pages -->
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml">
+      <SubType>Designer</SubType>
+    </ApplicationDefinition>
+    <Page Include="MainWindow.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\ConsoleWindow.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\BreakpointsWindow.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SettingsWindow.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\InputDialog.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+  <!-- XAML Code-Behind -->
+  <ItemGroup>
+    <ClInclude Include="App.xaml.h" />
+    <ClCompile Include="App.xaml.cpp" />
+    <ClInclude Include="MainWindow.xaml.h" />
+    <ClCompile Include="MainWindow.xaml.cpp" />
+    <ClInclude Include="Views\ConsoleWindow.xaml.h" />
+    <ClCompile Include="Views\ConsoleWindow.xaml.cpp" />
+    <ClInclude Include="Views\BreakpointsWindow.xaml.h" />
+    <ClCompile Include="Views\BreakpointsWindow.xaml.cpp" />
+    <ClInclude Include="Views\SettingsWindow.xaml.h" />
+    <ClCompile Include="Views\SettingsWindow.xaml.cpp" />
+    <ClInclude Include="Views\InputDialog.xaml.h" />
+    <ClCompile Include="Views\InputDialog.xaml.cpp" />
+  </ItemGroup>
+  <!-- ViewModel Sources (C++/WinRT runtime classes) -->
+  <ItemGroup>
+    <ClInclude Include="ViewModels\RelayCommand.h" />
+    <ClCompile Include="ViewModels\RelayCommand.cpp" />
+    <ClInclude Include="ViewModels\DisasmLineViewModel.h" />
+    <ClCompile Include="ViewModels\DisasmLineViewModel.cpp" />
+    <ClInclude Include="ViewModels\MemoryByteCell.h" />
+    <ClCompile Include="ViewModels\MemoryByteCell.cpp" />
+    <ClInclude Include="ViewModels\MemoryDumpRow.h" />
+    <ClCompile Include="ViewModels\MemoryDumpRow.cpp" />
+    <ClInclude Include="ViewModels\MainViewModel.h" />
+    <ClCompile Include="ViewModels\MainViewModel.cpp" />
+  </ItemGroup>
+  <!-- NuGet packages -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
+    <PackageReference Include="Microsoft.Windows.CppWinRT" Version="2.0.250303.1" />
+    <PackageReference Include="Microsoft.Windows.ImplementationLibrary" Version="1.0.240803.1" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+  <!-- Fix MSB8027: WindowsAppSDK NuGet's foundation package adds
+       WindowsAppRuntimeAutoInitializer.cpp via both build\native and
+       buildTransitive\native .targets, causing a duplicate ClCompile entry.
+       1. Suppress the MSB8027 warning (cosmetic: NuGet packaging issue).
+       2. Deduplicate ClCompile items before compilation to prevent LNK4042. -->
+  <PropertyGroup>
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB8027</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+  <Target Name="DeduplicateClCompile" BeforeTargets="ClCompile">
+    <RemoveDuplicates Inputs="@(ClCompile)">
+      <Output TaskParameter="Filtered" ItemName="_DeduplicatedClCompile" />
+    </RemoveDuplicates>
+    <ItemGroup>
+      <ClCompile Remove="@(ClCompile)" />
+      <ClCompile Include="@(_DeduplicatedClCompile)" />
+    </ItemGroup>
+  </Target>
+  <!--
+    Fix: WinUI 3 XAML compiler integration for C++ native projects.
+    The WinUI 3 NuGet only wires Pass2 into PrepareResourcesDependsOn (managed-only).
+    For C++ projects we must manually:
+    1. Wire Pass1 + Pass2 into BeforeClCompileTargets (after MIDL/CppWinRT)
+    2. Set XamlLocalAssembly to the CppWinRT-merged .winmd
+    3. Populate @(WinMDReferenceToCompile) with WinUI + SDK winmds for Pass2
+    4. Add XamlTypeInfo.Impl.g.cpp to compilation (Pass1 generates it but
+       only adds it to @(XamlGFiles), not @(ClCompile), for native projects)
+  -->
+  <PropertyGroup>
+    <MarkupCompilePass1DependsOn>ResolveAssemblyReferences;AddXamlCompilerReferences;$(MarkupCompilePass1DependsOn)</MarkupCompilePass1DependsOn>
+    <MarkupCompilePass2DependsOn>ResolveAssemblyReferences;AddXamlCompilerReferences;$(MarkupCompilePass2DependsOn)</MarkupCompilePass2DependsOn>
+    <!-- Wire both XAML passes into the C++ build chain, after MIDL/CppWinRT
+         but before ClCompile so generated code is compiled in the same pass -->
+    <BeforeClCompileTargets>
+      MarkupCompilePass1;
+      MarkupCompilePass2;
+      $(BeforeClCompileTargets)
+    </BeforeClCompileTargets>
+    <!-- Point XAML compiler Pass2 at the CppWinRT-merged project .winmd -->
+    <XamlLocalAssembly>$(IntDir)Merged\$(TargetName).winmd</XamlLocalAssembly>
+  </PropertyGroup>
+  <!-- Provide all WinRT references needed by the XAML compiler.
+       For Pass1: adds SDK winmds to @(ReferencePath).
+       For Pass2: adds WinUI + SDK winmds DIRECTLY to @(XamlReferencesToCompile)
+       because @(WinMDReferenceToCompile) isn't populated in BeforeClCompile context. -->
+  <Target Name="AddXamlCompilerReferences">
+    <ItemGroup>
+      <!-- Windows SDK platform contract winmds (needed by Pass1 via @(ReferencePath)) -->
+      <_WinSDKPlatformWinMDs Include="$(WindowsSdkPath)References\$(TargetPlatformVersion)\**\*.winmd" />
+      <ReferencePath Include="@(_WinSDKPlatformWinMDs)" />
+      <!-- Add directly to XamlReferencesToCompile for Pass2 (bypasses WinMDReferenceToCompile) -->
+      <XamlReferencesToCompile Include="$(_MuxWinmdDir)Microsoft.UI.Xaml.winmd" />
+      <XamlReferencesToCompile Include="$(_MuxWinmdDir)Microsoft.UI.Text.winmd" />
+      <XamlReferencesToCompile Include="@(_WinSDKPlatformWinMDs)" />
+    </ItemGroup>
+  </Target>
+  <!-- XamlTypeInfo.Impl.g.cpp: generated by Pass1 but not auto-added to
+       ClCompile for native projects. Must be compiled for XamlMetaDataProvider. -->
+  <ItemGroup>
+    <ClCompile Include="$(IntDir)XamlTypeInfo.Impl.g.cpp" />
+    <ClCompile Include="$(IntDir)XamlTypeInfo.g.cpp" />
+  </ItemGroup>
+</Project>

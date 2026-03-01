@@ -1,0 +1,20 @@
+<ContentDialog
+    x:Class="Em68030.InputDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Input"
+    PrimaryButtonText="OK"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary"
+    MinWidth="350"
+    RequestedTheme="Dark">
+
+    <StackPanel Spacing="8">
+        <TextBlock x:Name="PromptText" Text="Enter value:" Foreground="#FFD4D4D4" />
+        <TextBox x:Name="InputTextBox"
+                 FontFamily="Consolas" FontSize="14"
+                 Background="#FF2D2D30" Foreground="#FFD4D4D4"
+                 BorderBrush="#FF3F3F46"
+                 Padding="4" />
+    </StackPanel>
+</ContentDialog>

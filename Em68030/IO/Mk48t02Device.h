@@ -1,0 +1,48 @@
+#pragma once
+
+#include <cstdint>
+#include <array>
+#include <vector>
+
+#include "IMemoryMappedDevice.h"
+
+namespace Em68030::IO {
+
+/// MK48T02 NVRAM/RTC for MVME147.
+/// 2KB SRAM with clock registers at the last 8 bytes ($7F8-$7FF).
+/// Mapped at $FFFE0000, 2048 bytes.
+///
+/// Clock registers (offset from base):
+///   $7F8 = Control (bit 7: Write, bit 6: Read)
+///   $7F9 = Seconds (BCD, 0-59)
+///   $7FA = Minutes (BCD, 0-59)
+///   $7FB = Hours   (BCD, 0-23)
+///   $7FC = Day of week (1-7)
+///   $7FD = Date    (BCD, 1-31)
+///   $7FE = Month   (BCD, 1-12)
+///   $7FF = Year    (BCD, 0-99)
+class Mk48t02Device : public IMemoryMappedDevice {
+public:
+    Mk48t02Device();
+
+    // IMemoryMappedDevice
+    uint8_t ReadByte(uint32_t address) override;
+    uint16_t ReadWord(uint32_t address) override;
+    uint32_t ReadLong(uint32_t address) override;
+    void WriteByte(uint32_t address, uint8_t value) override;
+    void WriteWord(uint32_t address, uint16_t value) override;
+    void WriteLong(uint32_t address, uint32_t value) override;
+
+    /// Pre-populate NVRAM with MVME147 hardware configuration values.
+    void SetMvme147Config(uint32_t onboardRamEnd, const uint8_t* ethernetAddr, size_t ethernetAddrLen);
+
+private:
+    static constexpr uint32_t BaseAddress = 0xFFFE0000;
+
+    uint8_t ReadClockRegister(uint32_t reg);
+    static uint8_t ToBcd(int val);
+
+    std::array<uint8_t, 2048> m_nvram{};
+};
+
+} // namespace Em68030::IO

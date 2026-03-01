@@ -1,0 +1,17 @@
+import "ViewModels\MemoryByteCell.idl";
+
+namespace Em68030
+{
+    [default_interface]
+    runtimeclass MemoryDumpRow : Microsoft.UI.Xaml.Data.INotifyPropertyChanged
+    {
+        MemoryDumpRow();
+
+        String AddressText{ get; };
+        String AsciiText{ get; };
+        UInt32 Address{ get; };
+        Windows.Foundation.Collections.IObservableVector<MemoryByteCell> Cells{ get; };
+
+        void RefreshAscii();
+    }
+}

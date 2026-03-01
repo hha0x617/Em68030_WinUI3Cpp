@@ -1,0 +1,14 @@
+namespace Em68030
+{
+    [default_interface]
+    runtimeclass InputDialog : Microsoft.UI.Xaml.Controls.ContentDialog
+    {
+        InputDialog();
+
+        // Show the dialog and return the entered text.
+        // Returns empty string if cancelled.
+        Windows.Foundation.IAsyncOperation<String>
+            ShowAsync(String title, String prompt, String defaultValue,
+                      Microsoft.UI.Xaml.UIElement parent);
+    }
+}

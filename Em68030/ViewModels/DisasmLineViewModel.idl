@@ -1,0 +1,19 @@
+namespace Em68030
+{
+    [default_interface]
+    runtimeclass DisasmLineViewModel : Microsoft.UI.Xaml.Data.INotifyPropertyChanged
+    {
+        DisasmLineViewModel();
+
+        UInt32 Address;
+        Boolean HasAddress;
+        String Text;
+        Boolean IsCurrentPC;
+        Boolean HasBreakpoint;
+        Boolean HasDisabledBreakpoint;
+        String RawBytes;
+        String Mnemonic;
+        String Operands;
+        Int32 Length;
+    }
+}
