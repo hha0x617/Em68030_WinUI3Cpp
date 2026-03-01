@@ -75,6 +75,8 @@ After building, run `Em68030\x64\Release\Em68030.exe`.
 
 On first launch, an `appsettings.json` file is generated from the Settings menu.
 
+> **Note**: Since the executable is not code-signed, Windows Defender SmartScreen may block it on first run. Click "More info" and then "Run anyway" to proceed. Alternatively, right-click the exe, open Properties, and check "Unblock" on the General tab.
+
 ## Configuration (appsettings.json)
 
 ```json
