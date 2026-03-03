@@ -1,0 +1,45 @@
+#define MyAppName "Em68030"
+#define MyAppPublisher "hha0x617"
+#define MyAppExeName "Em68030.exe"
+
+#ifndef AppVersion
+  #define AppVersion "0.0.0"
+#endif
+
+#ifndef SourceDir
+  #define SourceDir "..\release"
+#endif
+
+[Setup]
+AppId={{A7E2B1C3-6D4F-4A5E-8F7B-2A3B4C5D6E7F}
+AppName={#MyAppName}
+AppVersion={#AppVersion}
+AppPublisher={#MyAppPublisher}
+DefaultDirName={autopf}\{#MyAppName}
+DefaultGroupName={#MyAppName}
+DisableProgramGroupPage=yes
+OutputBaseFilename=Em68030-Setup-{#AppVersion}
+Compression=lzma2
+SolidCompression=yes
+WizardStyle=modern
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+MinVersion=10.0.17763
+
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[Files]
+Source: "{#SourceDir}\Em68030.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+
+[Icons]
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
