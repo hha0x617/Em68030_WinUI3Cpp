@@ -82,6 +82,12 @@ namespace winrt::Em68030::implementation
 
         // Send raw bytes to SCC RX FIFO (MVME147 mode)
         void SendRawBytes(const std::string& data);
+
+        // Copy selected text to clipboard (context menu handler)
+        void OnContextCopy();
+
+        // Paste clipboard text (async). rawMode=true sends to SCC, false appends to input buffer.
+        winrt::fire_and_forget PasteFromClipboard(bool rawMode);
     };
 }
 
