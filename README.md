@@ -20,18 +20,19 @@ This is the high-performance C++/WinRT + WinUI 3 port of the [C# WPF version](ht
 | Device | Emulation |
 |---|---|
 | WD33C93 SCSI Controller | Hard disk and CD-ROM (multiple units) |
-| AM7990 LANCE Ethernet | Virtual network (ARP/ICMP/TCP/UDP) |
+| AM7990 LANCE Ethernet | Virtual network (ARP/ICMP/TCP/UDP) / NAT (host network) |
 | Z8530 SCC Serial | VT100 terminal emulation |
 | Mk48t02 RTC | Real-time clock |
-| PCC | Interrupt controller |
+| PCC | Interrupt controller, wall-clock timer |
 
 ### Debugger UI
 - Disassembly view (auto-follow PC, address jump)
 - Register display and editing (D0-D7, A0-A7, PC, SR, SSP, VBR, FP0-FP7)
 - Memory dump and editing
 - Breakpoints
-- Console window (VT100 terminal with scrollback)
+- Console window (VT100 terminal with scrollback and paste support)
 - ELF / S-Record / binary file loading
+- Warm reboot (RESET instruction) and halt detection
 
 ### Performance
 Achieves emulation speed equivalent to 45-48 MHz on an i7-13700. Key optimizations:
@@ -88,6 +89,7 @@ On first launch, an `appsettings.json` file is generated from the Settings menu.
     ],
     "Mvme147ScsiCdromPath": "path/to/NetBSD-10.1-mvme68k.iso",
     "Mvme147ScsiCdromId": 3,
+    "NetworkMode": "Virtual",
     "ConsoleScrollbackLines": 2000
 }
 ```
@@ -98,6 +100,7 @@ On first launch, an `appsettings.json` file is generated from the Settings menu.
 | `MemorySize` | RAM size in bytes | 48 MB |
 | `Mvme147ScsiDisks` | List of SCSI disk images (Path + ScsiId) | `[]` |
 | `Mvme147ScsiCdromPath` | SCSI CD-ROM ISO image path | `""` |
+| `NetworkMode` | `"Virtual"` (echo server) or `"NAT"` (host network) | `"Virtual"` |
 | `ConsoleScrollbackLines` | Console scrollback lines (0-100000) | 2000 |
 
 ## Booting NetBSD
@@ -117,10 +120,10 @@ Em68030_WinUI3Cpp/
 │   ├── IO/             SCSI, Ethernet, Serial, RTC, PCC devices
 │   ├── Config/         EmulatorConfig (appsettings.json)
 │   ├── ViewModels/     MainViewModel
-│   ├── Views/          ConsoleWindow, BreakpointsWindow, SettingsWindow
+│   ├── Views/          ConsoleWindow, BreakpointsWindow, SettingsWindow, AboutDialog
 │   ├── ThirdParty/     nlohmann/json
 │   └── MainWindow.xaml Main debugger UI
-└── Em68030.Tests/      Google Test (104 tests)
+└── Em68030.Tests/      Google Test (156 tests)
 ```
 
 ## Limitations
@@ -135,7 +138,7 @@ Em68030_WinUI3Cpp/
 
 ### Devices
 - **SCSI**: Only standard commands used by NetBSD are implemented; not the full SCSI-2 command set
-- **Ethernet**: Virtual network supports only ARP reply, ICMP Echo (ping), and TCP/UDP echo server. No connection to the host OS network stack (TAP/bridge)
+- **Ethernet**: Virtual mode supports only ARP reply, ICMP Echo (ping), and TCP/UDP echo server. NAT mode connects to host network but does not support TAP/bridge
 - **Serial (SCC)**: No baud rate simulation or modem control signals (RTS/CTS)
 - **RTC**: Read-only implementation returning host system time. Time set by the guest OS is not persisted
 - **NVRAM**: In-memory only; not persisted to file
@@ -148,7 +151,6 @@ Em68030_WinUI3Cpp/
 ## Roadmap
 
 - Performance: Investigate JIT compilation for faster emulation
-- Ethernet: Connection to host OS network (TAP device / user-mode NAT)
 - FPU: Accurate 80-bit extended precision emulation
 - NVRAM file persistence
 - Graphics output (framebuffer)
