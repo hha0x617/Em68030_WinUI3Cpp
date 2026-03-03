@@ -5,7 +5,7 @@
     xmlns:local="using:Em68030"
     Title="Em68030 - MC68030 Emulator (C++/WinUI3)">
 
-    <Grid Background="#FF1E1E1E">
+    <Grid Background="#FF1E1E1E" KeyboardAcceleratorPlacementMode="Hidden">
         <Grid.Resources>
             <Style x:Key="MonoTextStyle" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="Consolas" />
