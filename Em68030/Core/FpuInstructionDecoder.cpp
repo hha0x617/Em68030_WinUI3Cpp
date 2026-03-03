@@ -6,6 +6,7 @@
 #include "AddressingModes.h"
 
 #include <cmath>
+#include <limits>
 #include <bit>
 #include <cstring>
 
@@ -89,6 +90,18 @@ void FpuInstructionDecoder::ExecuteGeneral(uint16_t opcode, int eaMode, int eaRe
             int srcFormat = (cmdWord >> 10) & 7;
             int dstReg = (cmdWord >> 7) & 7;
             int op = cmdWord & 0x7F;
+
+            // FMOVECR: srcFormat=7 means "Move Constant ROM"
+            // Loads an MC68882 on-chip constant into FPn.
+            // Bits 6-0 select the ROM constant offset.
+            if (srcFormat == 7)
+            {
+                double constant = GetFmovecrConstant(op);
+                _fpu.FP[dstReg] = constant;
+                _fpu.SetConditionCodes(constant);
+                break;
+            }
+
             double src = ReadEAFloat(eaMode, eaReg, srcFormat);
             ExecuteArithmetic(op, src, dstReg);
             break;
@@ -107,30 +120,38 @@ void FpuInstructionDecoder::ExecuteGeneral(uint16_t opcode, int eaMode, int eaRe
         case 4: // EA to control register (FMOVE/FMOVEM to FPCR/FPSR/FPIAR)
         {
             int regSelect = (cmdWord >> 10) & 7;
-            auto [mode, reg] = EffectiveAddress::Decode(eaMode, eaReg);
-            if (regSelect == 0) break; // No register selected
+            if (regSelect == 0) break;
 
-            // May move multiple control registers
-            if ((regSelect & 4) != 0) // FPCR
+            if (eaMode == 0) // Data register direct (single register only)
             {
-                _fpu.FPCR = EffectiveAddress::ReadValue(_cpu, mode, reg, 4);
-                if ((regSelect & 3) != 0)
-                {
-                    // Advance address for next register
-                    mode = AdvanceEA(mode, reg, 4, eaMode, eaReg);
-                }
+                uint32_t value = _cpu.D[eaReg];
+                if ((regSelect & 4) != 0) _fpu.FPCR = value;
+                else if ((regSelect & 2) != 0) _fpu.FPSR = value;
+                else if ((regSelect & 1) != 0) _fpu.FPIAR = value;
             }
-            if ((regSelect & 2) != 0) // FPSR
+            else if (eaMode == 3) // Post-increment (An)+
             {
-                _fpu.FPSR = EffectiveAddress::ReadValue(_cpu, mode, reg, 4);
-                if ((regSelect & 1) != 0)
-                {
-                    mode = AdvanceEA(mode, reg, 4, eaMode, eaReg);
-                }
+                uint32_t addr = _cpu.A[eaReg];
+                if ((regSelect & 4) != 0) { _fpu.FPCR = _cpu.ReadLong(addr); addr += 4; }
+                if ((regSelect & 2) != 0) { _fpu.FPSR = _cpu.ReadLong(addr); addr += 4; }
+                if ((regSelect & 1) != 0) { _fpu.FPIAR = _cpu.ReadLong(addr); addr += 4; }
+                _cpu.A[eaReg] = addr;
             }
-            if ((regSelect & 1) != 0) // FPIAR
+            else if (eaMode == 7 && eaReg == 4) // Immediate
             {
-                _fpu.FPIAR = EffectiveAddress::ReadValue(_cpu, mode, reg, 4);
+                uint32_t addr = _cpu.PC;
+                if ((regSelect & 4) != 0) { _fpu.FPCR = _cpu.ReadLong(addr); addr += 4; }
+                if ((regSelect & 2) != 0) { _fpu.FPSR = _cpu.ReadLong(addr); addr += 4; }
+                if ((regSelect & 1) != 0) { _fpu.FPIAR = _cpu.ReadLong(addr); addr += 4; }
+                _cpu.PC = addr;
+            }
+            else // Other addressing modes: (An), d(An), d(An,Xi), d(PC), d(PC,Xi), abs
+            {
+                auto [mode, reg] = EffectiveAddress::Decode(eaMode, eaReg);
+                uint32_t addr = EffectiveAddress::ResolveAddress(_cpu, mode, reg, 4);
+                if ((regSelect & 4) != 0) { _fpu.FPCR = _cpu.ReadLong(addr); addr += 4; }
+                if ((regSelect & 2) != 0) { _fpu.FPSR = _cpu.ReadLong(addr); addr += 4; }
+                if ((regSelect & 1) != 0) { _fpu.FPIAR = _cpu.ReadLong(addr); }
             }
             break;
         }
@@ -138,24 +159,31 @@ void FpuInstructionDecoder::ExecuteGeneral(uint16_t opcode, int eaMode, int eaRe
         case 5: // Control register to EA (FMOVE/FMOVEM from FPCR/FPSR/FPIAR)
         {
             int regSelect = (cmdWord >> 10) & 7;
-            auto [mode, reg] = EffectiveAddress::Decode(eaMode, eaReg);
             if (regSelect == 0) break;
 
-            if ((regSelect & 4) != 0) // FPCR
+            if (eaMode == 0) // Data register direct (single register only)
             {
-                EffectiveAddress::WriteValue(_cpu, mode, reg, 4, _fpu.FPCR);
-                if ((regSelect & 3) != 0)
-                    mode = AdvanceEA(mode, reg, 4, eaMode, eaReg);
+                if ((regSelect & 4) != 0) _cpu.D[eaReg] = _fpu.FPCR;
+                else if ((regSelect & 2) != 0) _cpu.D[eaReg] = _fpu.FPSR;
+                else if ((regSelect & 1) != 0) _cpu.D[eaReg] = _fpu.FPIAR;
             }
-            if ((regSelect & 2) != 0) // FPSR
+            else if (eaMode == 4) // Pre-decrement -(An)
             {
-                EffectiveAddress::WriteValue(_cpu, mode, reg, 4, _fpu.FPSR);
-                if ((regSelect & 1) != 0)
-                    mode = AdvanceEA(mode, reg, 4, eaMode, eaReg);
+                // MC68881/82: predecrement writes in reverse order (FPIAR, FPSR, FPCR)
+                // so that postincrement restore reads them back correctly.
+                uint32_t addr = _cpu.A[eaReg];
+                if ((regSelect & 1) != 0) { addr -= 4; _cpu.WriteLong(addr, _fpu.FPIAR); }
+                if ((regSelect & 2) != 0) { addr -= 4; _cpu.WriteLong(addr, _fpu.FPSR); }
+                if ((regSelect & 4) != 0) { addr -= 4; _cpu.WriteLong(addr, _fpu.FPCR); }
+                _cpu.A[eaReg] = addr;
             }
-            if ((regSelect & 1) != 0) // FPIAR
+            else // Other addressing modes: (An), d(An), d(An,Xi), abs
             {
-                EffectiveAddress::WriteValue(_cpu, mode, reg, 4, _fpu.FPIAR);
+                auto [mode, reg] = EffectiveAddress::Decode(eaMode, eaReg);
+                uint32_t addr = EffectiveAddress::ResolveAddress(_cpu, mode, reg, 4);
+                if ((regSelect & 4) != 0) { _cpu.WriteLong(addr, _fpu.FPCR); addr += 4; }
+                if ((regSelect & 2) != 0) { _cpu.WriteLong(addr, _fpu.FPSR); addr += 4; }
+                if ((regSelect & 1) != 0) { _cpu.WriteLong(addr, _fpu.FPIAR); }
             }
             break;
         }
@@ -550,11 +578,29 @@ void FpuInstructionDecoder::ExecuteFSccDBccTRAPcc(uint16_t opcode, int eaMode, i
 
 void FpuInstructionDecoder::ExecuteFSave(uint16_t opcode, int eaMode, int eaReg)
 {
-    // Simplified: write a null frame (idle state)
-    // Use CPU memory access (through MMU) not direct physical memory
-    auto [mode, reg] = EffectiveAddress::Decode(eaMode, eaReg);
-    uint32_t addr = EffectiveAddress::ResolveAddress(_cpu, mode, reg, 4);
-    _cpu.WriteLong(addr, 0x00000000); // Null frame
+    // Write MC68882 idle state frame: version=0x1F, fsize=0x38 (56 bytes internal state).
+    // Total frame = 4-byte header + 56 bytes = 60 bytes.
+    // NetBSD's fpu_probe() reads fsize to identify FPU type:
+    //   fsize=0x18 -> MC68881, fsize=0x38 -> MC68882.
+    // A non-null version byte tells the kernel to save FP registers via FMOVEM.
+    constexpr uint32_t FrameSize = 60;
+    constexpr uint32_t Header = 0x1F380000; // version=0x1F, fsize=0x38
+
+    uint32_t addr;
+    if (eaMode == 4) // Pre-decrement -(An)
+    {
+        addr = _cpu.A[eaReg] - FrameSize;
+        _cpu.A[eaReg] = addr;
+    }
+    else
+    {
+        auto [mode, reg] = EffectiveAddress::Decode(eaMode, eaReg);
+        addr = EffectiveAddress::ResolveAddress(_cpu, mode, reg, 4);
+    }
+
+    _cpu.WriteLong(addr, Header);
+    for (uint32_t i = 4; i < FrameSize; i += 4)
+        _cpu.WriteLong(addr + i, 0);
 }
 
 // ============================================================================
@@ -563,15 +609,35 @@ void FpuInstructionDecoder::ExecuteFSave(uint16_t opcode, int eaMode, int eaReg)
 
 void FpuInstructionDecoder::ExecuteFRestore(uint16_t opcode, int eaMode, int eaReg)
 {
-    // Simplified: read frame header and skip
-    // Use CPU memory access (through MMU) not direct physical memory
-    auto [mode, reg] = EffectiveAddress::Decode(eaMode, eaReg);
-    uint32_t addr = EffectiveAddress::ResolveAddress(_cpu, mode, reg, 4);
+    // Read FPU state frame header and restore internal state.
+    // Null frame (version byte = 0, fsize = 0): reset FPU, 4 bytes total.
+    // Non-null frame: keep current register state, advance by 4 + fsize bytes.
+    // For postincrement mode, SP must advance by the full frame size.
+    uint32_t addr;
+    bool isPostIncrement = (eaMode == 3);
+
+    if (isPostIncrement)
+    {
+        addr = _cpu.A[eaReg];
+    }
+    else
+    {
+        auto [mode, reg] = EffectiveAddress::Decode(eaMode, eaReg);
+        addr = EffectiveAddress::ResolveAddress(_cpu, mode, reg, 4);
+    }
+
     uint32_t header = _cpu.ReadLong(addr);
-    // Null frame = reset FPU
-    if (header == 0)
+    uint32_t version = header >> 24;
+    uint32_t fsize = (header >> 16) & 0xFF;
+
+    if (version == 0)
     {
         _fpu.Reset();
+        if (isPostIncrement) _cpu.A[eaReg] = addr + 4;
+    }
+    else
+    {
+        if (isPostIncrement) _cpu.A[eaReg] = addr + 4 + fsize;
     }
 }
 
@@ -659,6 +725,37 @@ AddressingMode FpuInstructionDecoder::AdvanceEA(
     // For memory modes, we just re-decode with offset
     // This is a simplification; real hardware advances the address
     return mode;
+}
+
+// MC68882 FMOVECR constant ROM table
+double FpuInstructionDecoder::GetFmovecrConstant(int offset)
+{
+    switch (offset)
+    {
+    case 0x00: return 3.14159265358979323846;   // π
+    case 0x0B: return 0.30102999566398119521;   // log₁₀(2)
+    case 0x0C: return 2.71828182845904523536;   // e
+    case 0x0D: return 1.4426950408889634074;    // log₂(e)
+    case 0x0E: return 0.43429448190325182765;   // log₁₀(e)
+    case 0x0F: return 0.0;                      // zero
+    case 0x30: return 0.69314718055994530942;   // ln(2)
+    case 0x31: return 2.30258509299404568402;   // ln(10)
+    case 0x32: return 1e0;                      // 10^0
+    case 0x33: return 1e1;                      // 10^1
+    case 0x34: return 1e2;                      // 10^2
+    case 0x35: return 1e4;                      // 10^4
+    case 0x36: return 1e8;                      // 10^8
+    case 0x37: return 1e16;                     // 10^16
+    case 0x38: return 1e32;                     // 10^32
+    case 0x39: return 1e64;                     // 10^64
+    case 0x3A: return 1e128;                    // 10^128
+    case 0x3B: return 1e256;                    // 10^256
+    case 0x3C: return std::numeric_limits<double>::infinity(); // 10^512
+    case 0x3D: return std::numeric_limits<double>::infinity(); // 10^1024
+    case 0x3E: return std::numeric_limits<double>::infinity(); // 10^2048
+    case 0x3F: return std::numeric_limits<double>::infinity(); // 10^4096
+    default:   return 0.0;
+    }
 }
 
 } // namespace Em68030::Core

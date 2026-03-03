@@ -37,6 +37,9 @@ private:
     /// Helper for multi-register FMOVEM control register transfers.
     AddressingMode AdvanceEA(AddressingMode mode, int& reg, int size, int origEaMode, int origEaReg);
 
+    /// MC68882 FMOVECR constant ROM lookup.
+    static double GetFmovecrConstant(int offset);
+
     MC68030& _cpu;
     Fpu& _fpu;
 };
