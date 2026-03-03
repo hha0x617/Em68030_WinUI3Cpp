@@ -53,9 +53,18 @@ void VirtualNetworkHandler::HandleArp(const uint8_t* frame, int length)
     uint16_t op = ReadBE16(frame, 20);
     if (op != 1) return; // Only ARP Request
 
+    // Ignore DAD probes (SPA = 0.0.0.0) — responding would cause
+    // "DAD duplicate address" errors during interface configuration.
+    if (frame[28] == 0 && frame[29] == 0 && frame[30] == 0 && frame[31] == 0)
+        return;
+
     // Learn guest IP from SPA (offset 28)
     std::memcpy(m_guestIp.data(), frame + 28, 4);
     m_guestIpKnown = true;
+
+    // Don't respond if TPA = guest IP (gratuitous ARP / DAD announcement)
+    if (std::memcmp(frame + 38, m_guestIp.data(), 4) == 0)
+        return;
 
     // Build ARP Reply
     std::vector<uint8_t> reply(MIN_ETHERNET_FRAME, 0);

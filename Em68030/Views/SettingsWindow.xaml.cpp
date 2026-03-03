@@ -85,6 +85,7 @@ namespace winrt::Em68030::implementation
         FontFamilyBox(FindName(L"FontFamilyBox").try_as<Controls::TextBox>());
         FontSizeBox(FindName(L"FontSizeBox").try_as<Controls::TextBox>());
         AddScsiDiskBtn(FindName(L"AddScsiDiskBtn").try_as<Controls::Button>());
+        NetworkModeBox(FindName(L"NetworkModeBox").try_as<Controls::ComboBox>());
 
         // Wire event handlers programmatically (XAML Connect is no-op for C++ native)
         if (BoardTypeBox())
@@ -354,6 +355,8 @@ namespace winrt::Em68030::implementation
 
         ScsiCdromPathBox().Text(winrt::to_hstring(config.Mvme147ScsiCdromPath));
         m_desiredCdromId = std::clamp(config.Mvme147ScsiCdromId, 0, 6);
+        if (NetworkModeBox())
+            NetworkModeBox().SelectedIndex(config.NetworkMode == "NAT" ? 1 : 0);
         UpdateMvme147Visibility();
         RefreshScsiIdOptions();
 
@@ -400,6 +403,8 @@ namespace winrt::Em68030::implementation
 
         config.Mvme147ScsiCdromPath = winrt::to_string(ScsiCdromPathBox().Text());
         config.Mvme147ScsiCdromId = GetSelectedScsiId(ScsiCdromIdBox());
+        if (NetworkModeBox())
+            config.NetworkMode = (NetworkModeBox().SelectedIndex() == 1) ? "NAT" : "Virtual";
 
         // Memory size
         auto memText = winrt::to_string(MemSizeBox().Text());

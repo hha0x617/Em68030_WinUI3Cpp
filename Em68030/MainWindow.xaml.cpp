@@ -171,6 +171,7 @@ namespace winrt::Em68030::implementation
 
             // Status bar
             StatusText(root.FindName(L"StatusText").try_as<Controls::TextBlock>());
+            m_networkModeText = root.FindName(L"NetworkModeText").try_as<Controls::TextBlock>();
             TraceStatusText(root.FindName(L"TraceStatusText").try_as<Controls::TextBlock>());
 
             // ================================================================
@@ -1701,6 +1702,12 @@ namespace winrt::Em68030::implementation
                 StatusText().Text(L"STOPPED");
             else
                 StatusText().Text(L"Running: False");
+        }
+        if (m_networkModeText)
+        {
+            auto mode = vmImpl->Config().NetworkMode;
+            auto wmode = std::wstring(mode.begin(), mode.end());
+            m_networkModeText.Text(L"Net: " + wmode);
         }
         if (TraceStatusText())
         {

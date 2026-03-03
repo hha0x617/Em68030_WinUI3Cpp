@@ -2,10 +2,11 @@
 
 #include <cstdint>
 #include <array>
+#include <memory>
 #include <functional>
 
 #include "IMemoryMappedDevice.h"
-#include "VirtualNetworkHandler.h"
+#include "INetworkHandler.h"
 
 namespace Em68030::Core {
     class Memory;
@@ -23,6 +24,8 @@ namespace Em68030::IO {
 class LanceDevice : public IMemoryMappedDevice {
 public:
     LanceDevice();
+
+    void SetNetworkHandler(std::unique_ptr<INetworkHandler> handler);
 
     // IMemoryMappedDevice
     uint8_t ReadByte(uint32_t address) override;
@@ -86,7 +89,7 @@ private:
     int m_txRingIndex = 0;
     bool m_txPending = false;
     int m_rxRingIndex = 0;
-    VirtualNetworkHandler m_networkHandler;
+    std::unique_ptr<INetworkHandler> m_networkHandler;
 };
 
 } // namespace Em68030::IO

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <array>
 #include <string>
+#include <chrono>
 
 #include "IMemoryMappedDevice.h"
 
@@ -93,6 +94,9 @@ private:
     void WriteDeviceIcr(uint8_t& icr, uint8_t value, bool deviceActive);
     void WriteSoftIcr(uint8_t& icr, uint8_t value);
     void WriteTimerControl(uint8_t& control, uint32_t& count, uint16_t preload, uint8_t& overflowCount, uint8_t value);
+    void AdvanceTimer(uint32_t& count, uint8_t control, uint16_t preload,
+        uint8_t& overflowCount, uint8_t& icr, int ticks);
+    uint16_t GetCurrentTimerCount(uint32_t count, int64_t fractional, uint8_t control) const;
 
     Core::MC68030& m_cpu;
 
@@ -136,6 +140,12 @@ private:
     uint8_t m_vectorBase = 0x40;
     uint8_t m_soft2Icr = 0;
     uint8_t m_revision = 0;
+
+    // Wall-clock timer: real PCC timer runs at 160,000 Hz independent of CPU speed.
+    static constexpr int TimerFreq = 160000;
+    std::chrono::steady_clock::time_point m_lastTimerTimestamp = std::chrono::steady_clock::now();
+    int64_t m_timer1Fractional = 0;
+    int64_t m_timer2Fractional = 0;
 
     // Level-sensitive device assertion state
     bool m_sccDeviceActive = false;

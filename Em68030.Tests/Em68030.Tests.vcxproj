@@ -126,6 +126,10 @@
     <ClCompile Include="MmuTests\PTestTests.cpp" />
     <ClCompile Include="MmuTests\MmusrPreservationTests.cpp" />
     <ClCompile Include="AluTests\AluTests.cpp" />
+    <ClCompile Include="NetworkTests\NetworkUtilsTests.cpp" />
+    <ClCompile Include="NetworkTests\VirtualNetworkHandlerTests.cpp" />
+    <ClCompile Include="NetworkTests\LanceDeviceTests.cpp" />
+    <ClCompile Include="NetworkTests\SlirpNetworkHandlerTests.cpp" />
   </ItemGroup>
   <!-- ================================================================ -->
   <!-- Shared Core sources (compiled without main project's WinRT PCH)  -->
@@ -197,6 +201,9 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="$(SolutionDir)Em68030\IO\FileLoader.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(SolutionDir)Em68030\IO\SlirpNetworkHandler.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>

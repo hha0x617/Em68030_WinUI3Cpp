@@ -6,15 +6,17 @@
 #include <queue>
 #include <unordered_map>
 
+#include "INetworkHandler.h"
+
 namespace Em68030::IO {
 
-class VirtualNetworkHandler {
+class VirtualNetworkHandler : public INetworkHandler {
 public:
-    void SetGuestMac(const std::array<uint8_t, 6>& mac);
-    void ProcessPacket(const uint8_t* frame, int length);
-    bool HasPendingPacket() const;
-    std::vector<uint8_t> DequeuePacket();
-    void Reset();
+    void SetGuestMac(const std::array<uint8_t, 6>& mac) override;
+    void ProcessPacket(const uint8_t* frame, int length) override;
+    bool HasPendingPacket() const override;
+    std::vector<uint8_t> DequeuePacket() override;
+    void Reset() override;
 
 private:
     static constexpr std::array<uint8_t, 6> GatewayMac = { 0x52, 0x54, 0x00, 0x12, 0x34, 0x56 };

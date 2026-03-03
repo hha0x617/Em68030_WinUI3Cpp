@@ -60,6 +60,9 @@ public:
     std::string Mvme147ScsiCdromPath;
     int Mvme147ScsiCdromId = 3;
 
+    // Network mode: "Virtual" (internal echo server) or "NAT" (host network via user-mode NAT)
+    std::string NetworkMode = "Virtual";
+
     // Console scrollback buffer size (lines). Range: 0..100000
     int ConsoleScrollbackLines = 2000;
 

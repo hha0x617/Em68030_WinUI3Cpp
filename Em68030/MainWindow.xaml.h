@@ -150,6 +150,9 @@ namespace winrt::Em68030::implementation
         winrt::event_token m_consoleCharToken;
         winrt::event_token m_consoleStringToken;
 
+        // Status bar
+        winrt::Microsoft::UI::Xaml::Controls::TextBlock m_networkModeText{ nullptr };
+
         // Memory edit grid state
         winrt::Microsoft::UI::Xaml::Controls::StackPanel m_memEditPanel{ nullptr };
         std::vector<std::vector<winrt::Microsoft::UI::Xaml::Controls::TextBox>> m_memCellBoxes;

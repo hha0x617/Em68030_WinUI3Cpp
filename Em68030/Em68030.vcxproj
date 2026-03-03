@@ -133,6 +133,9 @@
   <!-- IO Devices (plain C++) -->
   <ItemGroup>
     <ClInclude Include="IO\IMemoryMappedDevice.h" />
+    <ClInclude Include="IO\INetworkHandler.h" />
+    <ClInclude Include="IO\NetworkUtils.h" />
+    <ClInclude Include="IO\SlirpNetworkHandler.h" />
     <ClInclude Include="IO\ConsoleDevice.h" />
     <ClInclude Include="IO\HddDevice.h" />
     <ClInclude Include="IO\Mk48t02Device.h" />
@@ -150,6 +153,7 @@
     <ClCompile Include="IO\Mk48t02Device.cpp" />
     <ClCompile Include="IO\LanceDevice.cpp" />
     <ClCompile Include="IO\VirtualNetworkHandler.cpp" />
+    <ClCompile Include="IO\SlirpNetworkHandler.cpp" />
     <ClCompile Include="IO\Mvme147IoSpaceDevice.cpp" />
     <ClCompile Include="IO\PccDevice.cpp" />
     <ClCompile Include="IO\Z8530Device.cpp" />

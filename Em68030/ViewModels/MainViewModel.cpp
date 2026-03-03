@@ -20,6 +20,7 @@
 #include "IO/Wd33c93Device.h"
 #include "IO/ScsiDisk.h"
 #include "IO/ScsiCdrom.h"
+#include "IO/SlirpNetworkHandler.h"
 
 using namespace winrt;
 using namespace Windows::Foundation;
@@ -221,6 +222,14 @@ namespace winrt::Em68030::implementation
 
         m_lanceDevice = std::make_unique<::Em68030::IO::LanceDevice>();
         m_lanceDevice->AttachMemory(m_memory.get());
+        if (m_config.NetworkMode == "NAT")
+        {
+            auto natHandler = std::make_unique<::Em68030::IO::SlirpNetworkHandler>();
+            natHandler->DiagnosticOutput = [this](const std::string& msg) {
+                if (m_traceWriter) *m_traceWriter << msg;
+            };
+            m_lanceDevice->SetNetworkHandler(std::move(natHandler));
+        }
 
         // Register catch-all for I/O space
         m_ioSpaceDevice = std::make_unique<::Em68030::IO::Mvme147IoSpaceDevice>();
@@ -276,12 +285,10 @@ namespace winrt::Em68030::implementation
             m_pccDevice->HardwareReset();
         };
 
-        // Diagnostic output
+        // Diagnostic output: trace file only (not shown in console window)
         m_cpu->DiagnosticOutput = [this](const std::string& msg) {
             if (m_traceWriter)
                 *m_traceWriter << msg;
-            else
-                m_consoleStringOutput(*this, to_hstring_from_std(msg));
         };
 
         // Load ROM image if configured

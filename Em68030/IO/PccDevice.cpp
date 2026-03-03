@@ -22,6 +22,9 @@ void PccDevice::HardwareReset()
     m_timer2OverflowCount = 0;
     m_timer1Count = 0;
     m_timer2Count = 0;
+    m_timer1Fractional = 0;
+    m_timer2Fractional = 0;
+    m_lastTimerTimestamp = std::chrono::steady_clock::now();
 
     // Clear all device ICRs
     m_acFailIcr = 0;
@@ -51,39 +54,89 @@ void PccDevice::HardwareReset()
 
 void PccDevice::Tick()
 {
+    // Calculate elapsed wall-clock time and convert to 160 kHz timer ticks.
+    // Real PCC timer runs at a fixed 160,000 Hz crystal, independent of CPU speed.
+    auto now = std::chrono::steady_clock::now();
+    auto elapsedNs = std::chrono::duration_cast<std::chrono::nanoseconds>(now - m_lastTimerTimestamp).count();
+    m_lastTimerTimestamp = now;
+
+    // Clamp: ignore negative or huge jumps (e.g., after pause/resume)
+    if (elapsedNs <= 0) return;
+    constexpr int64_t maxElapsedNs = 100'000'000; // 100ms max
+    if (elapsedNs > maxElapsedNs) elapsedNs = maxElapsedNs;
+
     // Timer 1: count-up from preload, overflow at 0x10000
-    if ((m_timer1Control & 0x04) != 0) // CEN (bit 2) = count enable
+    if ((m_timer1Control & 0x04) != 0) // CEN
     {
-        m_timer1Count++;
-        if (m_timer1Count > 0xFFFF) // 16-bit overflow
-        {
-            if ((m_timer1Control & 0x02) != 0) // COC (bit 1) = reload preload on overflow
-                m_timer1Count = m_timer1Preload;
-            else
-                m_timer1Count &= 0xFFFF;
-            if (m_timer1OverflowCount < 15)
-                m_timer1OverflowCount++;
-            m_timer1Icr |= 0x80; // Set INT pending
-            UpdateIPL();
-        }
+        m_timer1Fractional += elapsedNs * TimerFreq;
+        int ticks = static_cast<int>(m_timer1Fractional / 1'000'000'000LL);
+        m_timer1Fractional -= static_cast<int64_t>(ticks) * 1'000'000'000LL;
+        if (ticks > 0)
+            AdvanceTimer(m_timer1Count, m_timer1Control, m_timer1Preload,
+                m_timer1OverflowCount, m_timer1Icr, ticks);
     }
 
     // Timer 2: same model
     if ((m_timer2Control & 0x04) != 0)
     {
-        m_timer2Count++;
-        if (m_timer2Count > 0xFFFF)
-        {
-            if ((m_timer2Control & 0x02) != 0)
-                m_timer2Count = m_timer2Preload;
-            else
-                m_timer2Count &= 0xFFFF;
-            if (m_timer2OverflowCount < 15)
-                m_timer2OverflowCount++;
-            m_timer2Icr |= 0x80;
-            UpdateIPL();
-        }
+        m_timer2Fractional += elapsedNs * TimerFreq;
+        int ticks = static_cast<int>(m_timer2Fractional / 1'000'000'000LL);
+        m_timer2Fractional -= static_cast<int64_t>(ticks) * 1'000'000'000LL;
+        if (ticks > 0)
+            AdvanceTimer(m_timer2Count, m_timer2Control, m_timer2Preload,
+                m_timer2OverflowCount, m_timer2Icr, ticks);
     }
+}
+
+uint16_t PccDevice::GetCurrentTimerCount(uint32_t count, int64_t fractional, uint8_t control) const
+{
+    if ((control & 0x04) == 0) // CEN not set, timer stopped
+        return static_cast<uint16_t>(count & 0xFFFF);
+
+    auto now = std::chrono::steady_clock::now();
+    auto elapsedNs = std::chrono::duration_cast<std::chrono::nanoseconds>(now - m_lastTimerTimestamp).count();
+    if (elapsedNs <= 0) return static_cast<uint16_t>(count & 0xFFFF);
+
+    int64_t totalFrac = fractional + elapsedNs * TimerFreq;
+    int additionalTicks = static_cast<int>(totalFrac / 1'000'000'000LL);
+
+    // Clamp: don't cross the 16-bit overflow boundary (0xFFFF).
+    // Overflow handling (incrementing overflow count, setting ICR INT) is done
+    // in Tick(). If we wrapped here, clock_pcc_getcount() would see a count
+    // below preload while the overflow counter hasn't been incremented yet,
+    // causing the monotonic clock to go backwards.
+    int distToOverflow = 0x10000 - static_cast<int>(count & 0xFFFF);
+    if (additionalTicks >= distToOverflow)
+        additionalTicks = distToOverflow - 1; // clamp at 0xFFFF
+
+    return static_cast<uint16_t>((count + static_cast<uint32_t>(additionalTicks)) & 0xFFFF);
+}
+
+void PccDevice::AdvanceTimer(uint32_t& count, uint8_t control, uint16_t preload,
+    uint8_t& overflowCount, uint8_t& icr, int ticks)
+{
+    bool coc = (control & 0x02) != 0;
+    int period = coc ? (0x10000 - preload) : 0x10000;
+    if (period <= 0) period = 1;
+
+    int distToOverflow = 0x10000 - static_cast<int>(count & 0xFFFF);
+
+    if (ticks < distToOverflow)
+    {
+        count += static_cast<uint32_t>(ticks);
+        return;
+    }
+
+    // At least one overflow
+    ticks -= distToOverflow;
+    int overflows = 1 + ticks / period;
+    int remainder = ticks % period;
+    count = static_cast<uint32_t>((coc ? preload : 0) + remainder);
+
+    int newOvf = overflowCount + overflows;
+    overflowCount = static_cast<uint8_t>(newOvf > 15 ? 15 : newOvf);
+    icr |= 0x80; // Set INT pending
+    UpdateIPL();
 }
 
 void PccDevice::SetDeviceInterrupt(const std::string& device, bool active)
@@ -144,12 +197,12 @@ uint8_t PccDevice::ReadByte(uint32_t address)
     switch (offset) {
         case 0x10: return static_cast<uint8_t>(m_timer1Preload >> 8);
         case 0x11: return static_cast<uint8_t>(m_timer1Preload & 0xFF);
-        case 0x12: return static_cast<uint8_t>((m_timer1Count >> 8) & 0xFF);
-        case 0x13: return static_cast<uint8_t>(m_timer1Count & 0xFF);
+        case 0x12: return static_cast<uint8_t>((GetCurrentTimerCount(m_timer1Count, m_timer1Fractional, m_timer1Control) >> 8) & 0xFF);
+        case 0x13: return static_cast<uint8_t>(GetCurrentTimerCount(m_timer1Count, m_timer1Fractional, m_timer1Control) & 0xFF);
         case 0x14: return static_cast<uint8_t>(m_timer2Preload >> 8);
         case 0x15: return static_cast<uint8_t>(m_timer2Preload & 0xFF);
-        case 0x16: return static_cast<uint8_t>((m_timer2Count >> 8) & 0xFF);
-        case 0x17: return static_cast<uint8_t>(m_timer2Count & 0xFF);
+        case 0x16: return static_cast<uint8_t>((GetCurrentTimerCount(m_timer2Count, m_timer2Fractional, m_timer2Control) >> 8) & 0xFF);
+        case 0x17: return static_cast<uint8_t>(GetCurrentTimerCount(m_timer2Count, m_timer2Fractional, m_timer2Control) & 0xFF);
         case 0x18: return m_timer1Icr;
         case 0x19: return static_cast<uint8_t>(m_timer1Control | (m_timer1OverflowCount << 4));
         case 0x1A: return m_timer2Icr;
@@ -183,9 +236,9 @@ uint16_t PccDevice::ReadWord(uint32_t address)
     uint32_t offset = address - BaseAddress;
     switch (offset) {
         case 0x10: return m_timer1Preload;
-        case 0x12: return static_cast<uint16_t>(m_timer1Count & 0xFFFF);
+        case 0x12: return GetCurrentTimerCount(m_timer1Count, m_timer1Fractional, m_timer1Control);
         case 0x14: return m_timer2Preload;
-        case 0x16: return static_cast<uint16_t>(m_timer2Count & 0xFFFF);
+        case 0x16: return GetCurrentTimerCount(m_timer2Count, m_timer2Fractional, m_timer2Control);
         default:
             return static_cast<uint16_t>((ReadByte(address) << 8) | ReadByte(address + 1));
     }

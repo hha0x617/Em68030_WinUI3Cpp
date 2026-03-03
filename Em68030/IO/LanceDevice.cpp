@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "LanceDevice.h"
+#include "VirtualNetworkHandler.h"
 #include "../Core/Memory.h"
 
 namespace Em68030::IO {
@@ -9,6 +10,14 @@ LanceDevice::LanceDevice()
 {
     m_csr.fill(0);
     m_csr[0] = CSR0_STOP;
+    m_networkHandler = std::make_unique<VirtualNetworkHandler>();
+}
+
+void LanceDevice::SetNetworkHandler(std::unique_ptr<INetworkHandler> handler)
+{
+    m_networkHandler = std::move(handler);
+    if (m_initialized)
+        m_networkHandler->SetGuestMac(m_macAddress);
 }
 
 void LanceDevice::AttachMemory(Core::Memory* memory)
@@ -20,7 +29,7 @@ void LanceDevice::Tick()
 {
     if (m_txPending)
         ProcessTxRing();
-    if (m_running && m_networkHandler.HasPendingPacket())
+    if (m_running && m_networkHandler->HasPendingPacket())
         ProcessRxRing();
 }
 
@@ -118,7 +127,7 @@ void LanceDevice::WriteCsr(int csrNum, uint16_t value)
         m_running = false;
         m_initialized = false;
         m_txPending = false;
-        m_networkHandler.Reset();
+        m_networkHandler->Reset();
         UpdateInterrupt();
         return;
     }
@@ -127,11 +136,9 @@ void LanceDevice::WriteCsr(int csrNum, uint16_t value)
     uint16_t w1cBits = static_cast<uint16_t>(value & W1C_MASK);
     m_csr[0] = static_cast<uint16_t>(m_csr[0] & ~w1cBits);
 
-    // 3. INEA: set or clear from write value directly
+    // 3. INEA: writing 1 sets it; writing 0 does NOT clear it (AM7990 spec)
     if ((value & CSR0_INEA) != 0)
         m_csr[0] |= CSR0_INEA;
-    else
-        m_csr[0] = static_cast<uint16_t>(m_csr[0] & ~CSR0_INEA);
 
     // 4. TDMD: trigger transmit demand
     if ((value & CSR0_TDMD) != 0)
@@ -201,7 +208,7 @@ void LanceDevice::DoInit()
     m_initialized = true;
     m_txRingIndex = 0;
     m_rxRingIndex = 0;
-    m_networkHandler.SetGuestMac(m_macAddress);
+    m_networkHandler->SetGuestMac(m_macAddress);
 }
 
 void LanceDevice::ProcessTxRing()
@@ -239,7 +246,7 @@ void LanceDevice::ProcessTxRing()
             bool stp = (tmd1Flags & 0x02) != 0;
             bool enp = (tmd1Flags & 0x01) != 0;
             if (stp && enp)
-                m_networkHandler.ProcessPacket(packet.data(), byteCount);
+                m_networkHandler->ProcessPacket(packet.data(), byteCount);
         }
 
         // Clear OWN bit, write back tmd1 and clear tmd3
@@ -265,7 +272,7 @@ void LanceDevice::ProcessRxRing()
 {
     if (m_memory == nullptr || !m_running) return;
 
-    while (m_networkHandler.HasPendingPacket())
+    while (m_networkHandler->HasPendingPacket())
     {
         uint32_t descAddr = m_rxRingAddr + static_cast<uint32_t>(m_rxRingIndex * 8);
 
@@ -287,7 +294,7 @@ void LanceDevice::ProcessRxRing()
                            (static_cast<uint32_t>(rmd1 & 0xFF) << 16);
         int bufSize = -static_cast<int16_t>(rmd2 | 0xF000);
 
-        auto packet = m_networkHandler.DequeuePacket();
+        auto packet = m_networkHandler->DequeuePacket();
 
         if (static_cast<int>(packet.size()) > bufSize)
         {

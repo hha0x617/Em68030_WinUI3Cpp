@@ -505,8 +505,10 @@
         <!-- Status Bar -->
         <Border Grid.Row="3" Background="#FF007ACC" Padding="8,4">
             <Grid>
-                <TextBlock x:Name="StatusText" Text="Running: False" Foreground="White"
-                           FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock x:Name="StatusText" Text="Running: False" Foreground="White" FontSize="12" />
+                    <TextBlock x:Name="NetworkModeText" Text="" Foreground="White" FontSize="12" Margin="16,0,0,0" />
+                </StackPanel>
                 <TextBlock x:Name="TraceStatusText" Text="" Foreground="Yellow"
                            FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" />
             </Grid>
