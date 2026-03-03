@@ -158,6 +158,9 @@
             <MenuBarItem Title="Settings">
                 <MenuFlyoutItem x:Name="MenuSettings" Text="Emulator Settings..." />
             </MenuBarItem>
+            <MenuBarItem Title="Help">
+                <MenuFlyoutItem x:Name="MenuAbout" Text="About..." />
+            </MenuBarItem>
         </MenuBar>
 
         <!-- Toolbar (replaces WPF ToolBarTray/ToolBar) -->

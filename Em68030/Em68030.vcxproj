@@ -193,6 +193,7 @@
     <Midl Include="Views\BreakpointsWindow.idl" />
     <Midl Include="Views\SettingsWindow.idl" />
     <Midl Include="Views\InputDialog.idl" />
+    <Midl Include="Views\AboutDialog.idl" />
   </ItemGroup>
   <!-- XAML Pages -->
   <ItemGroup>
@@ -214,6 +215,9 @@
     <Page Include="Views\InputDialog.xaml">
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Views\AboutDialog.xaml">
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
   <!-- XAML Code-Behind -->
   <ItemGroup>
@@ -229,6 +233,8 @@
     <ClCompile Include="Views\SettingsWindow.xaml.cpp" />
     <ClInclude Include="Views\InputDialog.xaml.h" />
     <ClCompile Include="Views\InputDialog.xaml.cpp" />
+    <ClInclude Include="Views\AboutDialog.xaml.h" />
+    <ClCompile Include="Views\AboutDialog.xaml.cpp" />
   </ItemGroup>
   <!-- ViewModel Sources (C++/WinRT runtime classes) -->
   <ItemGroup>

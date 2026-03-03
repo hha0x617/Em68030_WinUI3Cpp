@@ -53,6 +53,7 @@
 #include "Views/BreakpointsWindow.xaml.h"
 #include "Views/SettingsWindow.xaml.h"
 #include "Views/InputDialog.xaml.h"
+#include "Views/AboutDialog.xaml.h"
 
 // C++ standard library
 #include <cstdint>

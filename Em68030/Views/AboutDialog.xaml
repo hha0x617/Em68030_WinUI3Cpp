@@ -1,0 +1,29 @@
+<ContentDialog
+    x:Class="Em68030.AboutDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="About"
+    CloseButtonText="OK"
+    DefaultButton="Close"
+    MinWidth="350"
+    RequestedTheme="Dark">
+
+    <StackPanel Spacing="4">
+        <TextBlock Text="Em68030" FontSize="20" FontWeight="Bold"
+                   Foreground="#FF569CD6" />
+        <TextBlock Text="MC68030 Emulator" FontSize="13"
+                   Foreground="#FFD4D4D4" Margin="0,0,0,8" />
+        <TextBlock Text="Version 0.1.0" FontSize="13"
+                   Foreground="#FFD4D4D4" />
+        <TextBlock Text="C++ / WinUI3" FontSize="13"
+                   Foreground="#FF888888" Margin="0,0,0,8" />
+        <TextBlock Text="&#x00A9; 2026 hha0x617" FontSize="13"
+                   Foreground="#FFD4D4D4" />
+        <TextBlock Text="Licensed under Apache-2.0" FontSize="13"
+                   Foreground="#FFD4D4D4" />
+        <HyperlinkButton Content="https://github.com/hha0x617/em68030"
+                         NavigateUri="https://github.com/hha0x617/em68030"
+                         Foreground="#FF569CD6" FontSize="13"
+                         Padding="0" />
+    </StackPanel>
+</ContentDialog>

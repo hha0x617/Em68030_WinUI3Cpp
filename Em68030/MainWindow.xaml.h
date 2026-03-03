@@ -49,6 +49,10 @@ namespace winrt::Em68030::implementation
         void Settings_Click(winrt::Windows::Foundation::IInspectable const& sender,
                             winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
 
+        // --- Help menu ---
+        void About_Click(winrt::Windows::Foundation::IInspectable const& sender,
+                         winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
+
         // --- Keyboard accelerators ---
         void RunAccelerator_Invoked(winrt::Microsoft::UI::Xaml::Input::KeyboardAccelerator const& sender,
                                     winrt::Microsoft::UI::Xaml::Input::KeyboardAcceleratorInvokedEventArgs const& args);
@@ -133,6 +137,7 @@ namespace winrt::Em68030::implementation
         winrt::fire_and_forget ShowOpenSRecordDialog();
         winrt::fire_and_forget ShowOpenElfDialog();
         winrt::fire_and_forget ShowSettingsDialog();
+        winrt::fire_and_forget ShowAboutDialog();
         winrt::fire_and_forget ShowMessageDialog(winrt::hstring title, winrt::hstring message);
 
         // ViewModel

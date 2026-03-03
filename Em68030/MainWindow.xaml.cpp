@@ -13,6 +13,7 @@
 
 #include "Views/InputDialog.xaml.h"
 #include "Views/SettingsWindow.xaml.h"
+#include "Views/AboutDialog.xaml.h"
 #include "Views/ConsoleWindow.xaml.h"
 #include "Views/BreakpointsWindow.xaml.h"
 #include "ViewModels/MainViewModel.h"
@@ -210,6 +211,8 @@ namespace winrt::Em68030::implementation
                 mi.Click({ this, &MainWindow::ToggleLst_Click });
             if (auto mi = root.FindName(L"MenuSettings").try_as<Controls::MenuFlyoutItem>())
                 mi.Click({ this, &MainWindow::Settings_Click });
+            if (auto mi = root.FindName(L"MenuAbout").try_as<Controls::MenuFlyoutItem>())
+                mi.Click({ this, &MainWindow::About_Click });
 
             // --- Toolbar buttons ---
             if (auto btn = root.FindName(L"BtnRun").try_as<Controls::Button>())
@@ -751,6 +754,23 @@ namespace winrt::Em68030::implementation
                 }
             }
         }
+    }
+
+    // ========================================================================
+    // Help menu
+    // ========================================================================
+
+    void MainWindow::About_Click([[maybe_unused]] IInspectable const& sender,
+                                 [[maybe_unused]] RoutedEventArgs const& e)
+    {
+        ShowAboutDialog();
+    }
+
+    winrt::fire_and_forget MainWindow::ShowAboutDialog()
+    {
+        auto aboutDialog = winrt::make<Em68030::implementation::AboutDialog>();
+        aboutDialog.XamlRoot(this->Content().XamlRoot());
+        co_await aboutDialog.as<ContentDialog>().ShowAsync();
     }
 
     // ========================================================================
