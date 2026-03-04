@@ -336,8 +336,10 @@ namespace winrt::Em68030::implementation
 
         // Clock frequency estimation
         int64_t m_mhzCyclesSnapshot = 0;
+        int64_t m_mipsInsnSnapshot = 0;
         std::chrono::steady_clock::time_point m_mhzTimestamp;
         double m_estimatedMHz = 0.0;
+        double m_estimatedMips = 0.0;
 
         // Breakpoints
         std::unordered_map<uint32_t, BreakpointData> m_breakpoints;
