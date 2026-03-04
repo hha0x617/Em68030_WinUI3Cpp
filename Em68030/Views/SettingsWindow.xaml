@@ -188,6 +188,13 @@
                         Background="#FF3E3E42" Foreground="#FFD4D4D4" Padding="8,2" />
             </StackPanel>
 
+            <!-- Performance -->
+            <TextBlock Text="Performance" Style="{StaticResource SectionHeaderStyle}" />
+            <CheckBox x:Name="JitEnabledBox" Content="Enable JIT Compiler (experimental)"
+                      Foreground="#FFD4D4D4" Margin="0,4" />
+            <TextBlock Text="Compiles register-only basic blocks for faster execution. May slightly reduce performance on some workloads."
+                       Foreground="#FF808080" FontSize="11" TextWrapping="Wrap" Margin="24,0,0,4" />
+
             <!-- Display Settings -->
             <TextBlock Text="Display" Style="{StaticResource SectionHeaderStyle}" />
             <Grid>

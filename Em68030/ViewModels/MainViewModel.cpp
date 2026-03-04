@@ -168,6 +168,7 @@ namespace winrt::Em68030::implementation
             m_memory = std::make_unique<::Em68030::Core::Memory>(m_config.MemorySize);
         }
         m_cpu = std::make_unique<::Em68030::Core::MC68030>(*m_memory);
+        m_cpu->JitEnabled = m_config.JitEnabled;
 
         m_consoleDevice = std::make_unique<::Em68030::IO::ConsoleDevice>(m_config.ConsoleBaseAddress);
         m_hddDevice = std::make_unique<::Em68030::IO::HddDevice>(m_config.HddBaseAddress);
@@ -208,6 +209,7 @@ namespace winrt::Em68030::implementation
             m_memory->AddRegion(0xFF800000, 4 * 1024 * 1024, ::Em68030::Core::RegionType::Rom);
 
         m_cpu = std::make_unique<::Em68030::Core::MC68030>(*m_memory);
+        m_cpu->JitEnabled = m_config.JitEnabled;
 
         // Create MVME147 devices
         m_pccDevice = std::make_unique<::Em68030::IO::PccDevice>(*m_cpu);
@@ -773,6 +775,14 @@ namespace winrt::Em68030::implementation
         uint32_t runToCursorAddr = m_runToCursorAddress.value_or(0);
         auto lastMhzUpdate = std::chrono::steady_clock::now();
 
+        // Select execution function once at loop start to avoid per-instruction branching.
+        // ExecuteNextFast() is the interpreter-only path (no JIT code bloat).
+        // ExecuteNextFastJit() adds JIT block lookup + sampling.
+        using ExecFn = bool (::Em68030::Core::MC68030::*)();
+        ExecFn execFn = m_cpu->JitEnabled
+            ? &::Em68030::Core::MC68030::ExecuteNextFastJit
+            : &::Em68030::Core::MC68030::ExecuteNextFast;
+
         // Use large batch size; no yield() — this thread owns a full core
         constexpr int BatchSize = 100000;
 
@@ -792,7 +802,7 @@ namespace winrt::Em68030::implementation
                     {
                         try
                         {
-                            if (!m_cpu->ExecuteNextFast())
+                            if (!(m_cpu.get()->*execFn)())
                             {
                                 if (m_cpu->Halted || (!m_cpu->HasExternalDevices() && m_cpu->Stopped))
                                 { RequestStopOnUI(); return; }
@@ -829,7 +839,7 @@ namespace winrt::Em68030::implementation
                     {
                         try
                         {
-                            if (!m_cpu->ExecuteNextFast())
+                            if (!(m_cpu.get()->*execFn)())
                             {
                                 if (m_cpu->Halted || (!m_cpu->HasExternalDevices() && m_cpu->Stopped))
                                 { RequestStopOnUI(); return; }
@@ -1181,6 +1191,14 @@ namespace winrt::Em68030::implementation
                 else
                     m_scsiCdrom->UnmountImage();
             }
+        }
+
+        // JIT setting
+        if (m_cpu)
+        {
+            m_cpu->JitEnabled = m_config.JitEnabled;
+            if (!m_config.JitEnabled)
+                m_cpu->InvalidateJitCache();
         }
 
         m_config.Save();

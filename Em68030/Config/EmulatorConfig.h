@@ -66,6 +66,9 @@ public:
     // Console scrollback buffer size (lines). Range: 0..100000
     int ConsoleScrollbackLines = 2000;
 
+    // JIT compiler (experimental)
+    bool JitEnabled = false;
+
     // Load configuration from appsettings.json next to the executable.
     // Returns default config on failure.
     static EmulatorConfig Load();

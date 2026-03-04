@@ -73,7 +73,8 @@ void to_json(nlohmann::json& j, const EmulatorConfig& c)
         {"Mvme147ScsiCdromPath",    c.Mvme147ScsiCdromPath},
         {"Mvme147ScsiCdromId",      c.Mvme147ScsiCdromId},
         {"NetworkMode",             c.NetworkMode},
-        {"ConsoleScrollbackLines",  c.ConsoleScrollbackLines}
+        {"ConsoleScrollbackLines",  c.ConsoleScrollbackLines},
+        {"JitEnabled",              c.JitEnabled}
     };
 }
 
@@ -100,6 +101,7 @@ void from_json(const nlohmann::json& j, EmulatorConfig& c)
     if (j.contains("Mvme147ScsiCdromId"))     j.at("Mvme147ScsiCdromId").get_to(c.Mvme147ScsiCdromId);
     if (j.contains("NetworkMode"))             j.at("NetworkMode").get_to(c.NetworkMode);
     if (j.contains("ConsoleScrollbackLines")) j.at("ConsoleScrollbackLines").get_to(c.ConsoleScrollbackLines);
+    if (j.contains("JitEnabled"))             j.at("JitEnabled").get_to(c.JitEnabled);
 
     // Migrate legacy per-disk fields to Mvme147ScsiDisks list
     if (c.Mvme147ScsiDisks.empty() && !j.contains("Mvme147ScsiDisks"))

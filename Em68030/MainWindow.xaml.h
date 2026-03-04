@@ -157,6 +157,7 @@ namespace winrt::Em68030::implementation
 
         // Status bar
         winrt::Microsoft::UI::Xaml::Controls::TextBlock m_networkModeText{ nullptr };
+        winrt::Microsoft::UI::Xaml::Controls::TextBlock m_jitStatusText{ nullptr };
 
         // Memory edit grid state
         winrt::Microsoft::UI::Xaml::Controls::StackPanel m_memEditPanel{ nullptr };

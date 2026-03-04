@@ -84,6 +84,7 @@ namespace winrt::Em68030::implementation
         NewImageSizeBox(FindName(L"NewImageSizeBox").try_as<Controls::TextBox>());
         FontFamilyBox(FindName(L"FontFamilyBox").try_as<Controls::TextBox>());
         FontSizeBox(FindName(L"FontSizeBox").try_as<Controls::TextBox>());
+        JitEnabledBox(FindName(L"JitEnabledBox").try_as<Controls::CheckBox>());
         AddScsiDiskBtn(FindName(L"AddScsiDiskBtn").try_as<Controls::Button>());
         NetworkModeBox(FindName(L"NetworkModeBox").try_as<Controls::ComboBox>());
 
@@ -379,6 +380,10 @@ namespace winrt::Em68030::implementation
         }
         HddPathBox().Text(winrt::to_hstring(config.HddImagePath));
 
+        // Performance
+        if (JitEnabledBox())
+            JitEnabledBox().IsChecked(config.JitEnabled);
+
         // Display
         FontFamilyBox().Text(winrt::to_hstring(config.FontFamily));
         FontSizeBox().Text(winrt::to_hstring(std::to_string(config.FontSize)));
@@ -427,6 +432,11 @@ namespace winrt::Em68030::implementation
         catch (...) { /* keep previous */ }
 
         config.HddImagePath = winrt::to_string(HddPathBox().Text());
+
+        // Performance
+        if (JitEnabledBox())
+            config.JitEnabled = JitEnabledBox().IsChecked().Value();
+
         config.FontFamily = winrt::to_string(FontFamilyBox().Text());
 
         auto fontSizeText = winrt::to_string(FontSizeBox().Text());

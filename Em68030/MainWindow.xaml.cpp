@@ -173,6 +173,7 @@ namespace winrt::Em68030::implementation
             // Status bar
             StatusText(root.FindName(L"StatusText").try_as<Controls::TextBlock>());
             m_networkModeText = root.FindName(L"NetworkModeText").try_as<Controls::TextBlock>();
+            m_jitStatusText = root.FindName(L"JitStatusText").try_as<Controls::TextBlock>();
             TraceStatusText(root.FindName(L"TraceStatusText").try_as<Controls::TextBlock>());
 
             // ================================================================
@@ -747,6 +748,7 @@ namespace winrt::Em68030::implementation
             if (settingsDialog.as<implementation::SettingsWindow>()->SaveConfig(config))
             {
                 vmImpl->ApplyConfig(config);
+                UpdateStatusBar();
                 if (m_consoleWindow)
                 {
                     auto consoleImpl = m_consoleWindow.as<implementation::ConsoleWindow>();
@@ -1728,6 +1730,10 @@ namespace winrt::Em68030::implementation
             auto mode = vmImpl->Config().NetworkMode;
             auto wmode = std::wstring(mode.begin(), mode.end());
             m_networkModeText.Text(L"Net: " + wmode);
+        }
+        if (m_jitStatusText)
+        {
+            m_jitStatusText.Text(vmImpl->Cpu().JitEnabled ? L"JIT: ON" : L"JIT: OFF");
         }
         if (TraceStatusText())
         {

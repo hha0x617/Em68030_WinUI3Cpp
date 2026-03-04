@@ -511,6 +511,7 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
                     <TextBlock x:Name="StatusText" Text="Running: False" Foreground="White" FontSize="12" />
                     <TextBlock x:Name="NetworkModeText" Text="" Foreground="White" FontSize="12" Margin="16,0,0,0" />
+                    <TextBlock x:Name="JitStatusText" Text="" Foreground="White" FontSize="12" Margin="16,0,0,0" />
                 </StackPanel>
                 <TextBlock x:Name="TraceStatusText" Text="" Foreground="Yellow"
                            FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" />
