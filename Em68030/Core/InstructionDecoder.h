@@ -23,7 +23,12 @@ public:
     InstructionDecoder(InstructionDecoder&&) = delete;
     InstructionDecoder& operator=(InstructionDecoder&&) = delete;
 
-    void ExecuteNext();
+    uint16_t ExecuteNext();
+
+    // Cycle table: approximate MC68030 cycle counts per opcode
+    static uint8_t s_cycleTable[65536];
+    static void InitCycleTable();
+    static uint8_t GetCycles(uint16_t opcode) { return s_cycleTable[opcode]; }
 
 private:
     // ====================================================================

@@ -61,6 +61,7 @@ void MC68030::Reset()
     Stopped = false;
     StopReason.clear();
     CycleCount = 0;
+    InstructionCount = 0;
 }
 
 // ============================================================================
@@ -445,7 +446,8 @@ void MC68030::ExecuteStep()
             auto [faultAddr, isWrite, fc, ssw] = FixupPhysicalBusError(ex);
             RaiseBusError(faultAddr, isWrite, fc, ssw);
         }
-        CycleCount++;
+        CycleCount += 34;  // Interrupt ACK approximate cycles
+        InstructionCount++;
         return;
     }
 
@@ -457,7 +459,9 @@ void MC68030::ExecuteStep()
     std::copy(std::begin(D), std::end(D), std::begin(_savedD));
     try
     {
-        m_decoder->ExecuteNext();
+        auto opcode = m_decoder->ExecuteNext();
+        CycleCount += InstructionDecoder::GetCycles(opcode);
+        InstructionCount++;
     }
     catch (const BusErrorException& ex)
     {
@@ -470,8 +474,6 @@ void MC68030::ExecuteStep()
         auto [faultAddr, isWrite, fc, ssw] = FixupPhysicalBusError(ex);
         RaiseBusError(faultAddr, isWrite, fc, ssw);
     }
-
-    CycleCount++;
 }
 
 // ============================================================================
@@ -496,7 +498,8 @@ bool MC68030::ExecuteNextFast()
         std::copy(std::begin(D), std::end(D), std::begin(_savedD));
         _savedSR = SR;
         ProcessInterrupt(_pendingIPL);
-        CycleCount++;
+        CycleCount += 34;
+        InstructionCount++;
         return !Halted;
     }
 
@@ -506,9 +509,10 @@ bool MC68030::ExecuteNextFast()
     _savedSR = SR;
     _regSnapshotNeeded = true;  // Deferred — group decoders call EnsureRegSnapshot()
 
-    m_decoder->ExecuteNext();
+    auto opcode = m_decoder->ExecuteNext();
 
-    CycleCount++;
+    CycleCount += InstructionDecoder::GetCycles(opcode);
+    InstructionCount++;
     return true;
 }
 
@@ -536,7 +540,8 @@ bool MC68030::ExecuteNextFastJit()
         std::copy(std::begin(D), std::end(D), std::begin(_savedD));
         _savedSR = SR;
         ProcessInterrupt(_pendingIPL);
-        CycleCount++;
+        CycleCount += 34;
+        InstructionCount++;
         return !Halted;
     }
 
@@ -556,8 +561,9 @@ bool MC68030::ExecuteNextFastJit()
     }
 
     // Interpreter fallback (inline — no function call overhead)
-    m_decoder->ExecuteNext();
-    CycleCount++;
+    auto opcode = m_decoder->ExecuteNext();
+    CycleCount += InstructionDecoder::GetCycles(opcode);
+    InstructionCount++;
     return true;
 }
 
@@ -573,7 +579,8 @@ bool MC68030::ExecuteNextJit(CompiledBlock* block)
     _regSnapshotNeeded = false;
 
     PC = block->Execute(*this);
-    CycleCount += block->InstructionCount;
+    CycleCount += block->TotalCycles;
+    InstructionCount += block->InstructionCount;
     _tickDivider += block->InstructionCount - 1;
     return true;
 }
@@ -593,7 +600,7 @@ void MC68030::JitSamplePC()
     if (count == JitCompileThreshold)
     {
         auto compiled = m_jitCompiler.TryCompile(*this, PC, physPC);
-        if (compiled)
+        if (compiled && compiled->InstructionCount >= JitMinBlockLength)
             m_jitCache.AddBlock(physPC, std::move(compiled));
         else
             m_jitCache.MarkUncompilable(physPC);

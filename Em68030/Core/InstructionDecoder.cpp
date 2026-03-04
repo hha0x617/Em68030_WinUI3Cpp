@@ -121,6 +121,8 @@ void InstructionDecoder::InitOpcodeTable()
             s_opcodeTable[op] = &InstructionDecoder::FastCmpLDnDm;
         }
 
+    InitCycleTable();
+
     s_tableInitialized = true;
 }
 
@@ -128,10 +130,331 @@ void InstructionDecoder::InitOpcodeTable()
 // ExecuteNext — single table lookup dispatch
 // ========================================================================
 
-void InstructionDecoder::ExecuteNext()
+uint16_t InstructionDecoder::ExecuteNext()
 {
     uint16_t opcode = _cpu.FetchWord();
     (this->*s_opcodeTable[opcode])(opcode);
+    return opcode;
+}
+
+// ========================================================================
+// Cycle table — approximate MC68030 cycle counts per opcode
+// ========================================================================
+
+uint8_t InstructionDecoder::s_cycleTable[65536] = {};
+
+static uint8_t EaReadCost(int mode, int reg)
+{
+    switch (mode)
+    {
+        case 0: return 0;  // Dn
+        case 1: return 0;  // An
+        case 2: return 4;  // (An)
+        case 3: return 4;  // (An)+
+        case 4: return 4;  // -(An)
+        case 5: return 4;  // d16(An)
+        case 6: return 6;  // d8(An,Xn)
+        case 7:
+            switch (reg)
+            {
+                case 0: return 4;  // abs.W
+                case 1: return 8;  // abs.L
+                case 2: return 4;  // d16(PC)
+                case 3: return 6;  // d8(PC,Xn)
+                case 4: return 4;  // #imm
+                default: return 4;
+            }
+        default: return 4;
+    }
+}
+
+static uint8_t EaWriteCost(int mode, int reg)
+{
+    switch (mode)
+    {
+        case 0: return 0;  // Dn
+        case 1: return 0;  // An
+        case 2: return 4;  // (An)
+        case 3: return 4;  // (An)+
+        case 4: return 4;  // -(An)
+        case 5: return 4;  // d16(An)
+        case 6: return 6;  // d8(An,Xn)
+        case 7:
+            switch (reg)
+            {
+                case 0: return 4;  // abs.W
+                case 1: return 8;  // abs.L
+                default: return 4;
+            }
+        default: return 4;
+    }
+}
+
+static uint8_t ClampCycles(int cycles)
+{
+    return static_cast<uint8_t>(cycles > 255 ? 255 : cycles);
+}
+
+void InstructionDecoder::InitCycleTable()
+{
+    for (int op = 0; op < 65536; op++)
+    {
+        int group = (op >> 12) & 0xF;
+        int srcMode = (op >> 3) & 7;
+        int srcReg = op & 7;
+        int cycles = 4; // default
+
+        switch (group)
+        {
+            case 0x0: // ORI/ANDI/SUBI/ADDI/CMPI/EORI/Bit ops
+            {
+                int eaM = srcMode;
+                int eaR = srcReg;
+                cycles = 4 + EaReadCost(eaM, eaR);
+                if (eaM != 0 && eaM != 1) // dest is memory
+                    cycles += EaWriteCost(eaM, eaR);
+                break;
+            }
+
+            case 0x1: // MOVE.B
+            case 0x2: // MOVE.L
+            case 0x3: // MOVE.W
+            {
+                int smMode = srcMode;
+                int smReg = srcReg;
+                // MOVE dst encoding: bits[11:9]=dstReg, bits[8:6]=dstMode (note: mode/reg reversed)
+                int dmMode = (op >> 6) & 7;
+                int dmReg = (op >> 9) & 7;
+                cycles = 2 + EaReadCost(smMode, smReg) + EaWriteCost(dmMode, dmReg);
+                break;
+            }
+
+            case 0x4: // Misc group
+            {
+                uint16_t opcode = static_cast<uint16_t>(op);
+                if (opcode == 0x4E71) { cycles = 2; break; } // NOP
+                if (opcode == 0x4E75) { cycles = 10; break; } // RTS
+                if (opcode == 0x4E73) { cycles = 14; break; } // RTE
+                if (opcode == 0x4E70) { cycles = 255; break; } // RESET (clamp)
+
+                // TRAP #n: 0x4E40-0x4E4F
+                if ((opcode & 0xFFF0) == 0x4E40) { cycles = 20; break; }
+
+                // LINK: 0x4E50-0x4E57 (word), 0x4808-0x480F (long)
+                if ((opcode & 0xFFF8) == 0x4E50) { cycles = 6; break; }
+                if ((opcode & 0xFFF8) == 0x4808) { cycles = 6; break; }
+
+                // UNLK: 0x4E58-0x4E5F
+                if ((opcode & 0xFFF8) == 0x4E58) { cycles = 6; break; }
+
+                // SWAP: 0x4840-0x4847
+                if ((opcode & 0xFFF8) == 0x4840) { cycles = 2; break; }
+
+                // EXT.W: 0x4880-0x4887, EXT.L: 0x48C0-0x48C7, EXTB.L: 0x49C0-0x49C7
+                if ((opcode & 0xFFF8) == 0x4880) { cycles = 2; break; }
+                if ((opcode & 0xFFF8) == 0x48C0) { cycles = 2; break; }
+                if ((opcode & 0xFFF8) == 0x49C0) { cycles = 2; break; }
+
+                // JSR: 0x4E80-0x4EBF (bits 5:0 = EA)
+                if ((opcode & 0xFFC0) == 0x4E80)
+                {
+                    cycles = 8 + EaReadCost(srcMode, srcReg);
+                    break;
+                }
+
+                // JMP: 0x4EC0-0x4EFF
+                if ((opcode & 0xFFC0) == 0x4EC0)
+                {
+                    cycles = 4 + EaReadCost(srcMode, srcReg);
+                    break;
+                }
+
+                // LEA: 0x41C0 pattern — 0100 rrr 111 mmm rrr
+                if ((opcode & 0xF1C0) == 0x41C0)
+                {
+                    cycles = 2 + EaReadCost(srcMode, srcReg);
+                    break;
+                }
+
+                // PEA: 0x4840 pattern — but 0x4840-0x4847 is SWAP, PEA is 0100 1000 01 mmm rrr
+                if ((opcode & 0xFFC0) == 0x4840 && srcMode != 0)
+                {
+                    cycles = 6 + EaReadCost(srcMode, srcReg);
+                    break;
+                }
+
+                // MOVEM: 0x4880-0x48BF (reg-to-mem) / 0x4C80-0x4CBF (mem-to-reg)
+                if ((opcode & 0xFB80) == 0x4880)
+                {
+                    cycles = 20; // average estimate
+                    break;
+                }
+
+                // MULU.L / MULS.L: 0x4C00
+                if ((opcode & 0xFFC0) == 0x4C00)
+                {
+                    cycles = 44;
+                    break;
+                }
+
+                // DIVU.L / DIVS.L: 0x4C40
+                if ((opcode & 0xFFC0) == 0x4C40)
+                {
+                    cycles = 78;
+                    break;
+                }
+
+                // CHK: 0100 rrr ss 0 mmm rrr (size=11 for .W, size=10 for .L)
+                if ((opcode & 0xF040) == 0x4000 && ((opcode >> 7) & 3) >= 2)
+                {
+                    cycles = 8;
+                    break;
+                }
+
+                // CLR/NEG/NOT/TST (.L Dn): opcode & 0xFFC0 patterns
+                // CLR: 0x4200/.B, 0x4240/.W, 0x4280/.L
+                // NEG: 0x4400/.B, 0x4440/.W, 0x4480/.L
+                // NOT: 0x4600/.B, 0x4640/.W, 0x4680/.L
+                // NEGX:0x4000/.B, 0x4040/.W, 0x4080/.L
+                // TST: 0x4A00/.B, 0x4A40/.W, 0x4A80/.L
+                {
+                    int subOp = (opcode >> 8) & 0xF;
+                    if (subOp == 0x2 || subOp == 0x4 || subOp == 0x6 ||
+                        subOp == 0x0 || subOp == 0xA)
+                    {
+                        if (srcMode == 0) { cycles = 2; break; }
+                        cycles = 2 + EaReadCost(srcMode, srcReg) + EaWriteCost(srcMode, srcReg);
+                        break;
+                    }
+                }
+
+                // Default for group 4
+                cycles = 4 + EaReadCost(srcMode, srcReg);
+                break;
+            }
+
+            case 0x5: // ADDQ/SUBQ/Scc/DBcc
+            {
+                int sizeField = (op >> 6) & 3;
+                if (sizeField == 3)
+                {
+                    // DBcc or Scc
+                    if (srcMode == 1) { cycles = 6; break; } // DBcc
+                    cycles = 2 + EaWriteCost(srcMode, srcReg); // Scc
+                    break;
+                }
+                cycles = 2 + EaReadCost(srcMode, srcReg);
+                if (srcMode != 0 && srcMode != 1)
+                    cycles += EaWriteCost(srcMode, srcReg);
+                break;
+            }
+
+            case 0x6: // Bcc/BRA/BSR
+            {
+                int cond = (op >> 8) & 0xF;
+                cycles = (cond == 1) ? 8 : 6; // BSR=8, others=6
+                break;
+            }
+
+            case 0x7: // MOVEQ
+                cycles = 2;
+                break;
+
+            case 0x8: // OR/DIVU/DIVS/SBCD
+            {
+                int opMode = (op >> 6) & 7;
+                // DIVU.W: opMode=3
+                if (opMode == 3) { cycles = 38; break; }
+                // DIVS.W: opMode=7
+                if (opMode == 7) { cycles = 38; break; }
+                // SBCD: opMode=4, eaMode=0 or 1
+                if (opMode == 4 && (srcMode == 0 || srcMode == 1)) { cycles = 4; break; }
+                // OR
+                cycles = 2 + EaReadCost(srcMode, srcReg);
+                if (opMode >= 4 && opMode <= 6 && srcMode != 0) // OR Dn,<ea>
+                    cycles += EaWriteCost(srcMode, srcReg);
+                break;
+            }
+
+            case 0x9: // SUB/SUBA/SUBX
+            {
+                int opMode = (op >> 6) & 7;
+                // SUBX: opMode 4(byte), 5(word), 6(long) with eaMode 0 or 1
+                if ((opMode == 4 || opMode == 5 || opMode == 6) &&
+                    (srcMode == 0 || srcMode == 1))
+                {
+                    cycles = 4; break;
+                }
+                cycles = 2 + EaReadCost(srcMode, srcReg);
+                break;
+            }
+
+            case 0xA: // Line-A
+                cycles = 34;
+                break;
+
+            case 0xB: // CMP/CMPA/EOR/CMPM
+            {
+                int opMode = (op >> 6) & 7;
+                // CMPM: opMode 4/5/6 with eaMode=1 (postincrement)
+                if ((opMode == 4 || opMode == 5 || opMode == 6) && srcMode == 1)
+                {
+                    cycles = 12; break;
+                }
+                // EOR: opMode 4/5/6 with non-An dest
+                if (opMode == 4 || opMode == 5 || opMode == 6)
+                {
+                    cycles = 2 + EaReadCost(srcMode, srcReg) + EaWriteCost(srcMode, srcReg);
+                    break;
+                }
+                // CMP/CMPA
+                cycles = 2 + EaReadCost(srcMode, srcReg);
+                break;
+            }
+
+            case 0xC: // AND/MULU/MULS/EXG/ABCD
+            {
+                int opMode = (op >> 6) & 7;
+                // MULU.W: opMode=3
+                if (opMode == 3) { cycles = 28; break; }
+                // MULS.W: opMode=7
+                if (opMode == 7) { cycles = 28; break; }
+                // ABCD: opMode=4, eaMode=0 or 1
+                if (opMode == 4 && (srcMode == 0 || srcMode == 1)) { cycles = 4; break; }
+                // EXG: opMode=5 (Dn↔Dn or An↔An) or opMode=6 (Dn↔An)  — actually bits[7:3]
+                if (opMode == 5 && (srcMode == 0 || srcMode == 1)) { cycles = 4; break; } // EXG
+                if (opMode == 6 && srcMode == 1) { cycles = 4; break; } // EXG Dn↔An
+                // AND
+                cycles = 2 + EaReadCost(srcMode, srcReg);
+                if (opMode >= 4 && opMode <= 6 && srcMode != 0)
+                    cycles += EaWriteCost(srcMode, srcReg);
+                break;
+            }
+
+            case 0xD: // ADD/ADDA/ADDX
+            {
+                int opMode = (op >> 6) & 7;
+                // ADDX: opMode 4(byte), 5(word), 6(long) with eaMode 0 or 1
+                if ((opMode == 4 || opMode == 5 || opMode == 6) &&
+                    (srcMode == 0 || srcMode == 1))
+                {
+                    cycles = 4; break;
+                }
+                cycles = 2 + EaReadCost(srcMode, srcReg);
+                break;
+            }
+
+            case 0xE: // Shifts/Rotates
+                cycles = 4;
+                break;
+
+            case 0xF: // FPU / coprocessor
+                cycles = 40;
+                break;
+        }
+
+        s_cycleTable[op] = ClampCycles(cycles);
+    }
 }
 
 // ========================================================================

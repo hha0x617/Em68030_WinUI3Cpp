@@ -22,6 +22,28 @@ enum class JitOpType : uint8_t {
     BccB,         // Bcc.B (conditional branch)
     BraB,         // BRA.B (unconditional branch)
     Nop,          // NOP
+    AddqLDn,      // ADDQ.L #imm, Dn
+    SubqLDn,      // SUBQ.L #imm, Dn
+    AddqAn,       // ADDQ #imm, An (no flags)
+    SubqAn,       // SUBQ #imm, An (no flags)
+    ClrLDn,       // CLR.L Dn (D[reg]=0, Z=1)
+    TstLDn,       // TST.L Dn (test D[reg], set NZ)
+    MoveLAnDn,    // MOVE.L An, Dn (D[dst]=A[src], set NZ)
+    MoveaLDnAn,   // MOVEA.L Dn, An (A[dst]=D[src], no flags)
+    MoveaLAnAm,   // MOVEA.L An, Am (A[dst]=A[src], no flags)
+    AslImmLDn,    // ASL.L #imm, Dn
+    AsrImmLDn,    // ASR.L #imm, Dn
+    LslImmLDn,    // LSL.L #imm, Dn
+    LsrImmLDn,    // LSR.L #imm, Dn
+    ExgDnDm,      // EXG Dn,Dm
+    ExgAnAm,      // EXG An,Am
+    ExgDnAn,      // EXG Dn,An
+    SwapDn,        // SWAP Dn
+    ExtWDn,        // EXT.W Dn
+    ExtLDn,        // EXT.L Dn
+    ExtbLDn,       // EXTB.L Dn
+    NegLDn,        // NEG.L Dn
+    NotLDn,        // NOT.L Dn
 };
 
 struct JitOp {
@@ -40,6 +62,7 @@ class CompiledBlock {
 public:
     uint32_t PhysicalAddress;
     int InstructionCount;
+    int TotalCycles;
     int ByteLength;
     uint32_t FallthroughPC;  // next PC after block end (no branch)
     std::vector<JitOp> Ops;
@@ -77,12 +100,18 @@ class JitCompiler {
 public:
     static constexpr int MaxBlockLength = 64;
 
+
     std::unique_ptr<CompiledBlock> TryCompile(MC68030& cpu, uint32_t startPC, uint32_t startPhysAddr);
 
 private:
     enum class InsnKind {
         Unsupported, Moveq, MoveLDnDm, AddLDnDm, SubLDnDm,
-        CmpLDnDm, AndLDnDm, OrLDnDm, EorLDnDm, BranchAlways, Branch, Nop
+        CmpLDnDm, AndLDnDm, OrLDnDm, EorLDnDm, BranchAlways, Branch, Nop,
+        AddqLDn, SubqLDn, AddqAn, SubqAn,
+        ClrLDn, TstLDn, MoveLAnDn, MoveaLDnAn, MoveaLAnAm,
+        AslImmLDn, AsrImmLDn, LslImmLDn, LsrImmLDn,
+        ExgDnDm, ExgAnAm, ExgDnAn,
+        SwapDn, ExtWDn, ExtLDn, ExtbLDn, NegLDn, NotLDn
     };
     static InsnKind Classify(uint16_t opcode);
 };

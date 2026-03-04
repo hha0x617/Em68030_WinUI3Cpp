@@ -83,6 +83,7 @@ public:
     bool Stopped = false;
     std::string StopReason;   // empty = none
     int64_t CycleCount = 0;
+    int64_t InstructionCount = 0;
 
     // MOVES instruction override: when >= 0, GetFunctionCode returns this value
     // instead of computing from supervisor mode. Used for DFC/SFC.
@@ -310,11 +311,14 @@ private:
 
     static constexpr int TickInterval = 256;
 
-    // JIT
+    // JIT (internals)
     mutable JitCache m_jitCache;
     JitCompiler m_jitCompiler;
-    static constexpr uint8_t JitCompileThreshold = 16;
 
+public:
+    // JIT settings (configured by ViewModel)
+    uint8_t JitCompileThreshold = 32;
+    int JitMinBlockLength = 3;
 };
 
 } // namespace Em68030::Core
