@@ -130,6 +130,7 @@
     <ClCompile Include="NetworkTests\VirtualNetworkHandlerTests.cpp" />
     <ClCompile Include="NetworkTests\LanceDeviceTests.cpp" />
     <ClCompile Include="NetworkTests\SlirpNetworkHandlerTests.cpp" />
+    <ClCompile Include="CpuTests\JitCompilerTests.cpp" />
   </ItemGroup>
   <!-- ================================================================ -->
   <!-- Shared Core sources (compiled without main project's WinRT PCH)  -->
@@ -160,6 +161,9 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="$(SolutionDir)Em68030\Core\Disassembler.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(SolutionDir)Em68030\Core\JitCompiler.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>

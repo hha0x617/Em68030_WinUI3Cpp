@@ -120,6 +120,7 @@
     <ClInclude Include="Core\InstructionDecoder.h" />
     <ClInclude Include="Core\FpuInstructionDecoder.h" />
     <ClInclude Include="Core\Disassembler.h" />
+    <ClInclude Include="Core\JitCompiler.h" />
     <ClCompile Include="Core\Memory.cpp" />
     <ClCompile Include="Core\Mmu.cpp" />
     <ClCompile Include="Core\Alu.cpp" />
@@ -129,6 +130,7 @@
     <ClCompile Include="Core\InstructionDecoder.cpp" />
     <ClCompile Include="Core\FpuInstructionDecoder.cpp" />
     <ClCompile Include="Core\Disassembler.cpp" />
+    <ClCompile Include="Core\JitCompiler.cpp" />
   </ItemGroup>
   <!-- IO Devices (plain C++) -->
   <ItemGroup>
