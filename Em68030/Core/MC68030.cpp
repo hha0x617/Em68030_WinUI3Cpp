@@ -18,7 +18,11 @@ MC68030::MC68030(Memory& memory)
     , m_mmu(memory)
     , m_fpu()
 {
-    m_mmu.OnFlush = [this]() { _fetchCacheValid = false; _dataCacheValid = false; };
+    m_mmu.OnFlush = [this]() {
+        _fetchCacheValid = false;
+        _dataCacheValid = false;
+        if (JitEnabled) m_jitCache.InvalidateAll();
+    };
     m_decoder = std::make_unique<InstructionDecoder>(*this);
 }
 
@@ -87,6 +91,7 @@ void MC68030::SetSR(uint16_t newSR)
     if (wasSuper != willBeSuper) {
         _fetchCacheValid = false;
         _dataCacheValid = false;
+        if (JitEnabled) m_jitCache.InvalidateAll();
     }
 
     SR = newSR;
@@ -470,7 +475,7 @@ void MC68030::ExecuteStep()
 }
 
 // ============================================================================
-// ExecuteNextFast
+// ExecuteNextFast — interpreter only (no JIT code to preserve inlining)
 // ============================================================================
 
 bool MC68030::ExecuteNextFast()
@@ -486,10 +491,6 @@ bool MC68030::ExecuteNextFast()
     {
         Stopped = false;
         StopReason.clear();
-        // Save state before interrupt processing so HandleBusError can restore
-        // correctly if the interrupt frame push faults (e.g. unmapped SSP page).
-        // On real MC68030, bus error during non-bus-error exception processing
-        // creates a Format $A frame with pre-exception register state.
         _lastPC = PC;
         std::copy(std::begin(A), std::end(A), std::begin(_savedA));
         std::copy(std::begin(D), std::end(D), std::begin(_savedD));
@@ -509,6 +510,94 @@ bool MC68030::ExecuteNextFast()
 
     CycleCount++;
     return true;
+}
+
+// ============================================================================
+// ExecuteNextFastJit — JIT-enabled fast path (separate function to avoid
+// bloating ExecuteNextFast and impairing compiler optimization)
+// ============================================================================
+
+bool MC68030::ExecuteNextFastJit()
+{
+    if (++_tickDivider >= TickInterval)
+    {
+        _tickDivider = 0;
+        for (size_t i = 0; i < _tickHandlers.size(); i++)
+            _tickHandlers[i]();
+        JitSamplePC();
+    }
+
+    if (_pendingIPL > 0 && (_pendingIPL == 7 || _pendingIPL > GetInterruptMask()))
+    {
+        Stopped = false;
+        StopReason.clear();
+        _lastPC = PC;
+        std::copy(std::begin(A), std::end(A), std::begin(_savedA));
+        std::copy(std::begin(D), std::end(D), std::begin(_savedD));
+        _savedSR = SR;
+        ProcessInterrupt(_pendingIPL);
+        CycleCount++;
+        return !Halted;
+    }
+
+    if (Stopped) return false;
+
+    _lastPC = PC;
+    _savedSR = SR;
+    _regSnapshotNeeded = true;
+
+    // Inline block lookup — avoid noinline call overhead when no JIT block exists
+    if (_fetchCacheValid && (PC & ~_fetchPageMask) == _fetchPageVA)
+    {
+        uint32_t physPC = _fetchPagePA + (PC & _fetchPageMask);
+        auto* block = m_jitCache.TryGetBlock(physPC);
+        if (block)
+            return ExecuteNextJit(block);
+    }
+
+    // Interpreter fallback (inline — no function call overhead)
+    m_decoder->ExecuteNext();
+    CycleCount++;
+    return true;
+}
+
+// ============================================================================
+// ExecuteNextJit — JIT block execution (noinline, called only on block hit)
+// ============================================================================
+
+bool MC68030::ExecuteNextJit(CompiledBlock* block)
+{
+    // Eager snapshot before JIT block (modifies multiple registers)
+    std::memcpy(_savedA, A, sizeof(A));
+    std::memcpy(_savedD, D, sizeof(D));
+    _regSnapshotNeeded = false;
+
+    PC = block->Execute(*this);
+    CycleCount += block->InstructionCount;
+    _tickDivider += block->InstructionCount - 1;
+    return true;
+}
+
+// ============================================================================
+// JitSamplePC — periodic hotspot sampling for JIT compilation
+// ============================================================================
+
+void MC68030::JitSamplePC()
+{
+    if (!_fetchCacheValid || (PC & ~_fetchPageMask) != _fetchPageVA)
+        return;
+    uint32_t physPC = _fetchPagePA + (PC & _fetchPageMask);
+    if (m_jitCache.TryGetBlock(physPC) || m_jitCache.IsUncompilable(physPC))
+        return;
+    uint8_t count = m_jitCache.IncrementAndGetCount(physPC);
+    if (count == JitCompileThreshold)
+    {
+        auto compiled = m_jitCompiler.TryCompile(*this, PC, physPC);
+        if (compiled)
+            m_jitCache.AddBlock(physPC, std::move(compiled));
+        else
+            m_jitCache.MarkUncompilable(physPC);
+    }
 }
 
 // ============================================================================

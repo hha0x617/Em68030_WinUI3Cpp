@@ -12,6 +12,7 @@
 #include "Mmu.h"
 #include "Fpu.h"
 #include "BusErrorException.h"
+#include "JitCompiler.h"
 
 namespace Em68030::Core {
 
@@ -89,6 +90,9 @@ public:
 
     // Enable verbose bus-error / syscall tracing (off by default to avoid UI flood)
     bool VerboseTrace = false;
+
+    // JIT compiler
+    bool JitEnabled = false;
 
     bool TrapHandled = false;
 
@@ -175,6 +179,7 @@ public:
 
     void ExecuteStep();
     bool ExecuteNextFast();
+    bool ExecuteNextFastJit();
 
     void HandleBusError(const BusErrorException& ex);
 
@@ -199,6 +204,10 @@ public:
     bool EvaluateCondition(int condCode);
 
     void SetSR(uint16_t newSR);
+
+    // JIT cache access
+    int GetJitBlockCount() const { return m_jitCache.GetBlockCount(); }
+    void InvalidateJitCache() { m_jitCache.InvalidateAll(); }
 
     uint32_t TranslateRead(uint32_t logicalAddr, bool isProgram = false);
     uint32_t TranslateWrite(uint32_t logicalAddr);
@@ -253,6 +262,10 @@ private:
 
     void ProcessInterrupt(int level);
 
+    // JIT execution helpers
+    __declspec(noinline) bool ExecuteNextJit(CompiledBlock* block);
+    __declspec(noinline) void JitSamplePC();
+
     // ========================================================================
     // Owned subsystems
     // ========================================================================
@@ -296,6 +309,11 @@ private:
     int _tickDivider = 0;
 
     static constexpr int TickInterval = 256;
+
+    // JIT
+    mutable JitCache m_jitCache;
+    JitCompiler m_jitCompiler;
+    static constexpr uint8_t JitCompileThreshold = 16;
 
 };
 
