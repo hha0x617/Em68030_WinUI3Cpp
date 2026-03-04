@@ -263,8 +263,8 @@
 
                 <!-- Register Panel -->
                 <Border Grid.Column="1" BorderBrush="#FF3F3F46" BorderThickness="1" Margin="2">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="4">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Background="Transparent">
+                        <StackPanel Margin="4" Background="Transparent">
                             <!-- Register header with edit buttons -->
                             <Grid>
                                 <Grid.ColumnDefinitions>

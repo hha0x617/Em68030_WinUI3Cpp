@@ -1891,7 +1891,7 @@ namespace winrt::Em68030::implementation
         auto pcBgBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
             Windows::UI::Color{ 0xFF, 0x26, 0x4F, 0x78 }); // Dark blue background for PC line
         auto transparentBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0x00, 0x00, 0x00, 0x00 });
+            Windows::UI::Color{ 0x01, 0x00, 0x00, 0x00 });
         auto consolasFont = Microsoft::UI::Xaml::Media::FontFamily(L"Consolas");
 
         auto lines = m_viewModel.DisassemblyLines();
@@ -1972,7 +1972,7 @@ namespace winrt::Em68030::implementation
         auto pcBgBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
             Windows::UI::Color{ 0xFF, 0x26, 0x4F, 0x78 });
         auto transparentBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0x00, 0x00, 0x00, 0x00 });
+            Windows::UI::Color{ 0x01, 0x00, 0x00, 0x00 });
 
         for (uint32_t i = 0; i < lines.Size(); i++)
         {
