@@ -35,15 +35,16 @@
 - ウォームリブート (RESET 命令) およびハルト検出
 
 ### パフォーマンス
-i7-13700 上で 45-48 MHz 相当のエミュレーション速度を達成。主な最適化:
+i7-13700 上で 48 MHz (JIT OFF) ～ 50 MHz (JIT ON) のエミュレーション速度を達成。主な最適化:
 
 - 65,536 エントリのオペコードディスパッチテーブル
 - 頻出命令の専用ファストハンドラ (MOVEQ, MOVE.L, Bcc.B, RTS 等)
 - ATC 直接参照のインライン高速パス
 - データページキャッシュ (1 エントリ読み取りキャッシュ)
 - 遅延レジスタスナップショット
+- 実験的 JIT コンパイラ: レジスタ専用基本ブロックのプリデコード switch ディスパッチ
 
-インタープリタ方式のため、1 命令あたりホスト CPU で約 100 サイクルを消費します。主なコスト要因は MMU アドレス変換 (ATC ルックアップ)、メモリアクセス、命令デコードとディスパッチです。JIT コンパイル方式への移行により大幅な高速化が見込めますが、MMU とバスエラー回復の正確なエミュレーションとの両立が課題となります。
+JIT コンパイラはホットな基本ブロック (MOVEQ, MOVE.L Dn→Dm, ADD/SUB/CMP.L, AND/OR/EOR.L, Bcc.B, BRA.B, NOP) をスキャンし、`JitOp` 配列にプリデコードして switch ディスパッチで実行します。命令ごとのデコードオーバーヘッドを削減します。Settings > Performance > JIT Compiler から有効化できます。効果はワークロードに依存し、メモリアクセスを含む命令は JIT コンパイル対象外です。
 
 ## 必要環境
 
@@ -102,6 +103,7 @@ vstest.console.exe Em68030\x64\Release\Em68030.Tests.exe
 | `Mvme147ScsiCdromPath` | SCSI CD-ROM ISO イメージパス | `""` |
 | `NetworkMode` | `"Virtual"` (エコーサーバ) または `"NAT"` (ホストネットワーク) | `"Virtual"` |
 | `ConsoleScrollbackLines` | コンソールのスクロールバック行数 (0-100000) | 2000 |
+| `JitEnabled` | 実験的 JIT コンパイラを有効化 | `false` |
 
 ## NetBSD の起動
 
@@ -116,14 +118,14 @@ vstest.console.exe Em68030\x64\Release\Em68030.Tests.exe
 Em68030_WinUI3Cpp/
 ├── Em68030_WinUI3Cpp.sln
 ├── Em68030/
-│   ├── Core/           MC68030, MMU, Memory, InstructionDecoder, ALU, FPU
+│   ├── Core/           MC68030, MMU, Memory, InstructionDecoder, ALU, FPU, JitCompiler
 │   ├── IO/             SCSI, Ethernet, Serial, RTC, PCC 等のデバイス
 │   ├── Config/         EmulatorConfig (appsettings.json)
 │   ├── ViewModels/     MainViewModel
 │   ├── Views/          ConsoleWindow, BreakpointsWindow, SettingsWindow, AboutDialog
 │   ├── ThirdParty/     nlohmann/json
 │   └── MainWindow.xaml メインデバッガ UI
-└── Em68030.Tests/      Google Test (156 tests)
+└── Em68030.Tests/      Google Test (189 tests)
 ```
 
 ## 制限事項
@@ -150,7 +152,7 @@ Em68030_WinUI3Cpp/
 
 ## 今後の予定
 
-- パフォーマンス: JIT コンパイル方式による高速化の検討
+- パフォーマンス: JIT コンパイラの対応命令パターン拡張
 - FPU: 80-bit 拡張精度の正確なエミュレーション
 - NVRAM のファイル永続化
 - グラフィックス出力 (フレームバッファ)

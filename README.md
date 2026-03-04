@@ -35,15 +35,16 @@ This is the high-performance C++/WinRT + WinUI 3 port of the [C# WPF version](ht
 - Warm reboot (RESET instruction) and halt detection
 
 ### Performance
-Achieves emulation speed equivalent to 45-48 MHz on an i7-13700. Key optimizations:
+Achieves emulation speed of 48 MHz (JIT OFF) to 50 MHz (JIT ON) on an i7-13700. Key optimizations:
 
 - 65,536-entry opcode dispatch table
 - Specialized fast handlers for frequent instructions (MOVEQ, MOVE.L, Bcc.B, RTS, etc.)
 - Inline fast path for direct ATC lookup
 - Data page cache (1-entry read cache)
 - Deferred register snapshot
+- Experimental JIT compiler for register-only basic blocks (pre-decoded switch dispatch)
 
-As an interpreter, each instruction consumes approximately 100 host CPU cycles. The main cost factors are MMU address translation (ATC lookup), memory access, and instruction decode/dispatch. Migrating to a JIT compilation approach could significantly improve speed, but reconciling it with accurate MMU and bus error recovery emulation remains a challenge.
+The JIT compiler scans hot basic blocks consisting of register-only instructions (MOVEQ, MOVE.L Dn→Dm, ADD/SUB/CMP.L, AND/OR/EOR.L, Bcc.B, BRA.B, NOP) and pre-decodes them into a `JitOp` array executed via switch dispatch. This avoids per-instruction decode overhead for tight loops. Enable via Settings > Performance > JIT Compiler. Note: the benefit depends on workload; most real-world code contains memory accesses that cannot be JIT-compiled.
 
 ## Requirements
 
@@ -102,6 +103,7 @@ On first launch, an `appsettings.json` file is generated from the Settings menu.
 | `Mvme147ScsiCdromPath` | SCSI CD-ROM ISO image path | `""` |
 | `NetworkMode` | `"Virtual"` (echo server) or `"NAT"` (host network) | `"Virtual"` |
 | `ConsoleScrollbackLines` | Console scrollback lines (0-100000) | 2000 |
+| `JitEnabled` | Enable experimental JIT compiler | `false` |
 
 ## Booting NetBSD
 
@@ -116,14 +118,14 @@ On first launch, an `appsettings.json` file is generated from the Settings menu.
 Em68030_WinUI3Cpp/
 ├── Em68030_WinUI3Cpp.sln
 ├── Em68030/
-│   ├── Core/           MC68030, MMU, Memory, InstructionDecoder, ALU, FPU
+│   ├── Core/           MC68030, MMU, Memory, InstructionDecoder, ALU, FPU, JitCompiler
 │   ├── IO/             SCSI, Ethernet, Serial, RTC, PCC devices
 │   ├── Config/         EmulatorConfig (appsettings.json)
 │   ├── ViewModels/     MainViewModel
 │   ├── Views/          ConsoleWindow, BreakpointsWindow, SettingsWindow, AboutDialog
 │   ├── ThirdParty/     nlohmann/json
 │   └── MainWindow.xaml Main debugger UI
-└── Em68030.Tests/      Google Test (156 tests)
+└── Em68030.Tests/      Google Test (189 tests)
 ```
 
 ## Limitations
@@ -150,7 +152,7 @@ Em68030_WinUI3Cpp/
 
 ## Roadmap
 
-- Performance: Investigate JIT compilation for faster emulation
+- Performance: Expand JIT to cover more instruction patterns
 - FPU: Accurate 80-bit extended precision emulation
 - NVRAM file persistence
 - Graphics output (framebuffer)
