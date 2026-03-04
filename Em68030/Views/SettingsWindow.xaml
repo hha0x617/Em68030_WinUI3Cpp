@@ -38,8 +38,8 @@
         </Style>
     </ContentDialog.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
-        <StackPanel Spacing="0">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500" Background="Transparent">
+        <StackPanel Spacing="0" Background="Transparent">
             <!-- Board Type -->
             <TextBlock Text="Board Type" Style="{StaticResource SectionHeaderStyle}" />
             <Grid>
@@ -194,6 +194,20 @@
                       Foreground="#FFD4D4D4" Margin="0,4" />
             <TextBlock Text="Compiles register-only basic blocks for faster execution. May slightly reduce performance on some workloads."
                        Foreground="#FF808080" FontSize="11" TextWrapping="Wrap" Margin="24,0,0,4" />
+            <Grid Margin="24,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180" /><ColumnDefinition Width="60" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Min Block Length:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBox x:Name="JitMinBlockLengthBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+            </Grid>
+            <Grid Margin="24,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180" /><ColumnDefinition Width="60" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Compile Threshold:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBox x:Name="JitCompileThresholdBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+            </Grid>
 
             <!-- Display Settings -->
             <TextBlock Text="Display" Style="{StaticResource SectionHeaderStyle}" />

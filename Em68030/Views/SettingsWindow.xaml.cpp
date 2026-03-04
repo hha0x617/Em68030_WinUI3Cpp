@@ -85,6 +85,8 @@ namespace winrt::Em68030::implementation
         FontFamilyBox(FindName(L"FontFamilyBox").try_as<Controls::TextBox>());
         FontSizeBox(FindName(L"FontSizeBox").try_as<Controls::TextBox>());
         JitEnabledBox(FindName(L"JitEnabledBox").try_as<Controls::CheckBox>());
+        JitMinBlockLengthBox(FindName(L"JitMinBlockLengthBox").try_as<Controls::TextBox>());
+        JitCompileThresholdBox(FindName(L"JitCompileThresholdBox").try_as<Controls::TextBox>());
         AddScsiDiskBtn(FindName(L"AddScsiDiskBtn").try_as<Controls::Button>());
         NetworkModeBox(FindName(L"NetworkModeBox").try_as<Controls::ComboBox>());
 
@@ -383,6 +385,10 @@ namespace winrt::Em68030::implementation
         // Performance
         if (JitEnabledBox())
             JitEnabledBox().IsChecked(config.JitEnabled);
+        if (JitMinBlockLengthBox())
+            JitMinBlockLengthBox().Text(winrt::to_hstring(std::to_string(config.JitMinBlockLength)));
+        if (JitCompileThresholdBox())
+            JitCompileThresholdBox().Text(winrt::to_hstring(std::to_string(config.JitCompileThreshold)));
 
         // Display
         FontFamilyBox().Text(winrt::to_hstring(config.FontFamily));
@@ -436,6 +442,16 @@ namespace winrt::Em68030::implementation
         // Performance
         if (JitEnabledBox())
             config.JitEnabled = JitEnabledBox().IsChecked().Value();
+        if (JitMinBlockLengthBox())
+        {
+            try { config.JitMinBlockLength = std::clamp(std::stoi(winrt::to_string(JitMinBlockLengthBox().Text())), 1, 64); }
+            catch (...) { /* keep previous */ }
+        }
+        if (JitCompileThresholdBox())
+        {
+            try { config.JitCompileThreshold = std::clamp(std::stoi(winrt::to_string(JitCompileThresholdBox().Text())), 1, 255); }
+            catch (...) { /* keep previous */ }
+        }
 
         config.FontFamily = winrt::to_string(FontFamilyBox().Text());
 
@@ -483,6 +499,14 @@ namespace winrt::Em68030::implementation
             if (auto grid = layoutRoot.try_as<Controls::Grid>())
             {
                 grid.MaxWidth(dialogWidth);
+            }
+            // Disable the ContentDialog's internal ScrollViewer so that our
+            // explicit ScrollViewer receives mouse wheel events directly.
+            auto csvElement = FindChildByName(sender, L"ContentScrollViewer");
+            if (auto csv = csvElement.try_as<Controls::ScrollViewer>())
+            {
+                csv.VerticalScrollMode(Controls::ScrollMode::Disabled);
+                csv.VerticalScrollBarVisibility(Controls::ScrollBarVisibility::Disabled);
             }
         });
 

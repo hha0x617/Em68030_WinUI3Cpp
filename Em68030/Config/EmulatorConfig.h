@@ -68,6 +68,8 @@ public:
 
     // JIT compiler (experimental)
     bool JitEnabled = false;
+    int JitMinBlockLength = 3;
+    int JitCompileThreshold = 32;
 
     // Load configuration from appsettings.json next to the executable.
     // Returns default config on failure.
