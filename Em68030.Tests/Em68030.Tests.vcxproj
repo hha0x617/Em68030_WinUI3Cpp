@@ -131,6 +131,7 @@
     <ClCompile Include="NetworkTests\LanceDeviceTests.cpp" />
     <ClCompile Include="NetworkTests\SlirpNetworkHandlerTests.cpp" />
     <ClCompile Include="CpuTests\JitCompilerTests.cpp" />
+    <ClCompile Include="CpuTests\CycleTableTests.cpp" />
   </ItemGroup>
   <!-- ================================================================ -->
   <!-- Shared Core sources (compiled without main project's WinRT PCH)  -->
