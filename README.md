@@ -35,16 +35,19 @@ This is the high-performance C++/WinRT + WinUI 3 port of the [C# WPF version](ht
 - Warm reboot (RESET instruction) and halt detection
 
 ### Performance
-Achieves emulation speed of 48 MHz (JIT OFF) to 50 MHz (JIT ON) on an i7-13700. Key optimizations:
+Achieves ~50 MIPS (~150 MHz estimated) on an Intel Core i7-13700. The status bar displays both approximate MHz (cycle-based) and MIPS (instruction throughput). Key optimizations:
 
 - 65,536-entry opcode dispatch table
 - Specialized fast handlers for frequent instructions (MOVEQ, MOVE.L, Bcc.B, RTS, etc.)
 - Inline fast path for direct ATC lookup
 - Data page cache (1-entry read cache)
 - Deferred register snapshot
+- Approximate cycle table (65,536-entry lookup with EA cost calculation)
 - Experimental JIT compiler for register-only basic blocks (pre-decoded switch dispatch)
 
-The JIT compiler scans hot basic blocks consisting of register-only instructions (MOVEQ, MOVE.L Dn→Dm, ADD/SUB/CMP.L, AND/OR/EOR.L, Bcc.B, BRA.B, NOP) and pre-decodes them into a `JitOp` array executed via switch dispatch. This avoids per-instruction decode overhead for tight loops. Enable via Settings > Performance > JIT Compiler. Note: the benefit depends on workload; most real-world code contains memory accesses that cannot be JIT-compiled.
+The JIT compiler scans hot basic blocks consisting of register-only instructions and pre-decodes them into a `JitOp` array executed via switch dispatch. This avoids per-instruction decode overhead for tight loops. Enable via Settings > Performance > JIT Compiler. Note: the benefit depends on workload; most real-world code contains memory accesses that cannot be JIT-compiled.
+
+**Supported JIT instructions**: MOVEQ, MOVE.L Dn→Dm, MOVE.L An→Dn, MOVEA.L Dn→An, MOVEA.L An→Am, CLR.L Dn, TST.L Dn, ADD/SUB/CMP.L Dn→Dm, AND/OR/EOR.L Dn→Dm, ADDQ/SUBQ.L Dn, ADDQ/SUBQ An, ASL/ASR/LSL/LSR.L #imm Dn, EXG Dn↔Dm/An↔Am/Dn↔An, SWAP Dn, EXT.W/EXT.L/EXTB.L Dn, NEG.L Dn, NOT.L Dn, Bcc.B, BRA.B, NOP
 
 ## Requirements
 
@@ -104,6 +107,8 @@ On first launch, an `appsettings.json` file is generated from the Settings menu.
 | `NetworkMode` | `"Virtual"` (echo server) or `"NAT"` (host network) | `"Virtual"` |
 | `ConsoleScrollbackLines` | Console scrollback lines (0-100000) | 2000 |
 | `JitEnabled` | Enable experimental JIT compiler | `false` |
+| `JitMinBlockLength` | Minimum instruction count for JIT compilation | 3 |
+| `JitCompileThreshold` | Execution count before a block is compiled | 32 |
 
 ## Booting NetBSD
 
@@ -125,7 +130,8 @@ Em68030_WinUI3Cpp/
 │   ├── Views/          ConsoleWindow, BreakpointsWindow, SettingsWindow, AboutDialog
 │   ├── ThirdParty/     nlohmann/json
 │   └── MainWindow.xaml Main debugger UI
-└── Em68030.Tests/      Google Test (189 tests)
+├── Em68030.Tests/      Google Test (268 tests)
+└── installer/          Inno Setup installer script
 ```
 
 ## Limitations
@@ -136,7 +142,7 @@ Em68030_WinUI3Cpp/
 - FSAVE/FRESTORE are simplified (null/idle frame only)
 - CACR/CAAR registers are readable and writable but hardware cache emulation is not performed
 - PTEST level 0 ATC search is simplified
-- Cycle-accurate instruction timing is not guaranteed (cycle count is for measurement only, not used for timing control)
+- Cycle timing is approximate: a 65,536-entry lookup table provides per-opcode cycle estimates with EA cost adjustments, but is not cycle-accurate to the real MC68030. Cycle count is used for MHz estimation only, not for timing control
 
 ### Devices
 - **SCSI**: Only standard commands used by NetBSD are implemented; not the full SCSI-2 command set
@@ -164,3 +170,7 @@ Em68030_WinUI3Cpp/
 ## License
 
 [Apache License 2.0](LICENSE)
+
+## Trademarks
+
+All product names, trademarks, and registered trademarks are the property of their respective owners.

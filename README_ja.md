@@ -35,16 +35,19 @@
 - ウォームリブート (RESET 命令) およびハルト検出
 
 ### パフォーマンス
-i7-13700 上で 48 MHz (JIT OFF) ～ 50 MHz (JIT ON) のエミュレーション速度を達成。主な最適化:
+Intel Core i7-13700 上で約 50 MIPS (概算約 150 MHz) のエミュレーション速度を達成。ステータスバーに概算 MHz (サイクルベース) と MIPS (命令スループット) を併記表示します。主な最適化:
 
 - 65,536 エントリのオペコードディスパッチテーブル
 - 頻出命令の専用ファストハンドラ (MOVEQ, MOVE.L, Bcc.B, RTS 等)
 - ATC 直接参照のインライン高速パス
 - データページキャッシュ (1 エントリ読み取りキャッシュ)
 - 遅延レジスタスナップショット
+- 概算サイクルテーブル (65,536 エントリのルックアップ + EA コスト計算)
 - 実験的 JIT コンパイラ: レジスタ専用基本ブロックのプリデコード switch ディスパッチ
 
-JIT コンパイラはホットな基本ブロック (MOVEQ, MOVE.L Dn→Dm, ADD/SUB/CMP.L, AND/OR/EOR.L, Bcc.B, BRA.B, NOP) をスキャンし、`JitOp` 配列にプリデコードして switch ディスパッチで実行します。命令ごとのデコードオーバーヘッドを削減します。Settings > Performance > JIT Compiler から有効化できます。効果はワークロードに依存し、メモリアクセスを含む命令は JIT コンパイル対象外です。
+JIT コンパイラはホットな基本ブロックをスキャンし、`JitOp` 配列にプリデコードして switch ディスパッチで実行します。命令ごとのデコードオーバーヘッドを削減します。Settings > Performance > JIT Compiler から有効化できます。効果はワークロードに依存し、メモリアクセスを含む命令は JIT コンパイル対象外です。
+
+**JIT 対応命令**: MOVEQ, MOVE.L Dn→Dm, MOVE.L An→Dn, MOVEA.L Dn→An, MOVEA.L An→Am, CLR.L Dn, TST.L Dn, ADD/SUB/CMP.L Dn→Dm, AND/OR/EOR.L Dn→Dm, ADDQ/SUBQ.L Dn, ADDQ/SUBQ An, ASL/ASR/LSL/LSR.L #imm Dn, EXG Dn↔Dm/An↔Am/Dn↔An, SWAP Dn, EXT.W/EXT.L/EXTB.L Dn, NEG.L Dn, NOT.L Dn, Bcc.B, BRA.B, NOP
 
 ## 必要環境
 
@@ -104,6 +107,8 @@ vstest.console.exe Em68030\x64\Release\Em68030.Tests.exe
 | `NetworkMode` | `"Virtual"` (エコーサーバ) または `"NAT"` (ホストネットワーク) | `"Virtual"` |
 | `ConsoleScrollbackLines` | コンソールのスクロールバック行数 (0-100000) | 2000 |
 | `JitEnabled` | 実験的 JIT コンパイラを有効化 | `false` |
+| `JitMinBlockLength` | JIT コンパイル対象の最小命令数 | 3 |
+| `JitCompileThreshold` | コンパイルまでの実行回数しきい値 | 32 |
 
 ## NetBSD の起動
 
@@ -125,7 +130,8 @@ Em68030_WinUI3Cpp/
 │   ├── Views/          ConsoleWindow, BreakpointsWindow, SettingsWindow, AboutDialog
 │   ├── ThirdParty/     nlohmann/json
 │   └── MainWindow.xaml メインデバッガ UI
-└── Em68030.Tests/      Google Test (189 tests)
+├── Em68030.Tests/      Google Test (268 tests)
+└── installer/          Inno Setup インストーラスクリプト
 ```
 
 ## 制限事項
@@ -136,7 +142,7 @@ Em68030_WinUI3Cpp/
 - FSAVE/FRESTORE は簡易実装 (null/idle フレーム) です
 - CACR/CAAR レジスタは読み書き可能ですが、ハードウェアキャッシュのエミュレーションは行いません
 - PTEST レベル 0 の ATC 検索は簡易実装です
-- 命令実行のサイクル精度は保証されません (サイクルカウントは計測用であり、タイミング制御には使用されません)
+- サイクルタイミングは概算です: 65,536 エントリのルックアップテーブルによりオペコードごとの概算サイクル数を EA コスト調整付きで提供しますが、実際の MC68030 とサイクル精度は一致しません。サイクルカウントは MHz 推定用であり、タイミング制御には使用されません
 
 ### デバイス
 - **SCSI**: NetBSD が使用する標準コマンドのみ実装。SCSI-2 の全コマンドセットには対応していません
@@ -164,3 +170,7 @@ Em68030_WinUI3Cpp/
 ## ライセンス
 
 [Apache License 2.0](LICENSE)
+
+## 商標
+
+本ドキュメントに記載されているすべての製品名、商標、および登録商標は、それぞれの所有者に帰属します。
