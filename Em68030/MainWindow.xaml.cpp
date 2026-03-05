@@ -234,7 +234,7 @@ namespace winrt::Em68030::implementation
                 DisasmAddrBox().KeyDown({ this, &MainWindow::DisasmAddrBox_KeyDown });
             if (auto btn = root.FindName(L"BtnDisasmGo").try_as<Controls::Button>())
             { BtnDisasmGo(btn); btn.Click({ this, &MainWindow::DisasmGo_Click }); }
-            if (auto btn = root.FindName(L"BtnFollowPC").try_as<Controls::Button>())
+            if (auto btn = root.FindName(L"BtnFollowPC").try_as<Controls::Primitives::ToggleButton>())
             { BtnFollowPC(btn); btn.Click({ this, &MainWindow::DisasmFollowPC_Click }); }
             DisasmSizeBox(root.FindName(L"DisasmSizeBox").try_as<Controls::TextBox>());
             if (auto btn = root.FindName(L"BtnManualUpdate").try_as<Controls::Button>())
@@ -294,25 +294,10 @@ namespace winrt::Em68030::implementation
             // D0 is first in NotifyAllRegisters batch -- update everything
             if (name == L"D0")
             {
-                RebuildDisasmList();
-                // Scroll to PC line after rebuild
-                {
-                    auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
-                    if (vmImpl->DisasmFollowPC())
-                    {
-                        auto lines = vmImpl->DisassemblyLines();
-                        uint32_t pc = vmImpl->PC();
-                        for (uint32_t i = 0; i < lines.Size(); i++)
-                        {
-                            auto lineImpl = lines.GetAt(i).as<implementation::DisasmLineViewModel>();
-                            if (lineImpl->HasAddress() && lineImpl->Address() == pc)
-                            {
-                                ScrollDisasmToCenter(static_cast<int32_t>(i));
-                                break;
-                            }
-                        }
-                    }
-                }
+                // In-place appearance update (no items.Clear → no flicker).
+                // Falls back to full RebuildDisasmList if line count changed.
+                UpdateDisasmListAppearance();
+                // Scroll is handled by ScrollToLineRequested from UpdatePCHighlight()
                 UpdateRegisterDisplay();
                 UpdateMemoryDumpDisplay();
                 UpdateToolbarInfo();
@@ -332,6 +317,14 @@ namespace winrt::Em68030::implementation
             {
                 UpdateMemoryDumpDisplay();
             }
+            else if (name == L"DisasmFollowPC")
+            {
+                if (auto toggle = BtnFollowPC())
+                {
+                    auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
+                    toggle.IsChecked(vmImpl->DisasmFollowPC());
+                }
+            }
             else if (name == L"HasLstFile")
             {
                 if (LstButton())
@@ -350,11 +343,13 @@ namespace winrt::Em68030::implementation
             m_scrollToLineToken = vmImplLocal->ScrollToLineRequested(
                 [this]([[maybe_unused]] IInspectable const& sender, int32_t lineIndex)
             {
-                if (DisasmList() && lineIndex >= 0 &&
-                    lineIndex < static_cast<int32_t>(DisasmList().Items().Size()))
-                {
-                    ScrollDisasmToCenter(lineIndex);
-                }
+                m_dispatcherQueue.TryEnqueue([this, lineIndex]() {
+                    if (DisasmList() && lineIndex >= 0 &&
+                        lineIndex < static_cast<int32_t>(DisasmList().Items().Size()))
+                    {
+                        ScrollDisasmToCenter(lineIndex);
+                    }
+                });
             });
 
             // ConsoleCharOutput: feed character to ConsoleWindow (auto-open on first output)
@@ -632,12 +627,7 @@ namespace winrt::Em68030::implementation
     {
         auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
         vmImpl->Step();
-        // Explicit UI refresh (safety net alongside PropertyChanged "D0" handler)
-        RebuildDisasmList();
-        UpdateRegisterDisplay();
-        UpdateMemoryDumpDisplay();
-        UpdateToolbarInfo();
-        UpdateStatusBar();
+        // UI update is handled by PropertyChanged("D0") handler via RefreshAll()
     }
 
     void MainWindow::Reset_Click([[maybe_unused]] IInspectable const& sender,
@@ -800,11 +790,7 @@ namespace winrt::Em68030::implementation
     {
         auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
         vmImpl->Step();
-        RebuildDisasmList();
-        UpdateRegisterDisplay();
-        UpdateMemoryDumpDisplay();
-        UpdateToolbarInfo();
-        UpdateStatusBar();
+        // UI update is handled by PropertyChanged("D0") handler via RefreshAll()
         args.Handled(true);
     }
 
@@ -844,19 +830,33 @@ namespace winrt::Em68030::implementation
                                           [[maybe_unused]] RoutedEventArgs const& e)
     {
         auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
-        vmImpl->ResetDisasmFollowPC();
-        RebuildDisasmList();
-
-        // Scroll to PC center
-        auto lines = vmImpl->DisassemblyLines();
-        uint32_t pc = vmImpl->PC();
-        for (uint32_t i = 0; i < lines.Size(); i++)
+        if (auto toggle = BtnFollowPC())
         {
-            auto lineImpl = lines.GetAt(i).as<implementation::DisasmLineViewModel>();
-            if (lineImpl->HasAddress() && lineImpl->Address() == pc)
+            bool isChecked = toggle.IsChecked().GetBoolean();
+            if (isChecked)
             {
-                ScrollDisasmToCenter(static_cast<int32_t>(i));
-                break;
+                vmImpl->ResetDisasmFollowPC();
+                RebuildDisasmList();
+
+                // Scroll to PC center (deferred)
+                auto lines = vmImpl->DisassemblyLines();
+                uint32_t pc = vmImpl->PC();
+                for (uint32_t i = 0; i < lines.Size(); i++)
+                {
+                    auto lineImpl = lines.GetAt(i).as<implementation::DisasmLineViewModel>();
+                    if (lineImpl->HasAddress() && lineImpl->Address() == pc)
+                    {
+                        int32_t pcIndex = static_cast<int32_t>(i);
+                        m_dispatcherQueue.TryEnqueue([this, pcIndex]() {
+                            ScrollDisasmToCenter(pcIndex);
+                        });
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                vmImpl->SetDisasmFollowPC(false);
             }
         }
     }
@@ -1619,21 +1619,24 @@ namespace winrt::Em68030::implementation
             if (box) {
                 wchar_t buf[16];
                 swprintf_s(buf, L"%08X", val);
-                box.Text(buf);
+                winrt::hstring s(buf);
+                if (box.Text() != s) box.Text(s);
             }
         };
         auto setHex16 = [](Controls::TextBox const& box, uint16_t val) {
             if (box) {
                 wchar_t buf[16];
                 swprintf_s(buf, L"%04X", val);
-                box.Text(buf);
+                winrt::hstring s(buf);
+                if (box.Text() != s) box.Text(s);
             }
         };
         auto setFP = [](Controls::TextBox const& box, double val) {
             if (box) {
                 wchar_t buf[32];
                 swprintf_s(buf, L"%.8g", val);
-                box.Text(buf);
+                winrt::hstring s(buf);
+                if (box.Text() != s) box.Text(s);
             }
         };
 
@@ -1708,7 +1711,12 @@ namespace winrt::Em68030::implementation
             if (r + 1 < rows.Size()) text += L"\r\n";
         }
 
-        if (MemoryDumpText()) MemoryDumpText().Text(text);
+        if (MemoryDumpText())
+        {
+            winrt::hstring newText(text);
+            if (MemoryDumpText().Text() != newText)
+                MemoryDumpText().Text(newText);
+        }
     }
 
     void MainWindow::UpdateStatusBar()
@@ -1803,7 +1811,11 @@ namespace winrt::Em68030::implementation
         setEnabled(BtnFullReset(), !running);
 
         // Disassembly controls
-        setEnabled(BtnFollowPC(), !running);
+        if (auto toggle = BtnFollowPC())
+        {
+            toggle.IsEnabled(!running);
+            toggle.Opacity(!running ? 1.0 : 0.35);
+        }
 
         // Register edit buttons
         setEnabled(BtnEditReg(), !running && !regEdit);
@@ -1846,26 +1858,28 @@ namespace winrt::Em68030::implementation
         auto items = DisasmList().Items();
         if (index < 0 || index >= static_cast<int32_t>(items.Size())) return;
 
-        auto item = items.GetAt(index);
-
-        // First, ensure the item is scrolled into view (Leading = top)
-        DisasmList().ScrollIntoView(item, ScrollIntoViewAlignment::Leading);
-        DisasmList().UpdateLayout();
-
-        // Find the ScrollViewer inside the ListView and adjust to center
         auto sv = FindVisualChild<Microsoft::UI::Xaml::Controls::ScrollViewer>(DisasmList());
-        if (sv)
-        {
-            double itemCount = static_cast<double>(items.Size());
-            if (itemCount <= 0) return;
-            double itemHeight = sv.ExtentHeight() / itemCount;
-            double viewportMiddle = sv.ViewportHeight() / 2.0;
-            double targetOffset = index * itemHeight - viewportMiddle + itemHeight / 2.0;
-            if (targetOffset < 0.0) targetOffset = 0.0;
-            double scrollableH = sv.ScrollableHeight();
-            if (targetOffset > scrollableH) targetOffset = scrollableH;
-            sv.ChangeView(nullptr, targetOffset, nullptr);
-        }
+        if (!sv) return;
+
+        double itemCount = static_cast<double>(items.Size());
+        if (itemCount <= 0) return;
+        double itemHeight = sv.ExtentHeight() / itemCount;
+        if (itemHeight <= 0) return;
+
+        // Check if the target line is already visible (with 2-line margin)
+        double currentTop = sv.VerticalOffset();
+        double viewportH = sv.ViewportHeight();
+        double targetTop = index * itemHeight;
+        double margin = itemHeight * 2;
+        if (targetTop >= currentTop + margin && targetTop + itemHeight <= currentTop + viewportH - margin)
+            return; // already visible — skip scroll
+
+        // Scroll to center the target line
+        double targetOffset = targetTop - viewportH / 2.0 + itemHeight / 2.0;
+        if (targetOffset < 0.0) targetOffset = 0.0;
+        double scrollableH = sv.ScrollableHeight();
+        if (targetOffset > scrollableH) targetOffset = scrollableH;
+        sv.ChangeView(nullptr, targetOffset, nullptr);
     }
 
     // ========================================================================
@@ -1879,19 +1893,7 @@ namespace winrt::Em68030::implementation
         auto items = DisasmList().Items();
         items.Clear();
 
-        // Pre-create reusable brushes
-        auto yellowBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xFF, 0xFF, 0x00 });
-        auto redBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xFF, 0x00, 0x00 });
-        auto grayBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x80, 0x80, 0x80 });
-        auto normalBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
-        auto pcBgBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x26, 0x4F, 0x78 }); // Dark blue background for PC line
-        auto transparentBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0x01, 0x00, 0x00, 0x00 });
+        EnsureDisasmBrushes();
         auto consolasFont = Microsoft::UI::Xaml::Media::FontFamily(L"Consolas");
 
         auto lines = m_viewModel.DisassemblyLines();
@@ -1907,7 +1909,7 @@ namespace winrt::Em68030::implementation
 
             // All rows need an explicit Background for WinUI3 hit-testing,
             // otherwise pointer events (including mouse wheel) pass through.
-            row.Background(impl->IsCurrentPC() ? pcBgBrush : transparentBrush);
+            row.Background(impl->IsCurrentPC() ? m_brPcBg : m_brTransparent);
 
             // Breakpoint indicator (red filled circle, gray if disabled)
             Controls::TextBlock bpIndicator;
@@ -1918,7 +1920,7 @@ namespace winrt::Em68030::implementation
             if (impl->HasBreakpoint())
             {
                 bpIndicator.Text(L"\u25CF"); // filled circle
-                bpIndicator.Foreground(impl->HasDisabledBreakpoint() ? grayBrush : redBrush);
+                bpIndicator.Foreground(impl->HasDisabledBreakpoint() ? m_brGray : m_brRed);
             }
 
             // Main disassembly text
@@ -1930,13 +1932,13 @@ namespace winrt::Em68030::implementation
             mainText.Margin(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(4, 0, 0, 0));
 
             if (impl->IsCurrentPC())
-                mainText.Foreground(yellowBrush);
+                mainText.Foreground(m_brYellow);
             else if (impl->HasDisabledBreakpoint())
-                mainText.Foreground(grayBrush);
+                mainText.Foreground(m_brGray);
             else if (impl->HasBreakpoint())
-                mainText.Foreground(redBrush);
+                mainText.Foreground(m_brRed);
             else
-                mainText.Foreground(normalBrush);
+                mainText.Foreground(m_brNormal);
 
             row.Children().Append(bpIndicator);
             row.Children().Append(mainText);
@@ -1947,6 +1949,23 @@ namespace winrt::Em68030::implementation
     // ========================================================================
     // Disassembly list in-place appearance update (no flash)
     // ========================================================================
+
+    void MainWindow::EnsureDisasmBrushes()
+    {
+        if (m_brYellow) return; // already initialized
+        m_brYellow = Microsoft::UI::Xaml::Media::SolidColorBrush(
+            Windows::UI::Color{ 0xFF, 0xFF, 0xFF, 0x00 });
+        m_brRed = Microsoft::UI::Xaml::Media::SolidColorBrush(
+            Windows::UI::Color{ 0xFF, 0xFF, 0x00, 0x00 });
+        m_brGray = Microsoft::UI::Xaml::Media::SolidColorBrush(
+            Windows::UI::Color{ 0xFF, 0x80, 0x80, 0x80 });
+        m_brNormal = Microsoft::UI::Xaml::Media::SolidColorBrush(
+            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
+        m_brPcBg = Microsoft::UI::Xaml::Media::SolidColorBrush(
+            Windows::UI::Color{ 0xFF, 0x26, 0x4F, 0x78 });
+        m_brTransparent = Microsoft::UI::Xaml::Media::SolidColorBrush(
+            Windows::UI::Color{ 0x01, 0x00, 0x00, 0x00 });
+    }
 
     void MainWindow::UpdateDisasmListAppearance()
     {
@@ -1961,18 +1980,7 @@ namespace winrt::Em68030::implementation
             return;
         }
 
-        auto yellowBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xFF, 0xFF, 0x00 });
-        auto redBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xFF, 0x00, 0x00 });
-        auto grayBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x80, 0x80, 0x80 });
-        auto normalBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
-        auto pcBgBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x26, 0x4F, 0x78 });
-        auto transparentBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0x01, 0x00, 0x00, 0x00 });
+        EnsureDisasmBrushes();
 
         for (uint32_t i = 0; i < lines.Size(); i++)
         {
@@ -1980,8 +1988,21 @@ namespace winrt::Em68030::implementation
             auto row = items.GetAt(i).as<Controls::StackPanel>();
             if (!row) continue;
 
-            // Update row background
-            row.Background(impl->IsCurrentPC() ? pcBgBrush : transparentBrush);
+            // Determine desired brushes for this row
+            auto desiredBg = impl->IsCurrentPC() ? m_brPcBg : m_brTransparent;
+            Microsoft::UI::Xaml::Media::SolidColorBrush desiredFg{ nullptr };
+            if (impl->IsCurrentPC())
+                desiredFg = m_brYellow;
+            else if (impl->HasDisabledBreakpoint())
+                desiredFg = m_brGray;
+            else if (impl->HasBreakpoint())
+                desiredFg = m_brRed;
+            else
+                desiredFg = m_brNormal;
+
+            // Only set Background if the reference changed (avoids WinUI3 re-render)
+            if (row.Background() != desiredBg)
+                row.Background(desiredBg);
 
             auto children = row.Children();
             if (children.Size() < 2) continue;
@@ -1991,26 +2012,24 @@ namespace winrt::Em68030::implementation
             {
                 if (impl->HasBreakpoint())
                 {
-                    bpIndicator.Text(L"\u25CF");
-                    bpIndicator.Foreground(impl->HasDisabledBreakpoint() ? grayBrush : redBrush);
+                    auto bpBrush = impl->HasDisabledBreakpoint() ? m_brGray : m_brRed;
+                    if (bpIndicator.Text().empty())
+                        bpIndicator.Text(L"\u25CF");
+                    if (bpIndicator.Foreground() != bpBrush)
+                        bpIndicator.Foreground(bpBrush);
                 }
                 else
                 {
-                    bpIndicator.Text(L"");
+                    if (!bpIndicator.Text().empty())
+                        bpIndicator.Text(L"");
                 }
             }
 
-            // Update text color (child 1)
+            // Update text color (child 1) — only if reference changed
             if (auto mainText = children.GetAt(1).try_as<Controls::TextBlock>())
             {
-                if (impl->IsCurrentPC())
-                    mainText.Foreground(yellowBrush);
-                else if (impl->HasDisabledBreakpoint())
-                    mainText.Foreground(grayBrush);
-                else if (impl->HasBreakpoint())
-                    mainText.Foreground(redBrush);
-                else
-                    mainText.Foreground(normalBrush);
+                if (mainText.Foreground() != desiredFg)
+                    mainText.Foreground(desiredFg);
             }
         }
     }

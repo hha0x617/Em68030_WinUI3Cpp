@@ -166,6 +166,15 @@ namespace winrt::Em68030::implementation
         std::vector<winrt::Microsoft::UI::Xaml::Controls::TextBlock> m_memAddrLabels;
         bool m_memEditGridBuilt = false;
         bool m_memEditPopulating = false;
+
+        // Cached brushes for disassembly list (reuse avoids WinUI3 re-render on same value)
+        Microsoft::UI::Xaml::Media::SolidColorBrush m_brYellow{ nullptr };
+        Microsoft::UI::Xaml::Media::SolidColorBrush m_brRed{ nullptr };
+        Microsoft::UI::Xaml::Media::SolidColorBrush m_brGray{ nullptr };
+        Microsoft::UI::Xaml::Media::SolidColorBrush m_brNormal{ nullptr };
+        Microsoft::UI::Xaml::Media::SolidColorBrush m_brPcBg{ nullptr };
+        Microsoft::UI::Xaml::Media::SolidColorBrush m_brTransparent{ nullptr };
+        void EnsureDisasmBrushes();
     };
 }
 
