@@ -230,7 +230,9 @@ namespace winrt::Em68030::implementation
         m_lanceDevice->AttachMemory(m_memory.get());
         if (m_config.NetworkMode == "NAT")
         {
-            auto natHandler = std::make_unique<::Em68030::IO::SlirpNetworkHandler>();
+            auto gwIp = ::Em68030::IO::SlirpNetworkHandler::ParseIpAddress(m_config.NatGatewayIp);
+            auto gwMac = ::Em68030::IO::SlirpNetworkHandler::ParseMacAddress(m_config.NatGatewayMac);
+            auto natHandler = std::make_unique<::Em68030::IO::SlirpNetworkHandler>(gwIp, gwMac);
             natHandler->DiagnosticOutput = [this](const std::string& msg) {
                 if (m_traceWriter) *m_traceWriter << msg;
             };
