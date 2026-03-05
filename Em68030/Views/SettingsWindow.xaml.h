@@ -46,6 +46,7 @@ namespace winrt::Em68030::implementation
 
     private:
         void UpdateMvme147Visibility();
+        void UpdateNatGatewayEnabled();
 
         // Get HWND for file picker initialization.
         HWND GetOwnerHwnd() const;

@@ -123,6 +123,22 @@
                         <ComboBoxItem Content="NAT (Host Network)" />
                     </ComboBox>
                 </Grid>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Gateway IP:" Style="{StaticResource SettingLabelStyle}" />
+                    <TextBox x:Name="NatGatewayIpBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+                </Grid>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Gateway MAC:" Style="{StaticResource SettingLabelStyle}" />
+                    <TextBox x:Name="NatGatewayMacBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+                </Grid>
             </StackPanel>
 
             <!-- Memory Settings -->

@@ -11,6 +11,7 @@
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 
 #include "IO/HddDevice.h"
+#include "IO/SlirpNetworkHandler.h"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -91,6 +92,8 @@ namespace winrt::Em68030::implementation
         JitCompileThresholdBox(FindName(L"JitCompileThresholdBox").try_as<Controls::TextBox>());
         AddScsiDiskBtn(FindName(L"AddScsiDiskBtn").try_as<Controls::Button>());
         NetworkModeBox(FindName(L"NetworkModeBox").try_as<Controls::ComboBox>());
+        NatGatewayIpBox(FindName(L"NatGatewayIpBox").try_as<Controls::TextBox>());
+        NatGatewayMacBox(FindName(L"NatGatewayMacBox").try_as<Controls::TextBox>());
 
         // Wire event handlers programmatically (XAML Connect is no-op for C++ native)
         if (BoardTypeBox())
@@ -127,6 +130,12 @@ namespace winrt::Em68030::implementation
         {
             ScsiCdromIdBox().SelectionChanged([this]([[maybe_unused]] auto const&, [[maybe_unused]] auto const&) {
                 if (!m_refreshingIds) RefreshScsiIdOptions();
+            });
+        }
+        if (NetworkModeBox())
+        {
+            NetworkModeBox().SelectionChanged([this]([[maybe_unused]] auto const&, [[maybe_unused]] auto const&) {
+                UpdateNatGatewayEnabled();
             });
         }
     }
@@ -362,6 +371,11 @@ namespace winrt::Em68030::implementation
         m_desiredCdromId = std::clamp(config.Mvme147ScsiCdromId, 0, 6);
         if (NetworkModeBox())
             NetworkModeBox().SelectedIndex(config.NetworkMode == "NAT" ? 1 : 0);
+        if (NatGatewayIpBox())
+            NatGatewayIpBox().Text(winrt::to_hstring(config.NatGatewayIp));
+        if (NatGatewayMacBox())
+            NatGatewayMacBox().Text(winrt::to_hstring(config.NatGatewayMac));
+        UpdateNatGatewayEnabled();
         UpdateMvme147Visibility();
         RefreshScsiIdOptions();
 
@@ -422,6 +436,23 @@ namespace winrt::Em68030::implementation
         config.Mvme147ScsiCdromId = GetSelectedScsiId(ScsiCdromIdBox());
         if (NetworkModeBox())
             config.NetworkMode = (NetworkModeBox().SelectedIndex() == 1) ? "NAT" : "Virtual";
+        if (NatGatewayIpBox())
+        {
+            auto ip = winrt::to_string(NatGatewayIpBox().Text());
+            // Validate: ParseIpAddress returns default on invalid input
+            auto parsed = ::Em68030::IO::SlirpNetworkHandler::ParseIpAddress(ip);
+            config.NatGatewayIp = std::to_string(parsed[0]) + "." + std::to_string(parsed[1]) + "." +
+                                  std::to_string(parsed[2]) + "." + std::to_string(parsed[3]);
+        }
+        if (NatGatewayMacBox())
+        {
+            auto mac = winrt::to_string(NatGatewayMacBox().Text());
+            auto parsed = ::Em68030::IO::SlirpNetworkHandler::ParseMacAddress(mac);
+            char buf[18];
+            snprintf(buf, sizeof(buf), "%02x:%02x:%02x:%02x:%02x:%02x",
+                     parsed[0], parsed[1], parsed[2], parsed[3], parsed[4], parsed[5]);
+            config.NatGatewayMac = buf;
+        }
 
         // Memory size
         auto memText = winrt::to_string(MemSizeBox().Text());
@@ -540,6 +571,21 @@ namespace winrt::Em68030::implementation
     {
         bool isMvme = BoardTypeBox().SelectedIndex() == 1;
         Mvme147Panel().Visibility(isMvme ? Visibility::Visible : Visibility::Collapsed);
+    }
+
+    void SettingsWindow::UpdateNatGatewayEnabled()
+    {
+        bool isNat = NetworkModeBox() && NetworkModeBox().SelectedIndex() == 1;
+        if (NatGatewayIpBox())
+        {
+            NatGatewayIpBox().IsEnabled(isNat);
+            NatGatewayIpBox().Opacity(isNat ? 1.0 : 0.35);
+        }
+        if (NatGatewayMacBox())
+        {
+            NatGatewayMacBox().IsEnabled(isNat);
+            NatGatewayMacBox().Opacity(isNat ? 1.0 : 0.35);
+        }
     }
 
     void SettingsWindow::BoardType_Changed([[maybe_unused]] IInspectable const& sender,
