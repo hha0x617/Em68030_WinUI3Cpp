@@ -74,6 +74,8 @@ void to_json(nlohmann::json& j, const EmulatorConfig& c)
         {"Mvme147ScsiCdromId",      c.Mvme147ScsiCdromId},
         {"NetworkMode",             c.NetworkMode},
         {"ConsoleScrollbackLines",  c.ConsoleScrollbackLines},
+        {"ConsoleColumns",          c.ConsoleColumns},
+        {"ConsoleRows",             c.ConsoleRows},
         {"JitEnabled",              c.JitEnabled},
         {"JitMinBlockLength",       c.JitMinBlockLength},
         {"JitCompileThreshold",     c.JitCompileThreshold}
@@ -103,6 +105,8 @@ void from_json(const nlohmann::json& j, EmulatorConfig& c)
     if (j.contains("Mvme147ScsiCdromId"))     j.at("Mvme147ScsiCdromId").get_to(c.Mvme147ScsiCdromId);
     if (j.contains("NetworkMode"))             j.at("NetworkMode").get_to(c.NetworkMode);
     if (j.contains("ConsoleScrollbackLines")) j.at("ConsoleScrollbackLines").get_to(c.ConsoleScrollbackLines);
+    if (j.contains("ConsoleColumns"))        { j.at("ConsoleColumns").get_to(c.ConsoleColumns); c.ConsoleColumns = std::max(c.ConsoleColumns, 80); }
+    if (j.contains("ConsoleRows"))           { j.at("ConsoleRows").get_to(c.ConsoleRows); c.ConsoleRows = std::max(c.ConsoleRows, 24); }
     if (j.contains("JitEnabled"))             j.at("JitEnabled").get_to(c.JitEnabled);
     if (j.contains("JitMinBlockLength"))     j.at("JitMinBlockLength").get_to(c.JitMinBlockLength);
     if (j.contains("JitCompileThreshold"))   j.at("JitCompileThreshold").get_to(c.JitCompileThreshold);

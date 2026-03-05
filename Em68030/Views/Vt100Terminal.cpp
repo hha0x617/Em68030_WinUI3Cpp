@@ -106,6 +106,66 @@ void Vt100Terminal::ResizeScrollback(int newMax)
 }
 
 // ============================================================================
+// Resize
+// ============================================================================
+
+void Vt100Terminal::Resize(int newCols, int newRows)
+{
+    if (newCols == m_cols && newRows == m_rows) return;
+
+    std::vector<char> newScreen(newRows * newCols, ' ');
+
+    // If shrinking rows, save overflow lines to scrollback
+    int overflow = m_rows - newRows;
+    if (overflow > 0 && m_maxScrollback > 0)
+    {
+        int linesToSave = std::min(overflow, m_rows);
+        for (int r = 0; r < linesToSave; r++)
+        {
+            std::string line(m_cols, ' ');
+            for (int c = 0; c < m_cols; c++)
+                line[c] = ScreenAt(r, c);
+            // Trim trailing spaces
+            auto end = line.find_last_not_of(' ');
+            if (end != std::string::npos)
+                line.resize(end + 1);
+            else
+                line.clear();
+
+            int writeIdx = (m_scrollbackHead + m_scrollbackCount) % m_maxScrollback;
+            m_scrollback[writeIdx] = std::move(line);
+            if (m_scrollbackCount < m_maxScrollback)
+                m_scrollbackCount++;
+            else
+                m_scrollbackHead = (m_scrollbackHead + 1) % m_maxScrollback;
+        }
+    }
+
+    // Copy existing content (shifted if rows shrunk)
+    int srcStartRow = overflow > 0 ? overflow : 0;
+    int copyRows = std::min(m_rows - std::max(overflow, 0), newRows);
+    int copyCols = std::min(m_cols, newCols);
+    for (int r = 0; r < copyRows; r++)
+        for (int c = 0; c < copyCols; c++)
+            newScreen[r * newCols + c] = ScreenAt(srcStartRow + r, c);
+
+    m_screen = std::move(newScreen);
+
+    // Clamp cursor
+    m_cursorRow = std::clamp(m_cursorRow - std::max(overflow, 0), 0, newRows - 1);
+    m_cursorCol = std::clamp(m_cursorCol, 0, newCols - 1);
+
+    m_cols = newCols;
+    m_rows = newRows;
+
+    // Reset scroll region
+    m_scrollTop = 0;
+    m_scrollBottom = newRows - 1;
+
+    m_dirty = true;
+}
+
+// ============================================================================
 // Write
 // ============================================================================
 

@@ -41,6 +41,9 @@ public:
     /// Resize the scrollback ring buffer, preserving the most recent lines.
     void ResizeScrollback(int newMax);
 
+    /// Resize the terminal screen to new dimensions, preserving existing content.
+    void Resize(int newCols, int newRows);
+
     int GetScrollbackLineCount() const { return m_scrollbackCount; }
     int GetCursorRow() const { return m_cursorRow; }
     int GetCursorCol() const { return m_cursorCol; }

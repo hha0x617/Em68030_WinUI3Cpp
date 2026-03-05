@@ -66,6 +66,10 @@ public:
     // Console scrollback buffer size (lines). Range: 0..100000
     int ConsoleScrollbackLines = 2000;
 
+    // Console terminal size (columns x rows). Minimum: 80x24
+    int ConsoleColumns = 80;
+    int ConsoleRows = 24;
+
     // JIT compiler (experimental)
     bool JitEnabled = false;
     int JitMinBlockLength = 3;
