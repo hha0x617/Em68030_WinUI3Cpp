@@ -176,7 +176,12 @@ namespace winrt::Em68030::implementation
         void ToggleTrace();
         void ResetDisasmFollowPC();
         bool DisasmFollowPC() const { return m_disasmFollowPC; }
-        void SetDisasmFollowPC(bool value) { m_disasmFollowPC = value; }
+        void SetDisasmFollowPC(bool value) {
+            if (m_disasmFollowPC != value) {
+                m_disasmFollowPC = value;
+                RaisePropertyChanged(L"DisasmFollowPC");
+            }
+        }
 
         void UpdateDisassembly();
         void UpdateMemoryDump();

@@ -637,7 +637,7 @@ namespace winrt::Em68030::implementation
         m_cpu->PC = loadAddress;
         m_programStartAddress = loadAddress;
         m_programEndAddress = loadAddress + size;
-        m_disasmFollowPC = true;
+        SetDisasmFollowPC(true);
         m_fullProgramDisassembled = false;
         ClearManualDisasmMode();
         InitStackPointer();
@@ -670,7 +670,7 @@ namespace winrt::Em68030::implementation
             m_programStartAddress = start;
         }
         m_programEndAddress = end;
-        m_disasmFollowPC = true;
+        SetDisasmFollowPC(true);
         m_fullProgramDisassembled = false;
         ClearManualDisasmMode();
         InitStackPointer();
@@ -691,7 +691,7 @@ namespace winrt::Em68030::implementation
         m_cpu->PC = result.EntryPoint;
         m_programStartAddress = result.StartAddress;
         m_programEndAddress = result.EndAddress;
-        m_disasmFollowPC = true;
+        SetDisasmFollowPC(true);
         m_fullProgramDisassembled = false;
         ClearManualDisasmMode();
 
@@ -736,7 +736,6 @@ namespace winrt::Em68030::implementation
         if (m_cpu->Halted) return;
         if (m_cpu->Stopped && !m_cpu->HasExternalDevices()) return;
         m_cpu->ExecuteStep();
-        m_disasmFollowPC = true;
         RefreshAll();
     }
 
@@ -1114,7 +1113,7 @@ namespace winrt::Em68030::implementation
     void MainViewModel::ManualDisassembly(uint32_t address, uint32_t sizeBytes)
     {
         m_manualDisasmMode = true;
-        m_disasmFollowPC = false;
+        SetDisasmFollowPC(false);
         m_fullProgramDisassembled = false;
         m_disasmAddress = address;
         UpdateDisassemblyRange(address, address + sizeBytes);
@@ -1236,7 +1235,7 @@ namespace winrt::Em68030::implementation
     void MainViewModel::NavigateDisassembly(uint32_t address)
     {
         m_disasmAddress = address;
-        m_disasmFollowPC = false;
+        SetDisasmFollowPC(false);
         m_fullProgramDisassembled = false;
         UpdateDisassemblyAt(m_disasmAddress);
     }
@@ -1258,7 +1257,7 @@ namespace winrt::Em68030::implementation
         if (targetIndex < 0)
         {
             // Address not in current view — navigate so the address appears
-            m_disasmFollowPC = false;
+            SetDisasmFollowPC(false);
             m_fullProgramDisassembled = false;
             uint32_t backBytes = std::min(address, 80u);
             uint32_t startAddr = (address - backBytes) & 0xFFFFFFFE;
@@ -1283,14 +1282,14 @@ namespace winrt::Em68030::implementation
     void MainViewModel::NavigateToProgram()
     {
         m_disasmAddress = m_programStartAddress;
-        m_disasmFollowPC = false;
+        SetDisasmFollowPC(false);
         m_fullProgramDisassembled = false;
         UpdateDisassemblyRange(m_programStartAddress, m_programEndAddress);
     }
 
     void MainViewModel::ResetDisasmFollowPC()
     {
-        m_disasmFollowPC = true;
+        SetDisasmFollowPC(true);
         m_fullProgramDisassembled = false;
         UpdateDisassembly();
     }
@@ -1558,7 +1557,6 @@ namespace winrt::Em68030::implementation
         RaisePropertyChanged(L"IsRegisterEditMode");
         RaiseAllCommandsCanExecuteChanged();
 
-        m_disasmFollowPC = true;
         RefreshAll();
     }
 
