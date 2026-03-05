@@ -156,6 +156,18 @@
                 <TextBlock Text="Scrollback Lines:" Style="{StaticResource SettingLabelStyle}" />
                 <TextBox x:Name="ConsoleScrollbackBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
             </Grid>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="60" />
+                    <ColumnDefinition Width="30" />
+                    <ColumnDefinition Width="60" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Terminal Size:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBox x:Name="ConsoleColumnsBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+                <TextBlock Text=" x " Grid.Column="2" Style="{StaticResource SettingLabelStyle}" HorizontalAlignment="Center" />
+                <TextBox x:Name="ConsoleRowsBox" Grid.Column="3" Style="{StaticResource SettingTextBoxStyle}" />
+            </Grid>
 
             <CheckBox x:Name="HddEnabledBox" Content="HDD Device Enabled"
                       Foreground="#FFD4D4D4" Margin="0,8,0,4" />

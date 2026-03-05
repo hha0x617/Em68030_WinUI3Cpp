@@ -750,6 +750,7 @@ namespace winrt::Em68030::implementation
                 {
                     auto consoleImpl = m_consoleWindow.as<implementation::ConsoleWindow>();
                     consoleImpl->SetScrollbackLines(config.ConsoleScrollbackLines);
+                    consoleImpl->SetTerminalSize(config.ConsoleColumns, config.ConsoleRows);
                 }
             }
         }
@@ -2049,13 +2050,15 @@ namespace winrt::Em68030::implementation
     {
         if (!m_consoleWindow)
         {
-            m_consoleWindow = winrt::make<implementation::ConsoleWindow>();
+            auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
+            auto& cfg = vmImpl->Config();
+            m_consoleWindow = winrt::make<implementation::ConsoleWindow>(
+                cfg.ConsoleColumns, cfg.ConsoleRows, cfg.ConsoleScrollbackLines);
 
             // In MVME147 mode, wire raw character input so keyboard input goes
             // directly to the SCC device via ViewModel::SendConsoleChar.
             // In Generic mode, leave OnCharInput unset so input goes through
             // line-buffered ReadChar/ReadString callbacks instead.
-            auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
             if (vmImpl->Config().BoardType == "MVME147")
             {
                 auto consoleImpl = m_consoleWindow.as<implementation::ConsoleWindow>();

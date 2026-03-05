@@ -8,12 +8,14 @@
 #include <functional>
 #include <string>
 #include <atomic>
+#include <windows.h>
 
 namespace winrt::Em68030::implementation
 {
     struct ConsoleWindow : ConsoleWindowT<ConsoleWindow>
     {
         ConsoleWindow();
+        ConsoleWindow(int cols, int rows, int scrollbackLines);
 
         // --- Thread-safe output: called from emulation background thread ---
 
@@ -33,6 +35,9 @@ namespace winrt::Em68030::implementation
 
         /// Resize the scrollback buffer. Must be called on the UI thread.
         void SetScrollbackLines(int lines);
+
+        /// Resize the terminal and adjust window size to match.
+        void SetTerminalSize(int cols, int rows);
 
         /// Callback to feed characters directly to the SCC device (MVME147 mode).
         /// When set, keyboard input bypasses line-buffered mode and sends raw bytes.
@@ -88,6 +93,33 @@ namespace winrt::Em68030::implementation
 
         // Paste clipboard text (async). rawMode=true sends to SCC, false appends to input buffer.
         winrt::fire_and_forget PasteFromClipboard(bool rawMode);
+
+        // Character cell measurement for resize
+        float m_charWidth = 0;
+        float m_charHeight = 0;
+        bool m_charMeasured = false;
+
+        // Cached reference to the ScrollViewer inside the TextBox template
+        // (named "ContentElement"), used for accurate text area measurement.
+        Microsoft::UI::Xaml::Controls::ScrollViewer m_contentScrollViewer{ nullptr };
+
+        // Empirically measured overhead (padding/chrome) inside the TextBox/ScrollViewer
+        float m_textAreaOverhead = 0;
+
+        // Minimum window size enforcement via WM_GETMINMAXINFO subclass
+        HWND m_hwnd = nullptr;
+        int m_minWindowWidth = 0;
+        int m_minWindowHeight = 0;
+        static LRESULT CALLBACK SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
+                                              UINT_PTR subclassId, DWORD_PTR refData);
+
+        void MeasureCharCell();
+        void UpdateTitle();
+        void OnSizeChanged(winrt::Windows::Foundation::IInspectable const& sender,
+                           winrt::Microsoft::UI::Xaml::SizeChangedEventArgs const& e);
+
+        // Initialization helper (shared between constructors)
+        void InitConsoleWindow();
     };
 }
 

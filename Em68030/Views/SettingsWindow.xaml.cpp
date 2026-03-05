@@ -78,6 +78,8 @@ namespace winrt::Em68030::implementation
         ConsoleEnabledBox(FindName(L"ConsoleEnabledBox").try_as<Controls::CheckBox>());
         ConsoleAddrBox(FindName(L"ConsoleAddrBox").try_as<Controls::TextBox>());
         ConsoleScrollbackBox(FindName(L"ConsoleScrollbackBox").try_as<Controls::TextBox>());
+        ConsoleColumnsBox(FindName(L"ConsoleColumnsBox").try_as<Controls::TextBox>());
+        ConsoleRowsBox(FindName(L"ConsoleRowsBox").try_as<Controls::TextBox>());
         HddEnabledBox(FindName(L"HddEnabledBox").try_as<Controls::CheckBox>());
         HddAddrBox(FindName(L"HddAddrBox").try_as<Controls::TextBox>());
         HddPathBox(FindName(L"HddPathBox").try_as<Controls::TextBox>());
@@ -374,6 +376,10 @@ namespace winrt::Em68030::implementation
             ConsoleAddrBox().Text(buf);
         }
         ConsoleScrollbackBox().Text(winrt::to_hstring(std::to_string(config.ConsoleScrollbackLines)));
+        if (ConsoleColumnsBox())
+            ConsoleColumnsBox().Text(winrt::to_hstring(std::to_string(config.ConsoleColumns)));
+        if (ConsoleRowsBox())
+            ConsoleRowsBox().Text(winrt::to_hstring(std::to_string(config.ConsoleRows)));
         HddEnabledBox().IsChecked(config.HddEnabled);
         {
             wchar_t buf[16];
@@ -431,6 +437,17 @@ namespace winrt::Em68030::implementation
         auto scrollbackText = winrt::to_string(ConsoleScrollbackBox().Text());
         try { config.ConsoleScrollbackLines = std::stoi(scrollbackText); }
         catch (...) { /* keep previous */ }
+
+        if (ConsoleColumnsBox())
+        {
+            try { config.ConsoleColumns = std::max(80, std::stoi(winrt::to_string(ConsoleColumnsBox().Text()))); }
+            catch (...) { /* keep previous */ }
+        }
+        if (ConsoleRowsBox())
+        {
+            try { config.ConsoleRows = std::max(24, std::stoi(winrt::to_string(ConsoleRowsBox().Text()))); }
+            catch (...) { /* keep previous */ }
+        }
 
         config.HddEnabled = HddEnabledBox().IsChecked().Value();
         auto hddAddrText = winrt::to_string(HddAddrBox().Text());
