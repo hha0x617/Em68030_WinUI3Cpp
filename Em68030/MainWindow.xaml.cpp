@@ -109,7 +109,14 @@ namespace winrt::Em68030::implementation
             // Toolbar info
             FileNameText(root.FindName(L"FileNameText").try_as<Controls::TextBlock>());
             CycleCountText(root.FindName(L"CycleCountText").try_as<Controls::TextBlock>());
-            MhzText(root.FindName(L"MhzText").try_as<Controls::TextBlock>());
+            if (auto mhzText = root.FindName(L"MhzText").try_as<Controls::TextBlock>())
+            {
+                MhzText(mhzText);
+                mhzText.Tapped([this](auto&&, auto&&) {
+                    auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
+                    vmImpl->ToggleMhzDisplayMode();
+                });
+            }
             StopReasonText(root.FindName(L"StopReasonText").try_as<Controls::TextBlock>());
 
             // Disassembly

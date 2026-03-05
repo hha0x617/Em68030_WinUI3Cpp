@@ -770,6 +770,12 @@ namespace winrt::Em68030::implementation
         m_estimatedMHz = 0.0;
         m_estimatedMips = 0.0;
 
+        m_runStartCycleCount = m_cpu->CycleCount;
+        m_runStartInsnCount = m_cpu->InstructionCount;
+        m_runStartTimestamp = std::chrono::steady_clock::now();
+        m_avgMHz = 0.0;
+        m_avgMips = 0.0;
+
         m_emulationThread = std::thread([this]() { EmulationThreadLoop(); });
     }
 
@@ -898,6 +904,13 @@ namespace winrt::Em68030::implementation
                     lastMhzUpdate = now;
                     m_mhzTimestamp = now;
 
+                    // Cumulative average since Run started
+                    double totalSec = std::chrono::duration<double>(now - m_runStartTimestamp).count();
+                    if (totalSec > 0.01) {
+                        m_avgMHz = static_cast<double>(m_cpu->CycleCount - m_runStartCycleCount) / totalSec / 1'000'000.0;
+                        m_avgMips = static_cast<double>(m_cpu->InstructionCount - m_runStartInsnCount) / totalSec / 1'000'000.0;
+                    }
+
                     if (m_dispatcherQueue)
                     {
                         m_dispatcherQueue.TryEnqueue([this]() {
@@ -953,6 +966,12 @@ namespace winrt::Em68030::implementation
             int64_t insns = static_cast<int64_t>(m_cpu->InstructionCount) - m_mipsInsnSnapshot;
             m_estimatedMips = static_cast<double>(insns) / seconds / 1'000'000.0;
         }
+        // Final average calculation
+        double totalSec = std::chrono::duration<double>(now - m_runStartTimestamp).count();
+        if (totalSec > 0.01) {
+            m_avgMHz = static_cast<double>(m_cpu->CycleCount - m_runStartCycleCount) / totalSec / 1'000'000.0;
+            m_avgMips = static_cast<double>(m_cpu->InstructionCount - m_runStartInsnCount) / totalSec / 1'000'000.0;
+        }
         RefreshAll();
     }
 
@@ -976,6 +995,12 @@ namespace winrt::Em68030::implementation
             m_estimatedMHz = static_cast<double>(cycles) / seconds / 1'000'000.0;
             int64_t insns = static_cast<int64_t>(m_cpu->InstructionCount) - m_mipsInsnSnapshot;
             m_estimatedMips = static_cast<double>(insns) / seconds / 1'000'000.0;
+        }
+        // Final average calculation
+        double totalSec = std::chrono::duration<double>(now - m_runStartTimestamp).count();
+        if (totalSec > 0.01) {
+            m_avgMHz = static_cast<double>(m_cpu->CycleCount - m_runStartCycleCount) / totalSec / 1'000'000.0;
+            m_avgMips = static_cast<double>(m_cpu->InstructionCount - m_runStartInsnCount) / totalSec / 1'000'000.0;
         }
         RefreshAll();
     }
@@ -1884,13 +1909,21 @@ namespace winrt::Em68030::implementation
 
     hstring MainViewModel::EstimatedMHz() const
     {
-        if (m_estimatedMHz > 0)
+        double mhz = m_showAvgMhz ? m_avgMHz : m_estimatedMHz;
+        double mips = m_showAvgMhz ? m_avgMips : m_estimatedMips;
+        if (mhz > 0)
         {
-            wchar_t buf[64];
-            swprintf_s(buf, L"%.2f MHz (%.2f MIPS)", m_estimatedMHz, m_estimatedMips);
+            wchar_t buf[80];
+            swprintf_s(buf, m_showAvgMhz ? L"Avg %.2f MHz (%.2f MIPS)" : L"%.2f MHz (%.2f MIPS)", mhz, mips);
             return buf;
         }
         return L"";
+    }
+
+    void MainViewModel::ToggleMhzDisplayMode()
+    {
+        m_showAvgMhz = !m_showAvgMhz;
+        RaisePropertyChanged(L"EstimatedMHz");
     }
 
     // ======================================================================

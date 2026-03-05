@@ -173,6 +173,7 @@ namespace winrt::Em68030::implementation
         void ClearManualDisasmMode();
 
         void ApplyConfig(::Em68030::Config::EmulatorConfig const& newConfig);
+        void ToggleMhzDisplayMode();
         void ToggleTrace();
         void ResetDisasmFollowPC();
         bool DisasmFollowPC() const { return m_disasmFollowPC; }
@@ -345,6 +346,14 @@ namespace winrt::Em68030::implementation
         std::chrono::steady_clock::time_point m_mhzTimestamp;
         double m_estimatedMHz = 0.0;
         double m_estimatedMips = 0.0;
+
+        // Average MHz/MIPS (cumulative since Run started)
+        int64_t m_runStartCycleCount = 0;
+        int64_t m_runStartInsnCount = 0;
+        std::chrono::steady_clock::time_point m_runStartTimestamp;
+        double m_avgMHz = 0.0;
+        double m_avgMips = 0.0;
+        bool m_showAvgMhz = false;
 
         // Breakpoints
         std::unordered_map<uint32_t, BreakpointData> m_breakpoints;
