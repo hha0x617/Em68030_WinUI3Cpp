@@ -23,6 +23,8 @@ namespace Em68030::IO {
 class SlirpNetworkHandler : public INetworkHandler {
 public:
     SlirpNetworkHandler();
+    SlirpNetworkHandler(const std::array<uint8_t, 4>& gatewayIp,
+                        const std::array<uint8_t, 6>& gatewayMac);
     ~SlirpNetworkHandler() override;
 
     void SetGuestMac(const std::array<uint8_t, 6>& mac) override;
@@ -31,9 +33,12 @@ public:
     std::vector<uint8_t> DequeuePacket() override;
     void Reset() override;
 
+    static std::array<uint8_t, 4> ParseIpAddress(const std::string& s);
+    static std::array<uint8_t, 6> ParseMacAddress(const std::string& s);
+
 private:
-    static constexpr std::array<uint8_t, 6> GatewayMac = { 0x52, 0x54, 0x00, 0x12, 0x34, 0x56 };
-    static constexpr std::array<uint8_t, 4> GatewayIp = { 10, 0, 2, 2 };
+    std::array<uint8_t, 6> GatewayMac = { 0x52, 0x54, 0x00, 0x12, 0x34, 0x56 };
+    std::array<uint8_t, 4> GatewayIp = { 10, 0, 2, 2 };
 
     // TCP flags
     static constexpr uint8_t TCP_FIN = 0x01;

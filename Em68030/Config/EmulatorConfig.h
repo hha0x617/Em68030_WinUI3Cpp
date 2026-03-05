@@ -63,6 +63,10 @@ public:
     // Network mode: "Virtual" (internal echo server) or "NAT" (host network via user-mode NAT)
     std::string NetworkMode = "Virtual";
 
+    // NAT gateway address (shared by SlirpNetworkHandler and VirtualNetworkHandler)
+    std::string NatGatewayIp = "10.0.2.2";
+    std::string NatGatewayMac = "52:54:00:12:34:56";
+
     // Console scrollback buffer size (lines). Range: 0..100000
     int ConsoleScrollbackLines = 2000;
 

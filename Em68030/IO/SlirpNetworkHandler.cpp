@@ -28,6 +28,38 @@ SlirpNetworkHandler::SlirpNetworkHandler()
         m_wsaInitialized = true;
 }
 
+SlirpNetworkHandler::SlirpNetworkHandler(const std::array<uint8_t, 4>& gatewayIp,
+                                         const std::array<uint8_t, 6>& gatewayMac)
+    : SlirpNetworkHandler()
+{
+    GatewayIp = gatewayIp;
+    GatewayMac = gatewayMac;
+}
+
+std::array<uint8_t, 4> SlirpNetworkHandler::ParseIpAddress(const std::string& s)
+{
+    std::array<uint8_t, 4> result = { 10, 0, 2, 2 }; // default
+    unsigned int a, b, c, d;
+    if (sscanf_s(s.c_str(), "%u.%u.%u.%u", &a, &b, &c, &d) == 4 &&
+        a <= 255 && b <= 255 && c <= 255 && d <= 255)
+    {
+        result = { (uint8_t)a, (uint8_t)b, (uint8_t)c, (uint8_t)d };
+    }
+    return result;
+}
+
+std::array<uint8_t, 6> SlirpNetworkHandler::ParseMacAddress(const std::string& s)
+{
+    std::array<uint8_t, 6> result = { 0x52, 0x54, 0x00, 0x12, 0x34, 0x56 }; // default
+    unsigned int m[6];
+    if (sscanf_s(s.c_str(), "%x:%x:%x:%x:%x:%x", &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) == 6 &&
+        m[0] <= 255 && m[1] <= 255 && m[2] <= 255 && m[3] <= 255 && m[4] <= 255 && m[5] <= 255)
+    {
+        for (int i = 0; i < 6; ++i) result[i] = (uint8_t)m[i];
+    }
+    return result;
+}
+
 SlirpNetworkHandler::~SlirpNetworkHandler()
 {
     m_disposed = true;
