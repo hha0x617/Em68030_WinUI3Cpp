@@ -113,55 +113,110 @@ void Vt100Terminal::Resize(int newCols, int newRows)
 {
     if (newCols == m_cols && newRows == m_rows) return;
 
+    int rowDiff = newRows - m_rows; // positive = growing, negative = shrinking
     std::vector<char> newScreen(newRows * newCols, ' ');
 
-    // If shrinking rows, save overflow lines to scrollback
-    int overflow = m_rows - newRows;
-    if (overflow > 0 && m_maxScrollback > 0)
+    if (rowDiff < 0)
     {
-        int linesToSave = std::min(overflow, m_rows);
-        for (int r = 0; r < linesToSave; r++)
-        {
-            std::string line(m_cols, ' ');
-            for (int c = 0; c < m_cols; c++)
-                line[c] = ScreenAt(r, c);
-            // Trim trailing spaces
-            auto end = line.find_last_not_of(' ');
-            if (end != std::string::npos)
-                line.resize(end + 1);
-            else
-                line.clear();
+        // --- Shrinking height ---
+        int rowsToRemove = -rowDiff;
 
-            int writeIdx = (m_scrollbackHead + m_scrollbackCount) % m_maxScrollback;
-            m_scrollback[writeIdx] = std::move(line);
-            if (m_scrollbackCount < m_maxScrollback)
-                m_scrollbackCount++;
-            else
-                m_scrollbackHead = (m_scrollbackHead + 1) % m_maxScrollback;
+        // Count trailing blank lines at bottom of screen (up to rowsToRemove)
+        int trailingBlanks = 0;
+        for (int r = m_rows - 1; r >= 0 && trailingBlanks < rowsToRemove; r--)
+        {
+            bool blank = true;
+            for (int c = 0; c < m_cols; c++)
+            {
+                if (ScreenAt(r, c) != ' ') { blank = false; break; }
+            }
+            if (!blank) break;
+            trailingBlanks++;
         }
+
+        // Don't remove blank lines at or above cursor (cursor row must remain visible)
+        int removableBlanks = std::min(trailingBlanks, m_rows - 1 - m_cursorRow);
+        int blanksConsumed = std::min(removableBlanks, rowsToRemove);
+        int remainingToRemove = rowsToRemove - blanksConsumed;
+
+        // Push top lines to scrollback (anchor bottom of display)
+        if (remainingToRemove > 0 && m_maxScrollback > 0)
+        {
+            for (int r = 0; r < remainingToRemove; r++)
+            {
+                std::string line(m_cols, ' ');
+                for (int c = 0; c < m_cols; c++)
+                    line[c] = ScreenAt(r, c);
+                auto end = line.find_last_not_of(' ');
+                if (end != std::string::npos)
+                    line.resize(end + 1);
+                else
+                    line.clear();
+
+                int writeIdx = (m_scrollbackHead + m_scrollbackCount) % m_maxScrollback;
+                m_scrollback[writeIdx] = std::move(line);
+                if (m_scrollbackCount < m_maxScrollback)
+                    m_scrollbackCount++;
+                else
+                    m_scrollbackHead = (m_scrollbackHead + 1) % m_maxScrollback;
+            }
+        }
+
+        // Copy: skip top `remainingToRemove` lines, drop bottom `blanksConsumed` blank lines
+        int srcStartRow = remainingToRemove;
+        int copyRows = std::min(m_rows - remainingToRemove - blanksConsumed, newRows);
+        int copyCols = std::min(m_cols, newCols);
+        for (int r = 0; r < copyRows; r++)
+            for (int c = 0; c < copyCols; c++)
+                newScreen[r * newCols + c] = ScreenAt(srcStartRow + r, c);
+
+        m_cursorRow = std::clamp(m_cursorRow - remainingToRemove, 0, newRows - 1);
+    }
+    else if (rowDiff > 0)
+    {
+        // --- Growing height ---
+        int rowsToAdd = rowDiff;
+
+        // Pull most recent lines from scrollback to fill top
+        int fromScrollback = std::min(rowsToAdd, m_scrollbackCount);
+
+        for (int i = 0; i < fromScrollback; i++)
+        {
+            // Older lines at top, newer lines adjacent to existing content
+            int scrollIdx = (m_scrollbackHead + m_scrollbackCount - fromScrollback + i) % m_maxScrollback;
+            const std::string& line = m_scrollback[scrollIdx];
+            int len = std::min(static_cast<int>(line.size()), newCols);
+            for (int c = 0; c < len; c++)
+                newScreen[i * newCols + c] = line[c];
+        }
+        m_scrollbackCount -= fromScrollback;
+
+        // Copy existing screen content after the restored scrollback lines
+        int destStartRow = fromScrollback;
+        int copyRows = std::min(m_rows, newRows - fromScrollback);
+        int copyCols = std::min(m_cols, newCols);
+        for (int r = 0; r < copyRows; r++)
+            for (int c = 0; c < copyCols; c++)
+                newScreen[(destStartRow + r) * newCols + c] = ScreenAt(r, c);
+
+        // Remaining rows at bottom are already blank (initialized to ' ')
+        m_cursorRow = std::clamp(m_cursorRow + fromScrollback, 0, newRows - 1);
+    }
+    else
+    {
+        // Only column width changed
+        int copyCols = std::min(m_cols, newCols);
+        for (int r = 0; r < m_rows; r++)
+            for (int c = 0; c < copyCols; c++)
+                newScreen[r * newCols + c] = ScreenAt(r, c);
     }
 
-    // Copy existing content (shifted if rows shrunk)
-    int srcStartRow = overflow > 0 ? overflow : 0;
-    int copyRows = std::min(m_rows - std::max(overflow, 0), newRows);
-    int copyCols = std::min(m_cols, newCols);
-    for (int r = 0; r < copyRows; r++)
-        for (int c = 0; c < copyCols; c++)
-            newScreen[r * newCols + c] = ScreenAt(srcStartRow + r, c);
-
     m_screen = std::move(newScreen);
-
-    // Clamp cursor
-    m_cursorRow = std::clamp(m_cursorRow - std::max(overflow, 0), 0, newRows - 1);
     m_cursorCol = std::clamp(m_cursorCol, 0, newCols - 1);
-
     m_cols = newCols;
     m_rows = newRows;
-
-    // Reset scroll region
     m_scrollTop = 0;
     m_scrollBottom = newRows - 1;
-
     m_dirty = true;
 }
 
