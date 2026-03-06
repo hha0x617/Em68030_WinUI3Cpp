@@ -6,7 +6,9 @@ This is the high-performance C++/WinRT + WinUI 3 port of the [C# WPF version](ht
 
 [Japanese documentation (README_ja.md)](README_ja.md)
 
-![NetBSD booting on Em68030](screenshot.png)
+<a href="docs/screenshot_jit_off.png"><img src="docs/screenshot_jit_off.png" alt="NetBSD booting on Em68030" width="50%"></a>
+
+**Documentation**: [Instruction Set](docs/instruction_set.md) | [Hardware Platform](docs/hardware_platform.md)
 
 ## Features
 
@@ -35,7 +37,7 @@ This is the high-performance C++/WinRT + WinUI 3 port of the [C# WPF version](ht
 - Warm reboot (RESET instruction) and halt detection
 
 ### Performance
-Achieves ~50 MIPS (~150 MHz estimated) on an Intel Core i7-13700. The status bar displays both approximate MHz (cycle-based) and MIPS (instruction throughput). Key optimizations:
+Achieves ~42 MIPS (~257 MHz estimated) on an Intel Core i7-13700. The status bar displays both approximate MHz (cycle-based) and MIPS (instruction throughput). Key optimizations:
 
 - 65,536-entry opcode dispatch table
 - Specialized fast handlers for frequent instructions (MOVEQ, MOVE.L, Bcc.B, RTS, etc.)

@@ -25,9 +25,3 @@ appsettings.json
 # Archives
 *.7z
 *.zip
-
-# Misc
-*.txt
-*.png
-!screenshot.png
-*.url
