@@ -578,10 +578,29 @@ bool MC68030::ExecuteNextJit(CompiledBlock* block)
     std::memcpy(_savedD, D, sizeof(D));
     _regSnapshotNeeded = false;
 
-    PC = block->Execute(*this);
-    CycleCount += block->TotalCycles;
-    InstructionCount += block->InstructionCount;
-    _tickDivider += block->InstructionCount - 1;
+    auto result = block->Execute(*this);
+    PC = result.nextPC;
+    CycleCount += result.executedCycles;
+    InstructionCount += result.executedCount;
+    _tickDivider += result.executedCount - 1;
+
+    if (result.executedCount < block->InstructionCount) {
+        // Bailout occurred — track frequency and blacklist if too frequent
+        if (++block->BailoutCount >= JitBailoutBlacklistThreshold) {
+            m_jitCache.RemoveBlock(block->PhysicalAddress);
+            m_jitCache.MarkUncompilable(block->PhysicalAddress);
+        }
+
+        if (result.executedCount == 0) {
+            // First instruction bailed out — fall through to interpreter.
+            // Undo the -1 from (executedCount - 1) so _tickDivider stays correct.
+            _tickDivider++;
+            _regSnapshotNeeded = true;
+            auto opcode = m_decoder->ExecuteNext();
+            CycleCount += InstructionDecoder::GetCycles(opcode);
+            InstructionCount++;
+        }
+    }
     return true;
 }
 

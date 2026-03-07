@@ -104,7 +104,7 @@ TEST_F(CycleTableTest, JitBlock_TotalCycles)
     Memory.WriteWord(0x1000, 0x7001); // MOVEQ #1, D0
     Memory.WriteWord(0x1002, 0x7201); // MOVEQ #1, D1
     Memory.WriteWord(0x1004, 0xD280); // ADD.L D0, D1
-    Memory.WriteWord(0x1006, 0x4E75); // RTS (terminates block)
+    Memory.WriteWord(0x1006, 0x4AFC); // ILLEGAL (terminates block)
 
     Cpu.PC = 0x1000;
     auto block = compiler.TryCompile(Cpu, 0x1000, 0x1000);

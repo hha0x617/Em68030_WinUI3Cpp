@@ -44,6 +44,38 @@ enum class JitOpType : uint8_t {
     ExtbLDn,       // EXTB.L Dn
     NegLDn,        // NEG.L Dn
     NotLDn,        // NOT.L Dn
+    // Phase 1A: LEA register-based addressing
+    LeaAnAr,       // LEA (An), Ar
+    LeaD16AnAr,    // LEA d16(An), Ar
+    LeaD8AnXnAr,   // LEA d8(An,Xn), Ar
+    // Phase 1B: 16-bit displacement branches
+    BccW,          // Bcc.W (16-bit displacement)
+    BraW,          // BRA.W (16-bit displacement)
+    // Phase 1C: Multiply
+    MuluWDnDm,     // MULU.W Dn, Dm
+    MulsWDnDm,     // MULS.W Dn, Dm
+    // Phase 1D: Bit test
+    BtstDnDm,      // BTST Dn, Dm
+    // Phase 1E: Byte/Word size register instructions
+    AddBDnDm, AddWDnDm,
+    SubBDnDm, SubWDnDm,
+    CmpBDnDm, CmpWDnDm,
+    AndBDnDm, AndWDnDm,
+    OrBDnDm,  OrWDnDm,
+    EorBDnDm, EorWDnDm,
+    AddqBDn, AddqWDn,
+    SubqBDn, SubqWDn,
+    ClrBDn, ClrWDn,
+    TstBDn, TstWDn,
+    NegBDn, NegWDn,
+    NotBDn, NotWDn,
+    // Phase 2: Memory access instructions
+    MoveLIndAnDm,      // MOVE.L (An), Dm
+    MoveLPostIncAnDm,  // MOVE.L (An)+, Dm
+    MoveLDmIndAn,      // MOVE.L Dm, (An)
+    MoveLD16AnDm,      // MOVE.L d16(An), Dm
+    MoveLDmD16An,      // MOVE.L Dm, d16(An)
+    Rts,               // RTS
 };
 
 struct JitOp {
@@ -51,10 +83,20 @@ struct JitOp {
     uint8_t srcReg;      // source register (0-7)
     uint8_t dstReg;      // destination register (0-7)
     bool needsFlags;     // dead flag elimination: whether flags must be updated
-    int32_t immediate;   // MOVEQ immediate / Bcc/BRA displacement
+    int32_t immediate;   // MOVEQ immediate / Bcc/BRA displacement / LEA d16
     uint8_t condition;   // Bcc condition code (0-15)
+    uint8_t indexReg;    // index register for LEA d8(An,Xn)
+    uint8_t auxFlags;    // bit0: indexIsAddr, bit1-2: scale, bit3: indexIsLong
     uint32_t branchTarget;   // branch target PC (Bcc/BRA)
     uint32_t fallthroughPC;  // fallthrough PC when branch not taken (Bcc)
+    uint32_t instrPC;    // PC of this instruction (for Phase 2 bailout)
+};
+
+// Result of executing a JIT block (supports partial execution / bailout)
+struct JitExecResult {
+    uint32_t nextPC;
+    int executedCount;   // number of instructions actually executed
+    int executedCycles;  // cycles consumed by executed instructions
 };
 
 // Compiled basic block
@@ -66,8 +108,11 @@ public:
     int ByteLength;
     uint32_t FallthroughPC;  // next PC after block end (no branch)
     std::vector<JitOp> Ops;
+    std::vector<int> CumulativeCycles;  // CumulativeCycles[i] = sum of cycles for ops 0..i-1
+    uint16_t BailoutCount = 0;  // tracks bailout frequency for blacklisting
+    bool RegisterOnly = false;  // true if block has no memory access instructions (no bailout possible)
 
-    uint32_t Execute(MC68030& cpu) const;
+    JitExecResult Execute(MC68030& cpu) const;
 };
 
 // Block cache + execution count tracking (same structure as C# version)
@@ -81,6 +126,7 @@ public:
 
     CompiledBlock* TryGetBlock(uint32_t physAddr);
     void AddBlock(uint32_t physAddr, std::unique_ptr<CompiledBlock> block);
+    void RemoveBlock(uint32_t physAddr);
     void InvalidateAll();
     uint8_t IncrementAndGetCount(uint32_t physAddr);
     bool IsUncompilable(uint32_t physAddr) const;
@@ -111,7 +157,25 @@ private:
         ClrLDn, TstLDn, MoveLAnDn, MoveaLDnAn, MoveaLAnAm,
         AslImmLDn, AsrImmLDn, LslImmLDn, LsrImmLDn,
         ExgDnDm, ExgAnAm, ExgDnAn,
-        SwapDn, ExtWDn, ExtLDn, ExtbLDn, NegLDn, NotLDn
+        SwapDn, ExtWDn, ExtLDn, ExtbLDn, NegLDn, NotLDn,
+        // Phase 1A: LEA
+        LeaAnAr, LeaD16AnAr, LeaD8AnXnAr,
+        // Phase 1B: 16-bit displacement branches
+        BranchW, BranchAlwaysW,
+        // Phase 1C: Multiply
+        MuluWDnDm, MulsWDnDm,
+        // Phase 1D: Bit test
+        BtstDnDm,
+        // Phase 1E: Byte/Word variants
+        AddBDnDm, AddWDnDm, SubBDnDm, SubWDnDm,
+        CmpBDnDm, CmpWDnDm,
+        AndBDnDm, AndWDnDm, OrBDnDm, OrWDnDm, EorBDnDm, EorWDnDm,
+        AddqBDn, AddqWDn, SubqBDn, SubqWDn,
+        ClrBDn, ClrWDn, TstBDn, TstWDn,
+        NegBDn, NegWDn, NotBDn, NotWDn,
+        // Phase 2: Memory access instructions
+        MoveLIndAnDm, MoveLPostIncAnDm, MoveLDmIndAn,
+        MoveLD16AnDm, MoveLDmD16An, Rts,
     };
     static InsnKind Classify(uint16_t opcode);
 };

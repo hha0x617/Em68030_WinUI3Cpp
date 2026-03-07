@@ -20,6 +20,8 @@ namespace Em68030::Core {
 class InstructionDecoder;
 
 class MC68030 {
+    friend class CompiledBlock; // Allow JIT Execute() to access data page cache
+
 public:
     // ========================================================================
     // Nested types
@@ -193,6 +195,12 @@ public:
         }
     }
     void InvalidateDataCache() { _dataCacheValid = false; }
+    void SetupDataCache(uint32_t va, uint32_t pa, uint32_t mask) {
+        _dataPageVA = va & ~mask;
+        _dataPagePA = pa & ~mask;
+        _dataPageMask = mask;
+        _dataCacheValid = true;
+    }
     void RaiseException(int vector);
     void RaiseBusError(uint32_t faultAddress, bool isWrite, uint8_t functionCode, uint16_t ssw);
     void RaiseTrap(int trapNum);
@@ -319,6 +327,7 @@ public:
     // JIT settings (configured by ViewModel)
     uint8_t JitCompileThreshold = 32;
     int JitMinBlockLength = 3;
+    static constexpr uint16_t JitBailoutBlacklistThreshold = 64;
 };
 
 } // namespace Em68030::Core
