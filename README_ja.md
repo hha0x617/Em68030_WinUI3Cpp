@@ -8,7 +8,7 @@
 
 <a href="docs/screenshot_jit_off.png"><img src="docs/screenshot_jit_off.png" alt="NetBSD booting on Em68030" width="50%"></a>
 
-**ドキュメント**: [命令セット一覧](docs/instruction_set_ja.md) | [ハードウェアプラットフォーム](docs/hardware_platform_ja.md)
+**ドキュメント**: [はじめに](docs/getting_started_ja.md) | [命令セット一覧](docs/instruction_set_ja.md) | [ハードウェアプラットフォーム](docs/hardware_platform_ja.md)
 
 ## 特徴
 
@@ -37,7 +37,7 @@
 - ウォームリブート (RESET 命令) およびハルト検出
 
 ### パフォーマンス
-Intel Core i7-13700 上で約 42 MIPS (概算約 257 MHz) のエミュレーション速度を達成。ステータスバーに概算 MHz (サイクルベース) と MIPS (命令スループット) を併記表示します。主な最適化:
+Intel Core i7-13700 上で約 44.14 MIPS (概算約 269.85 MHz) のエミュレーション速度を達成。ステータスバーに概算 MHz (サイクルベース) と MIPS (命令スループット) を併記表示します。主な最適化:
 
 - 65,536 エントリのオペコードディスパッチテーブル
 - 頻出命令の専用ファストハンドラ (MOVEQ, MOVE.L, Bcc.B, RTS 等)

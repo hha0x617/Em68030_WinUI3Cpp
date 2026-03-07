@@ -1,12 +1,13 @@
 # MC68030 エミュレータ (C++ WinUI3) - 命令セット実装状況
 
-日付: 2026-03-05
+日付: 2026-03-07
 
 ## 凡例
 
 - [x] = 実装済み
 - [ ] = 未実装
-- JIT = JIT コンパイル対応（レジスタ専用、.L サイズ）
+- JIT = JIT コンパイル対応（レジスタ専用またはデータページキャッシュベイルアウト付き）
+  - （空欄） = JIT 未対応（未着手）
 
 ---
 
@@ -53,9 +54,19 @@ BRA.B (0x6001-0x60FE) は専用ハンドラなし。DecodeGroup6 で処理。
 - ブロックルックアップは ExecuteNextFastJit() 内にインライン化。ヒット時のみ
   noinline の ExecuteNextJit(block) を呼出。
 
-### 性能 (JIT OFF)
+### 性能
 
-約42 MIPS / 約257 MHz サイクル (Avg モード実測)、約6.1 サイクル/命令
+約44.14 MIPS / 約269.85 MHz サイクル (JIT OFF, Avg モード実測)、約6.1 サイクル/命令
+約41.90 MIPS / 約256.17 MHz サイクル (JIT ON, -5.1% オーバーヘッド)
+
+> **注意**: これらの数値はサイクル精度の計測値ではなく、概算の推定値です。
+> - **MHz** = エミュレート済みサイクル総数 / 実時間（秒） / 1,000,000。サイクル数は
+>   65,536 エントリの静的ルックアップテーブル (`s_cycleTable`) と EA コスト調整から
+>   算出しており、MC68030 のタイミングを近似しますがパイプライン・キャッシュ・
+>   バスウェイトステートはモデル化していません。
+> - **MIPS** = エミュレート済み命令総数 / 実時間（秒） / 1,000,000。
+> - **Avg** 値は Run セッション開始からの累積値。瞬時値は約 500ms 間隔でサンプリング。
+> - 結果はワークロード、ホスト CPU、システム負荷により変動します。
 
 ### サイクルテーブル
 
@@ -80,7 +91,7 @@ BRA.B (0x6001-0x60FE) は専用ハンドラなし。DecodeGroup6 で処理。
 
 | 状態 | 命令 | 説明 | JIT |
 |------|------|------|-----|
-| [x] | MOVE.B / .W / .L | データ転送 | |
+| [x] | MOVE.B / .W / .L | データ転送 | JIT (.L (An)/d16(An)->Dm, (An)+->Dm, Dm->(An)/d16(An) ベイルアウト付き) |
 | [x] | MOVEA.W / .L | アドレスレジスタへ転送 | JIT (.L Dn->An, An->Am) |
 | [x] | MOVEQ | クイック転送（8ビット即値） | JIT |
 | [x] | MOVEM | 複数レジスタ転送 | |
@@ -97,26 +108,26 @@ BRA.B (0x6001-0x60FE) は専用ハンドラなし。DecodeGroup6 で処理。
 
 | 状態 | 命令 | 説明 | JIT |
 |------|------|------|-----|
-| [x] | ADD.B / .W / .L | 加算 | JIT (.L Dn,Dm) |
+| [x] | ADD.B / .W / .L | 加算 | JIT (.B/.W/.L Dn,Dm) |
 | [x] | ADDA.W / .L | アドレスレジスタへ加算 | |
 | [x] | ADDI | 即値加算 | |
-| [x] | ADDQ | クイック加算 (1-8) | JIT (.L Dn / An) |
+| [x] | ADDQ | クイック加算 (1-8) | JIT (.B/.W/.L Dn / An) |
 | [x] | ADDX.B / .W / .L | 拡張付き加算 | |
-| [x] | SUB.B / .W / .L | 減算 | JIT (.L Dn,Dm) |
+| [x] | SUB.B / .W / .L | 減算 | JIT (.B/.W/.L Dn,Dm) |
 | [x] | SUBA.W / .L | アドレスレジスタから減算 | |
 | [x] | SUBI | 即値減算 | |
-| [x] | SUBQ | クイック減算 (1-8) | JIT (.L Dn / An) |
+| [x] | SUBQ | クイック減算 (1-8) | JIT (.B/.W/.L Dn / An) |
 | [x] | SUBX.B / .W / .L | 拡張付き減算 | |
-| [x] | NEG.B / .W / .L | 符号反転 | JIT (.L Dn) |
+| [x] | NEG.B / .W / .L | 符号反転 | JIT (.B/.W/.L Dn) |
 | [x] | NEGX.B / .W / .L | 拡張付き符号反転 | |
-| [x] | CLR.B / .W / .L | クリア | JIT (.L Dn) |
-| [x] | CMP.B / .W / .L | 比較 | JIT (.L Dn,Dm) |
+| [x] | CLR.B / .W / .L | クリア | JIT (.B/.W/.L Dn) |
+| [x] | CMP.B / .W / .L | 比較 | JIT (.B/.W/.L Dn,Dm) |
 | [x] | CMPA.W / .L | アドレスレジスタと比較 | |
 | [x] | CMPI | 即値比較 | |
 | [x] | CMPM.B / .W / .L | メモリ間比較 (An)+,(Am)+ | |
 | [x] | CMP2 / CHK2 | 範囲チェック比較 (68020+) | |
-| [x] | MULU.W | 符号なし乗算 16x16->32 | |
-| [x] | MULS.W | 符号付き乗算 16x16->32 | |
+| [x] | MULU.W | 符号なし乗算 16x16->32 | JIT (Dn,Dm) |
+| [x] | MULS.W | 符号付き乗算 16x16->32 | JIT (Dn,Dm) |
 | [x] | MULU.L | 符号なし乗算 32x32->32/64 (68020+) | |
 | [x] | MULS.L | 符号付き乗算 32x32->32/64 (68020+) | |
 | [x] | DIVU.W | 符号なし除算 32/16 | |
@@ -128,20 +139,20 @@ BRA.B (0x6001-0x60FE) は専用ハンドラなし。DecodeGroup6 で処理。
 
 | 状態 | 命令 | 説明 | JIT |
 |------|------|------|-----|
-| [x] | AND.B / .W / .L | 論理積 | JIT (.L Dn,Dm) |
+| [x] | AND.B / .W / .L | 論理積 | JIT (.B/.W/.L Dn,Dm) |
 | [x] | ANDI | 即値論理積 | |
 | [x] | ANDI to CCR | CCR への即値論理積 | |
 | [x] | ANDI to SR | SR への即値論理積（スーパーバイザ） | |
-| [x] | OR.B / .W / .L | 論理和 | JIT (.L Dn,Dm) |
+| [x] | OR.B / .W / .L | 論理和 | JIT (.B/.W/.L Dn,Dm) |
 | [x] | ORI | 即値論理和 | |
 | [x] | ORI to CCR | CCR への即値論理和 | |
 | [x] | ORI to SR | SR への即値論理和（スーパーバイザ） | |
-| [x] | EOR.B / .W / .L | 排他的論理和 | JIT (.L Dn,Dm) |
+| [x] | EOR.B / .W / .L | 排他的論理和 | JIT (.B/.W/.L Dn,Dm) |
 | [x] | EORI | 即値排他的論理和 | |
 | [x] | EORI to CCR | CCR への即値排他的論理和 | |
 | [x] | EORI to SR | SR への即値排他的論理和（スーパーバイザ） | |
-| [x] | NOT.B / .W / .L | 論理否定 | JIT (.L Dn) |
-| [x] | TST.B / .W / .L | テスト | JIT (.L Dn) |
+| [x] | NOT.B / .W / .L | 論理否定 | JIT (.B/.W/.L Dn) |
+| [x] | TST.B / .W / .L | テスト | JIT (.B/.W/.L Dn) |
 
 ### シフト・ローテート
 
@@ -160,7 +171,7 @@ BRA.B (0x6001-0x60FE) は専用ハンドラなし。DecodeGroup6 で処理。
 
 | 状態 | 命令 | 説明 | JIT |
 |------|------|------|-----|
-| [x] | BTST | ビットテスト (レジスタ/即値) | |
+| [x] | BTST | ビットテスト (レジスタ/即値) | JIT (Dn,Dm) |
 | [x] | BCHG | ビット変更 (レジスタ/即値) | |
 | [x] | BCLR | ビットクリア (レジスタ/即値) | |
 | [x] | BSET | ビットセット (レジスタ/即値) | |
@@ -192,14 +203,14 @@ BRA.B (0x6001-0x60FE) は専用ハンドラなし。DecodeGroup6 で処理。
 
 | 状態 | 命令 | 説明 | JIT |
 |------|------|------|-----|
-| [x] | BRA | 無条件分岐 (.B/.W/.L) | JIT (.B) |
-| [x] | Bcc | 条件分岐 (.B/.W/.L)、全16条件 | JIT (.B) |
+| [x] | BRA | 無条件分岐 (.B/.W/.L) | JIT (.B/.W) |
+| [x] | Bcc | 条件分岐 (.B/.W/.L)、全16条件 | JIT (.B/.W) |
 | [x] | BSR | サブルーチン呼出し (.B/.W/.L) | |
 | [x] | DBcc | デクリメント＆分岐、全16条件 | |
 | [x] | Scc | 条件セット、全16条件 | |
 | [x] | JMP | ジャンプ | |
 | [x] | JSR | サブルーチンジャンプ | |
-| [x] | RTS | サブルーチンからの復帰 | |
+| [x] | RTS | サブルーチンからの復帰 | JIT (ベイルアウト) |
 | [x] | RTR | CCR 復帰付きリターン | |
 | [x] | RTE | 例外からの復帰（スーパーバイザ） | |
 | [x] | RTD | ディスプレースメント付きリターン (68010+) | |
@@ -220,7 +231,7 @@ BRA.B (0x6001-0x60FE) は専用ハンドラなし。DecodeGroup6 で処理。
 | 状態 | 命令 | 説明 | JIT |
 |------|------|------|-----|
 | [x] | PEA | 実効アドレスプッシュ | |
-| [x] | LEA | 実効アドレスロード | |
+| [x] | LEA | 実効アドレスロード | JIT ((An), d16(An), d8(An,Xn)) |
 | [x] | LINK.W / .L | リンク＆スタックフレーム確保 | |
 | [x] | UNLK | アンリンク | |
 
@@ -351,17 +362,27 @@ BRA.B (0x6001-0x60FE) は専用ハンドラなし。DecodeGroup6 で処理。
 
 ## JIT まとめ
 
-**レジスタ専用**命令（メモリアクセスなし）の基本ブロックを JIT コンパイル。
-31 種の命令パターンに対応:
+基本ブロック単位で命令を JIT コンパイル。レジスタ専用ブロックは完全に JIT 内で実行。
+メモリアクセスブロックは**データページキャッシュベイルアウト**機構を使用:
+キャッシュヒット時は JIT 内で継続、キャッシュミス時は当該命令の PC で
+インタプリタにベイルアウト。ベイルアウト頻度が高いブロック（>64回）は
+ブラックリスト化して除外。
+
+約60種の命令パターンに対応:
 
 | カテゴリ | 命令 |
 |---------|------|
-| 転送 | MOVEQ, MOVE.L Dn->Dm, MOVE.L An->Dn, MOVEA.L Dn->An, MOVEA.L An->Am |
-| 算術 | ADD.L, SUB.L, CMP.L (Dn,Dm), ADDQ/SUBQ (.L Dn, An), NEG.L Dn |
-| 論理 | AND.L, OR.L, EOR.L (Dn,Dm), NOT.L Dn, CLR.L Dn, TST.L Dn |
+| 転送（レジスタ） | MOVEQ, MOVE.L Dn->Dm, MOVE.L An->Dn, MOVEA.L Dn->An, MOVEA.L An->Am |
+| 転送（メモリ） | MOVE.L (An)->Dm, (An)+->Dm, Dm->(An), d16(An)->Dm, Dm->d16(An)（ベイルアウト） |
+| 算術 | ADD/SUB/CMP .B/.W/.L (Dn,Dm), ADDQ/SUBQ .B/.W/.L (Dn, An), NEG .B/.W/.L Dn |
+| 乗算 | MULU.W, MULS.W (Dn,Dm) |
+| 論理 | AND/OR/EOR .B/.W/.L (Dn,Dm), NOT/CLR/TST .B/.W/.L Dn |
 | シフト | ASL/ASR/LSL/LSR.L #imm,Dn |
+| ビット | BTST Dn,Dm |
 | レジスタ | EXG（全3形式）, SWAP Dn, EXT.W/EXT.L/EXTB.L Dn |
-| 分岐 | BRA.B, Bcc.B（全条件） |
+| アドレス | LEA (An)/d16(An)/d8(An,Xn),Ar |
+| 分岐 | BRA .B/.W, Bcc .B/.W（全条件） |
+| サブルーチン | RTS（ベイルアウト） |
 | その他 | NOP |
 
 ### C++ JIT 実装詳細
@@ -374,4 +395,14 @@ BRA.B (0x6001-0x60FE) は専用ハンドラなし。DecodeGroup6 で処理。
   （統合すると関数本体肥大化で JIT OFF が 48→36 MHz に低下）
 - ブロックルックアップは ExecuteNextFastJit() にインライン化。ヒット時のみ
   noinline の ExecuteNextJit(block) を呼出
-- テスト: 96 件の JIT 専用テスト (CpuTests/JitCompilerTests.cpp)
+- ベイルアウト機構: `JitExecResult { nextPC, executedCount, executedCycles }` 戻り構造体で
+  部分ブロック実行に対応。メモリアクセス命令はデータページキャッシュを確認し、
+  ミス時はインタプリタに復帰。64回超のベイルアウトでブラックリスト化。
+- テスト: 335 件（JIT 専用テスト含む、CpuTests/JitCompilerTests.cpp）
+
+### 性能
+
+| モード | MHz（サイクル） | MIPS | 備考 |
+|--------|----------------|------|------|
+| JIT OFF | ~270 | ~44.1 | ベースライン |
+| JIT ON | ~256 | ~41.9 | ベイルアウト頻度による -5.1% オーバーヘッド |
