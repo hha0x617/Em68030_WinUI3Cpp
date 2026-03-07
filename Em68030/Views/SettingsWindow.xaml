@@ -78,6 +78,10 @@
                 <StackPanel Orientation="Horizontal" Margin="0,8">
                     <TextBlock Text="New Image Size (MB):" Style="{StaticResource SettingLabelStyle}" Width="150" />
                     <TextBox x:Name="NewScsiImageSizeBox" Width="60" Style="{StaticResource SettingTextBoxStyle}" Text="100" />
+                    <ComboBox x:Name="NewScsiImageTypeBox" Margin="8,0" Width="100">
+                        <ComboBoxItem Content="NetBSD" IsSelected="True" />
+                        <ComboBoxItem Content="Empty" />
+                    </ComboBox>
                     <Button x:Name="CreateScsiImageBtn" Content="Create" Margin="8,0"
                             Background="#FF3E3E42" Foreground="#FFD4D4D4" Padding="8,2" />
                 </StackPanel>
@@ -108,6 +112,20 @@
                         <ComboBoxItem Content="4" />
                         <ComboBoxItem Content="5" />
                         <ComboBoxItem Content="6" />
+                    </ComboBox>
+                </Grid>
+                <!-- NetBSD Settings -->
+                <TextBlock Text="NetBSD" Style="{StaticResource SectionHeaderStyle}" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Boot Partition:" Style="{StaticResource SettingLabelStyle}" />
+                    <ComboBox x:Name="BootPartitionBox" Grid.Column="1"
+                              Width="60" HorizontalAlignment="Left">
+                        <ComboBoxItem Content="a" />
+                        <ComboBoxItem Content="b" />
                     </ComboBox>
                 </Grid>
                 <!-- Network Mode -->

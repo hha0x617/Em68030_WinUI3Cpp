@@ -60,6 +60,9 @@ public:
     std::string Mvme147ScsiCdromPath;
     int Mvme147ScsiCdromId = 3;
 
+    // Boot partition: 0='a', 1='b', etc. Used by boot stub to tell kernel which partition is root.
+    int Mvme147BootPartition = 0;
+
     // Network mode: "Virtual" (internal echo server) or "NAT" (host network via user-mode NAT)
     std::string NetworkMode = "Virtual";
 

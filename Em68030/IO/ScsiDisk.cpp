@@ -481,19 +481,30 @@ void ScsiDisk::WriteNetBsdDisklabel(const std::string& path)
     PutBE32(sector, 0x90, 1);
     sector[0x94] = 1;
 
-    // Partitions 0-3 in vid_4[64] at offset 0x98
+    // Partitions 0-3 in vid_4[64] at offset 0x98 (each entry 16 bytes)
+    // Partition b: 64 MB swap (also used for miniroot during installation)
+    int swapSectors = std::min(131072, secperunit / 4); // 64 MB or 25% of disk
+    swapSectors = std::max(swapSectors, 16384);          // minimum 8 MB
+    int aSectors = secperunit - swapSectors;
+    int bOffset = aSectors;
+
     int pa = 0x98;
-    PutBE32(sector, pa + 0, static_cast<uint32_t>(secperunit));
+    // a: root filesystem
+    PutBE32(sector, pa + 0, static_cast<uint32_t>(aSectors));
     PutBE32(sector, pa + 4, 0);
     PutBE32(sector, pa + 8, 1024);
     sector[pa + 12] = 7;   // FS_BSDFFS
     sector[pa + 13] = 8;   // p_frag
     PutBE16(sector, pa + 14, 16);
 
-    sector[0x98 + 16 + 12] = 1; // b: FS_SWAP
+    // b: swap (miniroot written here during installation Phase 1)
+    PutBE32(sector, pa + 16 + 0, static_cast<uint32_t>(swapSectors));
+    PutBE32(sector, pa + 16 + 4, static_cast<uint32_t>(bOffset));
+    sector[pa + 16 + 12] = 1; // b: FS_SWAP
 
-    PutBE32(sector, 0x98 + 32 + 0, static_cast<uint32_t>(secperunit));
-    PutBE32(sector, 0x98 + 32 + 4, 0);
+    // c: whole disk
+    PutBE32(sector, pa + 32 + 0, static_cast<uint32_t>(secperunit));
+    PutBE32(sector, pa + 32 + 4, 0);
 
     PutBE32(sector, 0xF4, 8192);
     SetLabelString(sector, 0xF8, 8, "MOTOROLA");

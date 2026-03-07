@@ -172,6 +172,7 @@ namespace winrt::Em68030::implementation
         bool IsManualDisasmMode() const { return m_manualDisasmMode; }
         void ClearManualDisasmMode();
 
+        void UnmountAllScsiDisks();
         void ApplyConfig(::Em68030::Config::EmulatorConfig const& newConfig);
         void ToggleMhzDisplayMode();
         void ToggleTrace();

@@ -2,6 +2,7 @@
 
 #include "SettingsWindow.g.h"
 #include "Config/EmulatorConfig.h"
+#include <functional>
 
 namespace winrt::Em68030::implementation
 {
@@ -71,6 +72,9 @@ namespace winrt::Em68030::implementation
         std::vector<DiskRowState> m_diskRows;
         int m_desiredCdromId = 3; // desired CD-ROM SCSI ID (used during refresh)
         bool m_refreshingIds = false; // guard against re-entrant refresh
+        std::function<void()> m_unmountScsiDisks; // callback to unmount disks before creating new images
+    public:
+        void SetUnmountCallback(std::function<void()> callback) { m_unmountScsiDisks = std::move(callback); }
     };
 }
 

@@ -11,6 +11,7 @@
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 
 #include "IO/HddDevice.h"
+#include "IO/ScsiDisk.h"
 #include "IO/SlirpNetworkHandler.h"
 
 using namespace winrt;
@@ -73,6 +74,7 @@ namespace winrt::Em68030::implementation
         Mvme147RomBox(FindName(L"Mvme147RomBox").try_as<Controls::TextBox>());
         ScsiDiskListPanel(FindName(L"ScsiDiskListPanel").try_as<Controls::StackPanel>());
         NewScsiImageSizeBox(FindName(L"NewScsiImageSizeBox").try_as<Controls::TextBox>());
+        NewScsiImageTypeBox(FindName(L"NewScsiImageTypeBox").try_as<Controls::ComboBox>());
         ScsiCdromPathBox(FindName(L"ScsiCdromPathBox").try_as<Controls::TextBox>());
         ScsiCdromIdBox(FindName(L"ScsiCdromIdBox").try_as<Controls::ComboBox>());
         MemSizeBox(FindName(L"MemSizeBox").try_as<Controls::TextBox>());
@@ -91,6 +93,7 @@ namespace winrt::Em68030::implementation
         JitMinBlockLengthBox(FindName(L"JitMinBlockLengthBox").try_as<Controls::TextBox>());
         JitCompileThresholdBox(FindName(L"JitCompileThresholdBox").try_as<Controls::TextBox>());
         AddScsiDiskBtn(FindName(L"AddScsiDiskBtn").try_as<Controls::Button>());
+        BootPartitionBox(FindName(L"BootPartitionBox").try_as<Controls::ComboBox>());
         NetworkModeBox(FindName(L"NetworkModeBox").try_as<Controls::ComboBox>());
         NatGatewayIpBox(FindName(L"NatGatewayIpBox").try_as<Controls::TextBox>());
         NatGatewayMacBox(FindName(L"NatGatewayMacBox").try_as<Controls::TextBox>());
@@ -369,6 +372,8 @@ namespace winrt::Em68030::implementation
 
         ScsiCdromPathBox().Text(winrt::to_hstring(config.Mvme147ScsiCdromPath));
         m_desiredCdromId = std::clamp(config.Mvme147ScsiCdromId, 0, 6);
+        if (BootPartitionBox())
+            BootPartitionBox().SelectedIndex(std::clamp(config.Mvme147BootPartition, 0, 1));
         if (NetworkModeBox())
             NetworkModeBox().SelectedIndex(config.NetworkMode == "NAT" ? 1 : 0);
         if (NatGatewayIpBox())
@@ -434,6 +439,8 @@ namespace winrt::Em68030::implementation
 
         config.Mvme147ScsiCdromPath = winrt::to_string(ScsiCdromPathBox().Text());
         config.Mvme147ScsiCdromId = GetSelectedScsiId(ScsiCdromIdBox());
+        if (BootPartitionBox())
+            config.Mvme147BootPartition = BootPartitionBox().SelectedIndex();
         if (NetworkModeBox())
             config.NetworkMode = (NetworkModeBox().SelectedIndex() == 1) ? "NAT" : "Virtual";
         if (NatGatewayIpBox())
@@ -634,6 +641,10 @@ namespace winrt::Em68030::implementation
                                                      TextBox targetBox,
                                                      bool isScsiDisk)
     {
+        // Unmount currently mounted disks so the file is not locked
+        if (isScsiDisk && m_unmountScsiDisks)
+            m_unmountScsiDisks();
+
         FileSavePicker picker;
         picker.as<::IInitializeWithWindow>()->Initialize(GetOwnerHwnd());
         picker.SuggestedStartLocation(PickerLocationId::DocumentsLibrary);
@@ -662,7 +673,7 @@ namespace winrt::Em68030::implementation
         // Create the image file
         if (isScsiDisk)
         {
-            // Create empty file and write NetBSD disklabel
+            // Create empty file of the requested size
             {
                 std::ofstream ofs(filePath, std::ios::binary);
                 if (ofs)
@@ -671,7 +682,10 @@ namespace winrt::Em68030::implementation
                     ofs.put('\0');
                 }
             }
-            // TODO: ScsiDisk::WriteNetBsdDisklabel(filePath);
+            // Write NetBSD disklabel if selected
+            bool isNetBsd = NewScsiImageTypeBox() && NewScsiImageTypeBox().SelectedIndex() == 0;
+            if (isNetBsd)
+                ::Em68030::IO::ScsiDisk::WriteNetBsdDisklabel(filePath);
         }
         else
         {

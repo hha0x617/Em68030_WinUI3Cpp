@@ -561,7 +561,7 @@ namespace winrt::Em68030::implementation
         m_memory->PokeLong(bootArgs + 8,  PCC_WDSC_ADDR);  // bootaddr (WDSC)
         m_memory->PokeLong(bootArgs + 12, 0);              // bootctrllun (0)
         m_memory->PokeLong(bootArgs + 16, bootdevlun);     // bootdevlun (SCSI ID)
-        m_memory->PokeLong(bootArgs + 20, 0);              // bootpart (0 = 'a')
+        m_memory->PokeLong(bootArgs + 20, static_cast<uint32_t>(m_config.Mvme147BootPartition)); // bootpart (0='a', 1='b', ...)
         m_memory->PokeLong(bootArgs + 24, 0);              // esyms (0 = none)
 
         m_cpu->VBR = 0;
@@ -571,34 +571,25 @@ namespace winrt::Em68030::implementation
 
     void MainViewModel::EnsureCpuDisklabel(const std::string& path)
     {
-        std::ifstream fs(path, std::ios::binary);
-        if (!fs) return;
-
-        fs.seekg(0, std::ios::end);
-        auto fileSize = fs.tellg();
-        if (fileSize < 512) return;
-
-        // Check VID magic ("NBSD") at offset 0
-        fs.seekg(0);
-        char header[4];
-        fs.read(header, 4);
-        if (header[0] == 'N' && header[1] == 'B' && header[2] == 'S' && header[3] == 'D')
-            return;
-
-        // Check magic1 at offset 0x3A
-        fs.seekg(0x3A);
-        char magic[4];
-        fs.read(magic, 4);
-        uint32_t m = static_cast<uint32_t>(
-            (static_cast<uint8_t>(magic[0]) << 24) |
-            (static_cast<uint8_t>(magic[1]) << 16) |
-            (static_cast<uint8_t>(magic[2]) << 8) |
-            static_cast<uint8_t>(magic[3]));
-        if (m == 0x82564557)
-            return;
-
-        fs.close();
-
+        // Check if VID/CFG magic values are present. The kernel's readdisklabel()
+        // requires both magic1 (offset 0x3A) and magic2 (offset 0x13C) to equal
+        // DISKMAGIC (0x82564557). If either is missing, write a fresh disklabel.
+        constexpr uint32_t DISKMAGIC = 0x82564557;
+        {
+            std::ifstream fs(path, std::ios::binary);
+            if (!fs) return;
+            fs.seekg(0, std::ios::end);
+            if (fs.tellg() < 512) return;
+            fs.seekg(0, std::ios::beg);
+            uint8_t sector[512];
+            fs.read(reinterpret_cast<char*>(sector), 512);
+            uint32_t magic1 = (uint32_t(sector[0x3A]) << 24) | (uint32_t(sector[0x3B]) << 16)
+                            | (uint32_t(sector[0x3C]) << 8) | sector[0x3D];
+            uint32_t magic2 = (uint32_t(sector[0x13C]) << 24) | (uint32_t(sector[0x13D]) << 16)
+                            | (uint32_t(sector[0x13E]) << 8) | sector[0x13F];
+            if (magic1 == DISKMAGIC && magic2 == DISKMAGIC)
+                return; // VID is valid
+        }
         ::Em68030::IO::ScsiDisk::WriteNetBsdDisklabel(path);
     }
 
@@ -1164,6 +1155,14 @@ namespace winrt::Em68030::implementation
     // ======================================================================
     // Config
     // ======================================================================
+
+    void MainViewModel::UnmountAllScsiDisks()
+    {
+        for (auto& disk : m_scsiDisks)
+            disk->UnmountImage();
+        if (m_scsiCdrom)
+            m_scsiCdrom->UnmountImage();
+    }
 
     void MainViewModel::ApplyConfig(::Em68030::Config::EmulatorConfig const& newConfig)
     {

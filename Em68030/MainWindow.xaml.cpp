@@ -734,6 +734,10 @@ namespace winrt::Em68030::implementation
         auto settingsDialog = winrt::make<Em68030::implementation::SettingsWindow>();
         auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
 
+        // Provide callback to unmount disks (so Create can overwrite existing images)
+        settingsDialog.as<implementation::SettingsWindow>()->SetUnmountCallback(
+            [vmImpl]() { vmImpl->UnmountAllScsiDisks(); });
+
         // Load current config into dialog
         settingsDialog.as<implementation::SettingsWindow>()->LoadConfig(vmImpl->Config());
 
