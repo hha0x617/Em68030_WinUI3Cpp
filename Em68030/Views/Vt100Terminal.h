@@ -53,7 +53,7 @@ public:
 
 private:
     // Parser state machine
-    enum class State { Normal, Esc, Csi, EscParen };
+    enum class State { Normal, Esc, Csi, EscParen, StringSeq };
 
     // Screen dimensions
     int m_cols;
@@ -113,6 +113,10 @@ private:
     void ProcessCsi(char ch);
     int Param(int index, int defaultValue = 1) const;
     void ExecuteCsi(char cmd);
+
+    // OSC / DCS / PM / APC string sequence processing (consume until ST or BEL)
+    bool m_stringSeqEsc = false; // true when ESC seen inside string sequence
+    void ProcessStringSeq(char ch);
 
     // Erase operations
     void EraseInDisplay(int mode);

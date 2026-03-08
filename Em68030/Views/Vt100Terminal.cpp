@@ -241,6 +241,9 @@ void Vt100Terminal::Write(char ch)
             // ESC ( or ESC ) -- character set designation, consume one more char
             m_state = State::Normal;
             break;
+        case State::StringSeq:
+            ProcessStringSeq(ch);
+            break;
     }
 }
 
@@ -474,6 +477,13 @@ void Vt100Terminal::ProcessEsc(char ch)
             LineFeed();
             m_state = State::Normal;
             break;
+        case ']': // OSC -- Operating System Command
+        case 'P': // DCS -- Device Control String
+        case '^': // PM  -- Privacy Message
+        case '_': // APC -- Application Program Command
+            m_state = State::StringSeq;
+            m_stringSeqEsc = false;
+            break;
         case '=':
         case '>': // Keypad modes -- ignore
             m_state = State::Normal;
@@ -487,6 +497,40 @@ void Vt100Terminal::ProcessEsc(char ch)
             m_state = State::Normal;
             break;
     }
+}
+
+// ============================================================================
+// OSC / DCS / PM / APC string sequence processing
+// Consume all characters until ST (ESC \) or BEL (0x07).
+// ============================================================================
+
+void Vt100Terminal::ProcessStringSeq(char ch)
+{
+    if (m_stringSeqEsc) {
+        // Previous character was ESC inside the string sequence
+        if (ch == '\\') {
+            // ESC \ = ST (String Terminator) -- end of sequence
+            m_state = State::Normal;
+        } else {
+            // ESC followed by something else -- treat as new ESC sequence
+            m_state = State::Esc;
+            ProcessEsc(ch);
+        }
+        m_stringSeqEsc = false;
+        return;
+    }
+
+    if (ch == '\x1B') {
+        // ESC inside string sequence -- might be start of ST (ESC \)
+        m_stringSeqEsc = true;
+    } else if (ch == '\x07') {
+        // BEL terminates OSC sequences (xterm extension, widely used)
+        m_state = State::Normal;
+    } else if (ch == '\x9C') {
+        // 8-bit ST (C1 control character)
+        m_state = State::Normal;
+    }
+    // All other characters are consumed silently
 }
 
 // ============================================================================
