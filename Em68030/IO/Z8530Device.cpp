@@ -77,14 +77,12 @@ void Z8530Channel::WriteControl(uint8_t value)
 {
     if (m_registerPointer == 0) {
         uint8_t regSelect = value & 0x07;
-        if (regSelect != 0) {
-            m_registerPointer = regSelect;
-            return;
-        }
         // WR0 command handling (bits 5-3)
         uint8_t cmd = (value >> 3) & 0x07;
+
         switch (cmd) {
             case 0: break; // Null command
+            case 1: break; // Point High (not implemented — Linux uses 16550 UART)
             case 2: break; // Reset Ext/Status interrupts
             case 5: // Reset Tx interrupt pending
                 m_txIntPending = false;
@@ -97,11 +95,22 @@ void Z8530Channel::WriteControl(uint8_t value)
                     InterruptStateChanged();
                 break;
         }
+        if (regSelect != 0) {
+            m_registerPointer = regSelect;
+            return;
+        }
         m_writeRegs[0] = value;
     } else {
         uint8_t reg = m_registerPointer;
-        m_writeRegs[reg] = value;
         m_registerPointer = 0;
+
+        // WR8 = Transmit Buffer — treat as data write
+        if (reg == 8) {
+            WriteData(value);
+            return;
+        }
+
+        m_writeRegs[reg] = value;
 
         // WR1 affects interrupt enables
         if (reg == 1) {
