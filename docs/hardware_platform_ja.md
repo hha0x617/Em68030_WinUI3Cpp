@@ -93,7 +93,7 @@
 
 ## MVME147 プラットフォーム
 
-NetBSD/mvme68k を実行する Motorola MVME147 VMEbus シングルボードコンピュータをエミュレート。
+NetBSD/mvme68k および Linux/m68k を実行する Motorola MVME147 VMEbus シングルボードコンピュータをエミュレート。
 
 ### メモリマップ
 
@@ -104,6 +104,7 @@ NetBSD/mvme68k を実行する Motorola MVME147 VMEbus シングルボードコ�
 | 0xFFFE0000 - 0xFFFE07FF | 2 KB | MK48T02 NVRAM/RTC |
 | 0xFFFE1000 - 0xFFFE102F | 48 B | PCC（周辺チャネルコントローラ） |
 | 0xFFFE1800 - 0xFFFE1803 | 4 B | LANCE イーサネットコントローラ |
+| 0xFFFE2000 - 0xFFFE2007 | 8 B | 16550A UART（Linux のみ、仮想） |
 | 0xFFFE3000 - 0xFFFE3003 | 4 B | Z8530 SCC（シリアルコントローラ） |
 | 0xFFFE4000 - 0xFFFE4001 | 2 B | WD33C93 SCSI コントローラ |
 | 0xFFFE0000 - 0xFFFEFFFF | 64 KB | I/O 空間キャッチオール（フォールバック） |
@@ -178,6 +179,8 @@ ICR フォーマット: INT (bit 7) | IEN (bit 3) | IL[2:0] (bits 2-0)
 - **TX シミュレーション**: アイドル追跡と定期的な割り込み再アサート
 - **DCD/CTS** 常時アサート（端末接続状態）
 
+> **Linux に関する注意**: Linux カーネル 6.x 系では MVME147 用の Z8530 ベース tty ドライバが削除されています（`drivers/char/vme_scc.c` は 2.6.x に存在していましたが、3.x/4.x 系のクリーンアップ時に削除されました）。そのため、MVME147 上の Linux/m68k には Z8530 用のカーネル tty ドライバがありません。SCC は Linux の初期ブートコンソール（`earlyprintk`）では `arch/m68k/kernel/head.S` 内の直接レジスタアクセスにより使用されますが、ユーザー空間プログラム（init、シェル、getty）にはシリアルドライバに裏打ちされた適切な tty デバイスが必要です。最新カーネルには MVME147 用の上流 Z8530 tty ドライバが存在しないため、エミュレータは Linux 用の代替コンソールデバイスとして仮想 16550A UART（下記参照）を提供しています。NetBSD には影響ありません -- NetBSD は独自の Z8530 ドライバ（`zs(4)`）を持ち、すべてのコンソール I/O に SCC を使用します。
+
 アドレスマップ:
 
 | オフセット | レジスタ |
@@ -186,6 +189,55 @@ ICR フォーマット: INT (bit 7) | IEN (bit 3) | IL[2:0] (bits 2-0)
 | $1 | チャネル B データ |
 | $2 | チャネル A 制御 |
 | $3 | チャネル A データ |
+
+### 仮想 16550A UART（Linux コンソール）
+
+| 項目 | 詳細 |
+|------|------|
+| ファイル | `IO/Uart16550Device.h/.cpp` |
+| チップ | 仮想 16550A UART（実際の MVME147 には存在しない） |
+| ベースアドレス | 0xFFFE2000 |
+| サイズ | 8 バイト |
+| 有効化条件 | Target OS = `Linux` の場合のみ |
+| 状態 | 完全実装済み |
+
+このデバイスは実際の MVME147 ハードウェアには存在しません。Linux のユーザー空間に動作するコンソール（`/dev/ttyS0`）を提供するためにエミュレータが追加した仮想周辺デバイスです。
+
+**背景**: 実際の MVME147 はシリアル通信に Z8530 SCC を使用します。Linux カーネルの VME ボード向け Z8530 tty ドライバ（`vme_scc.c`）はカーネル 3.x/4.x 時代に削除され、6.x には存在しません。tty ドライバがなければ、Linux は earlyprintk（アセンブリによる直接 SCC レジスタ書き込み）でカーネルメッセージを出力できますが、ユーザー空間用の `/dev/ttyS*` デバイスを提供できません。エミュレータは 0xFFFE2000 に 16550A 互換 UART をマッピングすることでこの問題を解決し、広くサポートされている `8250/16550` シリアルドライバ（`CONFIG_SERIAL_8250`）が `/dev/ttyS0` をシステムコンソールとして登録できるようにしています。
+
+**必要なカーネル改変**: Linux カーネルソースに 2 つのパッチが必要です:
+1. `arch/m68k/mvme147/config.c` -- UART をプラットフォームデバイスとして登録（`serial8250`、`mapbase=0xFFFE2000`）
+2. `arch/m68k/kernel/early_printk.c` --（オプション）MVME147 での初期コンソール登録解除を防止（`keep_bootcon` サポート用）
+
+完全なパッチ手順については [はじめに: Debian](getting_started_debian_ja.md) または [はじめに: Gentoo](getting_started_gentoo_ja.md) ガイドを参照してください。
+
+機能:
+- **16550A レジスタセット一式**: RBR/THR, IER, IIR/FCR, LCR, MCR, LSR, MSR, SCR
+- **DLAB**（Divisor Latch Access Bit）: ボーレート分周レジスタアクセス用
+- **MCR ループバックモード**（ビット 4）: 8250 ドライバの自動検出および FIFO サイズプロービング用
+- **64 バイト受信 FIFO**
+- **割り込み出力**（アクティブハイ）: RX データおよび TX 空き優先度付き
+- **TX 常時レディ**: LSR は THRE と TEMT を常時セット（即時送信）
+
+レジスタマップ (DLAB=0):
+
+| オフセット | 読出し | 書込み |
+|-----------|-------|-------|
+| $0 | RBR（受信バッファ） | THR（送信ホールド） |
+| $1 | IER（割り込み有効） | IER |
+| $2 | IIR（割り込み ID） | FCR（FIFO 制御） |
+| $3 | LCR（ライン制御） | LCR |
+| $4 | MCR（モデム制御） | MCR |
+| $5 | LSR（ラインステータス） | （無視） |
+| $6 | MSR（モデムステータス） | （無視） |
+| $7 | SCR（スクラッチ） | SCR |
+
+レジスタマップ (DLAB=1、LCR ビット 7 セット):
+
+| オフセット | レジスタ |
+|-----------|---------|
+| $0 | DLL（分周ラッチ下位） |
+| $1 | DLM（分周ラッチ上位） |
 
 ### MK48T02 NVRAM/RTC
 
@@ -365,6 +417,7 @@ CSR レジスタ:
 | HDD | カスタム | 0x00FF1000 | Generic | 完了 |
 | PCC | MVME147 ASIC | 0xFFFE1000 | MVME147 | 完了 |
 | SCC | Zilog Z8530 | 0xFFFE3000 | MVME147 | 完了 |
+| UART | 仮想 16550A | 0xFFFE2000 | MVME147 (Linux) | 完了 |
 | RTC/NVRAM | Mostek MK48T02 | 0xFFFE0000 | MVME147 | 完了 |
 | SCSI | WD WD33C93 | 0xFFFE4000 | MVME147 | 完了 |
 | SCSI ディスク | ファイルバック | WD33C93 経由 | MVME147 | 完了 |
