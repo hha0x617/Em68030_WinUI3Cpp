@@ -23,6 +23,7 @@ bool ScsiCdrom::IsReady() const
 
 void ScsiCdrom::MountImage(const std::string& path)
 {
+    bool wasOpen = m_imageStream.is_open();
     UnmountImage();
     m_imageStream.open(path, std::ios::in | std::ios::binary);
     if (m_imageStream.is_open()) {
@@ -32,7 +33,9 @@ void ScsiCdrom::MountImage(const std::string& path)
         if (m_totalSectors == 0 && fileSize > 0)
             m_totalSectors = 1;
     }
-    m_mediaChanged = true;
+    // Only report UNIT ATTENTION for media changes after initial mount.
+    // At power-on, media is already present — no UNIT ATTENTION needed.
+    m_mediaChanged = wasOpen;
     ClearSense();
 }
 
@@ -47,8 +50,21 @@ void ScsiCdrom::UnmountImage()
 
 ScsiResult ScsiCdrom::ProcessCommand(const uint8_t* cdb, int cdbLength, int lun)
 {
-    // Report media change via UNIT ATTENTION (except for REQUEST SENSE)
-    if (m_mediaChanged && cdb[0] != 0x03)
+    uint8_t opcode = cdb[0];
+
+    // INQUIRY and REQUEST SENSE must always work regardless of media state
+    // (SCSI standard: these commands never return CHECK CONDITION for
+    // UNIT ATTENTION or NOT READY).
+    if (lun != 0) {
+        if (opcode == 0x12) return CmdInquiryNoDevice(cdb);
+        if (opcode == 0x03) return CmdRequestSense(cdb);
+        return MakeCheckCondition(0x05, 0x25, 0x00); // LUN NOT SUPPORTED
+    }
+    if (opcode == 0x12) return CmdInquiry(cdb);
+    if (opcode == 0x03) return CmdRequestSense(cdb);
+
+    // Report media change via UNIT ATTENTION
+    if (m_mediaChanged)
     {
         m_mediaChanged = false;
         return MakeCheckCondition(0x06, 0x28, 0x00); // UNIT ATTENTION, MEDIUM MAY HAVE CHANGED
@@ -56,13 +72,6 @@ ScsiResult ScsiCdrom::ProcessCommand(const uint8_t* cdb, int cdbLength, int lun)
 
     if (!IsReady())
         return MakeCheckCondition(0x02, 0x3A, 0x00); // NOT READY, MEDIUM NOT PRESENT
-
-    if (lun != 0) {
-        uint8_t opcode = cdb[0];
-        if (opcode == 0x12) return CmdInquiryNoDevice(cdb);
-        if (opcode == 0x03) return CmdRequestSense(cdb);
-        return MakeCheckCondition(0x05, 0x25, 0x00); // LUN NOT SUPPORTED
-    }
 
     uint8_t op = cdb[0];
     switch (op) {

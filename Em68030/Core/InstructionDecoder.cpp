@@ -2544,8 +2544,9 @@ void InstructionDecoder::DecodePMOVE_TC_SRP_CRP(uint16_t opcode, uint16_t ext)
             }
             else
             {
-                _cpu.GetMmu().SetTC(EffectiveAddress::ReadValue(_cpu, eaMode, eaR, 4));
-                _cpu.GetMmu().FlushAll(); // TC change invalidates all translations
+                uint32_t tcVal = EffectiveAddress::ReadValue(_cpu, eaMode, eaR, 4);
+                _cpu.GetMmu().SetTC(tcVal);
+                _cpu.GetMmu().FlushAll();
             }
             break;
         case 2: // SRP (64-bit)

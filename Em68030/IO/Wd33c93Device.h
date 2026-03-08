@@ -45,6 +45,9 @@ public:
     void DetachTarget(int scsiId);
     void AttachDisk(int scsiId, ScsiDisk* disk); // backward-compatible alias
 
+    /// Called periodically from PCC::Tick() to fire deferred interrupts.
+    void Tick();
+
     // Diagnostics
     std::function<void(bool)> InterruptOutput;
     std::function<void(const std::string&)> DiagLog;
@@ -76,6 +79,7 @@ private:
     void HandleDisconnect();
     void HandleSelectAtn();
     void HandleSelAtnXfer();
+    void CompleteSat();
     void HandleXferInfo(bool sbt = false);
 
     // SBT (Single Byte Transfer)
@@ -119,6 +123,10 @@ private:
     // SCSI bus state machine
     ScsiPhase m_phase = ScsiPhase::Idle;
     bool m_pioTransferActive = false;
+    bool m_satInProgress = false; // Select-and-Transfer (Level II) in progress
+
+    // CDB length from SCSI opcode group
+    static int GetCdbLength(uint8_t opcode);
 
     // SBT handshake state
     bool m_sbtPending = false;
@@ -143,6 +151,10 @@ private:
     // Write command tracking
     uint32_t m_writeLba = 0;
     int m_writeSectorCount = 0;
+
+    // Deferred interrupt: Level I SEL_ATN follow-up (CSR=0x8E after CSR=0x11)
+    // Set in HandleSelectAtn, fired in Tick(), cancelled by new command execution.
+    uint8_t m_deferredInterruptCsr = 0;
 
     // Diagnostic counters
     int m_commandCount = 0;

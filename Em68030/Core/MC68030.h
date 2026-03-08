@@ -164,6 +164,8 @@ public:
 
     inline int GetInterruptMask() const { return (SR >> 8) & 7; }
     inline void SetInterruptMask(int value) { SR = static_cast<uint16_t>((SR & 0xF8FF) | ((value & 7) << 8)); }
+    inline int GetPendingIPL() const { return _pendingIPL; }
+    inline int GetPendingVector() const { return _pendingVector; }
 
     inline bool GetTraceT1() const { return (SR & 0x8000) != 0; }
     inline void SetTraceT1(bool value) { SR = static_cast<uint16_t>(value ? SR | 0x8000 : SR & ~0x8000); }
@@ -251,6 +253,16 @@ public:
     void ClearTickHandlers();
     bool HasExternalDevices() const;
 
+    /// Suppress interrupt processing for the given number of instructions.
+    /// Used by PCC to defer SCSI interrupt delivery so the driver can finish
+    /// setting up state (hostdata->connected, hostdata->state) before the ISR runs.
+    /// WD33C93 SAT commands complete synchronously during WriteByte, but real
+    /// hardware takes milliseconds for selection/transfer.
+    void SuppressInterrupt(int instructions)
+    {
+        _interruptSuppress = instructions;
+    }
+
 private:
     // Read a longword from user virtual address via MMU (FC=1 user data). Returns nullopt on fault.
     std::optional<uint32_t> ReadUserLong(uint32_t virtualAddr);
@@ -316,6 +328,7 @@ private:
     int _pendingVector = -1;
     std::vector<std::function<void()>> _tickHandlers;
     int _tickDivider = 0;
+    int _interruptSuppress = 0;
 
     static constexpr int TickInterval = 256;
 

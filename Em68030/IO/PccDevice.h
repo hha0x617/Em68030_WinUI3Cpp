@@ -13,6 +13,8 @@ class MC68030;
 
 namespace Em68030::IO {
 
+class Wd33c93Device;
+
 /// PCC (Peripheral Channel Controller) for MVME147.
 /// Central I/O controller managing timers and interrupt routing.
 /// Mapped at $FFFE1000, 48 bytes ($00-$2F).
@@ -54,6 +56,9 @@ public:
     void WriteLong(uint32_t address, uint32_t value) override;
 
     void Tick();
+
+    /// Set reference to WD33C93 for deferred interrupt delivery via Tick().
+    void SetScsiDevice(Wd33c93Device* scsi) { m_scsiDevice = scsi; }
 
     /// Hardware reset: called when the CPU executes RESET instruction (0x4E70).
     /// Resets all PCC registers to power-on defaults.
@@ -151,6 +156,10 @@ private:
     bool m_sccDeviceActive = false;
     bool m_scsiDeviceActive = false;
     bool m_lanceDeviceActive = false;
+
+    // Reference to SCSI controller for Tick() deferred interrupt delivery
+    Wd33c93Device* m_scsiDevice = nullptr;
+
 };
 
 } // namespace Em68030::IO

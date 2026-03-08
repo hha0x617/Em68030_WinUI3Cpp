@@ -419,36 +419,44 @@ void MC68030::ExecuteStep()
         _tickDivider = 0;
         for (size_t i = 0; i < _tickHandlers.size(); i++)
             _tickHandlers[i]();
+
     }
 
     // Check for pending interrupts (checked even during STOP)
     if (_pendingIPL > 0 && (_pendingIPL == 7 || _pendingIPL > GetInterruptMask()))
     {
-        Stopped = false;
-        StopReason.clear();
-        // Save state before interrupt processing for bus error recovery
-        _lastPC = PC;
-        std::copy(std::begin(A), std::end(A), std::begin(_savedA));
-        std::copy(std::begin(D), std::end(D), std::begin(_savedD));
-        _savedSR = SR;
-        try
-        {
-            ProcessInterrupt(_pendingIPL);
+        // Suppress counter: only count down when the interrupt is actually eligible.
+        // This prevents the counter from being consumed while spin_lock_irqsave
+        // holds the IPL mask at 7 (blocking all interrupts).
+        if (_interruptSuppress > 0) {
+            --_interruptSuppress;
+        } else {
+            Stopped = false;
+            StopReason.clear();
+            // Save state before interrupt processing for bus error recovery
+            _lastPC = PC;
+            std::copy(std::begin(A), std::end(A), std::begin(_savedA));
+            std::copy(std::begin(D), std::end(D), std::begin(_savedD));
+            _savedSR = SR;
+            try
+            {
+                ProcessInterrupt(_pendingIPL);
+            }
+            catch (const BusErrorException& ex)
+            {
+                PC = _lastPC;
+                std::copy(std::begin(_savedA), std::end(_savedA), std::begin(A));
+                std::copy(std::begin(_savedD), std::end(_savedD), std::begin(D));
+                SR = _savedSR;
+                _fetchCacheValid = false;
+                _dataCacheValid = false;
+                auto [faultAddr, isWrite, fc, ssw] = FixupPhysicalBusError(ex);
+                RaiseBusError(faultAddr, isWrite, fc, ssw);
+            }
+            CycleCount += 34;  // Interrupt ACK approximate cycles
+            InstructionCount++;
+            return;
         }
-        catch (const BusErrorException& ex)
-        {
-            PC = _lastPC;
-            std::copy(std::begin(_savedA), std::end(_savedA), std::begin(A));
-            std::copy(std::begin(_savedD), std::end(_savedD), std::begin(D));
-            SR = _savedSR;
-            _fetchCacheValid = false;
-            _dataCacheValid = false;
-            auto [faultAddr, isWrite, fc, ssw] = FixupPhysicalBusError(ex);
-            RaiseBusError(faultAddr, isWrite, fc, ssw);
-        }
-        CycleCount += 34;  // Interrupt ACK approximate cycles
-        InstructionCount++;
-        return;
     }
 
     if (Stopped) return;
@@ -487,20 +495,25 @@ bool MC68030::ExecuteNextFast()
         _tickDivider = 0;
         for (size_t i = 0; i < _tickHandlers.size(); i++)
             _tickHandlers[i]();
+
     }
 
     if (_pendingIPL > 0 && (_pendingIPL == 7 || _pendingIPL > GetInterruptMask()))
     {
-        Stopped = false;
-        StopReason.clear();
-        _lastPC = PC;
-        std::copy(std::begin(A), std::end(A), std::begin(_savedA));
-        std::copy(std::begin(D), std::end(D), std::begin(_savedD));
-        _savedSR = SR;
-        ProcessInterrupt(_pendingIPL);
-        CycleCount += 34;
-        InstructionCount++;
-        return !Halted;
+        if (_interruptSuppress > 0) {
+            --_interruptSuppress;
+        } else {
+            Stopped = false;
+            StopReason.clear();
+            _lastPC = PC;
+            std::copy(std::begin(A), std::end(A), std::begin(_savedA));
+            std::copy(std::begin(D), std::end(D), std::begin(_savedD));
+            _savedSR = SR;
+            ProcessInterrupt(_pendingIPL);
+            CycleCount += 34;
+            InstructionCount++;
+            return !Halted;
+        }
     }
 
     if (Stopped) return false;
@@ -533,16 +546,20 @@ bool MC68030::ExecuteNextFastJit()
 
     if (_pendingIPL > 0 && (_pendingIPL == 7 || _pendingIPL > GetInterruptMask()))
     {
-        Stopped = false;
-        StopReason.clear();
-        _lastPC = PC;
-        std::copy(std::begin(A), std::end(A), std::begin(_savedA));
-        std::copy(std::begin(D), std::end(D), std::begin(_savedD));
-        _savedSR = SR;
-        ProcessInterrupt(_pendingIPL);
-        CycleCount += 34;
-        InstructionCount++;
-        return !Halted;
+        if (_interruptSuppress > 0) {
+            --_interruptSuppress;
+        } else {
+            Stopped = false;
+            StopReason.clear();
+            _lastPC = PC;
+            std::copy(std::begin(A), std::end(A), std::begin(_savedA));
+            std::copy(std::begin(D), std::end(D), std::begin(_savedD));
+            _savedSR = SR;
+            ProcessInterrupt(_pendingIPL);
+            CycleCount += 34;
+            InstructionCount++;
+            return !Halted;
+        }
     }
 
     if (Stopped) return false;
@@ -866,17 +883,18 @@ void MC68030::RaiseBusError(uint32_t faultAddress, bool isWrite, uint8_t functio
         // Bus error during bus error frame construction = double fault
         Halted = true;
         StopReason = "Double bus fault (during stack frame construction)";
-        if (ExceptionOccurred)
-        {
-            ExceptionOccurred(std::format(
-                "DOUBLE BUS FAULT - CPU halted\n"
-                "  Original fault: addr=${:08X}, write={}, FC={}, SSW=${:04X}\n"
-                "  Frame push fault: addr=${:08X}, write={}\n"
-                "  CPU: PC=${:08X}, SR=${:04X}, A7=${:08X}, SSP=${:08X}, USP=${:08X}, VBR=${:08X}",
-                faultAddress, isWrite, functionCode, ssw,
-                ex2.FaultAddress, ex2.IsWrite,
-                PC, SR, A[7], SSP, USP, VBR));
-        }
+        auto msg = std::format(
+            "\n[EMU] DOUBLE BUS FAULT - CPU halted\n"
+            "  Original fault: addr=${:08X}, write={}, FC={}, SSW=${:04X}\n"
+            "  Frame push fault: addr=${:08X}, write={}\n"
+            "  CPU: PC=${:08X}, SR=${:04X}, A7=${:08X}, SSP=${:08X}, USP=${:08X}, VBR=${:08X}\n"
+            "  TC=${:08X}, CRP=${:016X}, SRP={:016X}\n",
+            faultAddress, isWrite, functionCode, ssw,
+            ex2.FaultAddress, ex2.IsWrite,
+            PC, SR, A[7], SSP, USP, VBR,
+            m_mmu.GetTC(), m_mmu.CRP, m_mmu.SRP);
+        if (DiagnosticOutput) DiagnosticOutput(msg);
+        if (ExceptionOccurred) ExceptionOccurred(msg);
     }
 }
 

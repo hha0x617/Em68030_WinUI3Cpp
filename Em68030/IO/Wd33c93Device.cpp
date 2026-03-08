@@ -19,7 +19,20 @@ Wd33c93Device::Wd33c93Device()
 // --- External device attachment ---
 
 void Wd33c93Device::AttachMemory(Core::Memory* memory) { m_memory = memory; }
-void Wd33c93Device::AttachPcc(PccDevice* pcc) { m_pcc = pcc; }
+void Wd33c93Device::AttachPcc(PccDevice* pcc) {
+    m_pcc = pcc;
+}
+
+void Wd33c93Device::Tick()
+{
+    // Only fire deferred interrupt after the host has read the previous CSR
+    // (INT cleared). Otherwise, the deferred CSR overwrites the unread one.
+    if (m_deferredInterruptCsr != 0 && (m_regs[0x1F] & 0x80) == 0) {
+        uint8_t csr = m_deferredInterruptCsr;
+        m_deferredInterruptCsr = 0;
+        SetCsrAndInterrupt(csr);
+    }
+}
 
 void Wd33c93Device::AttachTarget(int scsiId, IScsiTarget* target)
 {
@@ -193,6 +206,9 @@ void Wd33c93Device::SetCsrAndInterrupt(uint8_t csr)
 
 void Wd33c93Device::HandleCommand(uint8_t cmd)
 {
+    // Cancel any deferred follow-up interrupt — the host is manually managing phases
+    m_deferredInterruptCsr = 0;
+
     m_commandCount++;
     bool sbt = (cmd & 0x80) != 0;
     uint8_t baseCmd = cmd & 0x7F;
@@ -231,6 +247,8 @@ void Wd33c93Device::HandleAbort()
     m_phase = ScsiPhase::Idle;
     m_pioTransferActive = false;
     m_sbtPending = false;
+    m_satInProgress = false;
+
     m_selectedTarget = -1;
     SetCsrAndInterrupt(0x41);
 }
@@ -240,6 +258,8 @@ void Wd33c93Device::HandleDisconnect()
     m_phase = ScsiPhase::Idle;
     m_pioTransferActive = false;
     m_sbtPending = false;
+    m_satInProgress = false;
+
     m_selectedTarget = -1;
     SetCsrAndInterrupt(0x41);
 }
@@ -251,6 +271,8 @@ void Wd33c93Device::HandleReset()
     m_phase = ScsiPhase::Idle;
     m_pioTransferActive = false;
     m_sbtPending = false;
+    m_satInProgress = false;
+
     m_selectedTarget = -1;
     m_cdbOffset = 0;
     m_dataOffset = 0;
@@ -282,24 +304,156 @@ void Wd33c93Device::HandleSelectAtn()
         m_phase = ScsiPhase::MsgOut;
         m_cdbOffset = 0;
         m_cdbLength = 0;
-        SetCsrAndInterrupt(0x8E); // MIS_2 | MESG_OUT phase
+        SetCsrAndInterrupt(0x11); // CSR_SELECT — selection complete
+
+        // Level I follow-up: after host reads CSR_SELECT (0x11) and returns
+        // from ISR, fire CSR=0x8E (SRV_REQ|MSG_OUT) on next Tick() to signal
+        // the target is requesting MSG_OUT phase for IDENTIFY message.
+        // Cancelled if host issues a command (e.g. XFER_INFO) before Tick.
+        m_deferredInterruptCsr = 0x8E;
     }
 }
 
-// --- SEL_ATN_XFER ---
+// --- SEL_ATN_XFER (Level II) ---
+// Performs selection, IDENTIFY message, CDB, and optionally data transfer.
+// For Level II (L2_BASIC), the chip interrupts with SRV_REQ when data
+// transfer is needed, allowing the driver to set up DMA and issue XFER_INFO.
+// After all phases complete, returns CSR=0x16 (SEL_XFER_DONE).
+
+int Wd33c93Device::GetCdbLength(uint8_t opcode)
+{
+    switch (opcode >> 5) {
+        case 0: return 6;   // Group 0
+        case 1: return 10;  // Group 1
+        case 2: return 10;  // Group 2
+        case 5: return 12;  // Group 5
+        default: return 10; // Default
+    }
+}
 
 void Wd33c93Device::HandleSelAtnXfer()
 {
-    if (m_selectedTarget < 0) {
-        SetCsrAndInterrupt(0x42);
+    int target = m_regs[0x15] & 0x07;
+    uint8_t cmdPhase = m_regs[0x10];
+
+    if (DiagLog) {
+        std::ostringstream ss;
+        ss << "[SCSI] SEL_ATN_XFER target=" << target
+           << " hasTarget=" << (m_targets[target] != nullptr)
+           << " ready=" << (m_targets[target] ? m_targets[target]->IsReady() : false);
+        DiagLog(ss.str());
+    }
+
+    if (m_targets[target] == nullptr || !m_targets[target]->IsReady()) {
+        m_selectedTarget = -1;
+        m_phase = ScsiPhase::Idle;
+        SetCsrAndInterrupt(0x42); // SEL_TIMEO
         return;
     }
 
-    m_regs[0x0F] = m_statusByte;
-    m_regs[0x10] = 0x60;
+    // Command phase 0x45 = resume data transfer (scatter/gather continuation).
+    // The driver re-issues SAT after a partial DMA segment completes.
+    // Don't re-execute the CDB — just continue transferring from the existing buffer.
+    if (cmdPhase == 0x45 && m_satInProgress &&
+        (m_phase == ScsiPhase::DataIn || m_phase == ScsiPhase::DataOut) &&
+        m_dataOffset < m_dataLength) {
+        if (DiagLog) {
+            std::ostringstream ss;
+            ss << "[SCSI] SAT resume cmdPhase=$45 offset=" << m_dataOffset
+               << " remaining=" << (m_dataLength - m_dataOffset);
+            DiagLog(ss.str());
+        }
+        // Driver has set up PCC DMA and TC for the next segment — do the transfer.
+        if (m_pcc && m_memory) {
+            if (m_phase == ScsiPhase::DataIn)
+                DoDmaDataIn();
+            else
+                DoDmaDataOut();
+        } else {
+            SetCsrAndInterrupt(m_phase == ScsiPhase::DataIn ? 0x89 : 0x88);
+        }
+        return;
+    }
+
+    // Command phase 0x50 = status phase (after L2_BASIC reads status byte).
+    // Re-issue SAT to handle message-in and complete the command.
+    if (cmdPhase == 0x50 && m_satInProgress) {
+        if (DiagLog)
+            DiagLog("[SCSI] SAT resume cmdPhase=$50 → CompleteSat");
+        CompleteSat();
+        return;
+    }
+
+    m_selectedTarget = target;
+    m_selectedLun = m_regs[0x0F] & 0x07;
+
+    // Read CDB from registers 0x03-0x0E
+    uint8_t opcode = m_regs[0x03];
+    m_cdbLength = GetCdbLength(opcode);
+    for (int i = 0; i < m_cdbLength && i < static_cast<int>(m_cdb.size()); i++)
+        m_cdb[i] = m_regs[0x03 + i];
+    m_cdbOffset = m_cdbLength;
+
+    if (m_scsiCmdLogCount < 200 && DiagLog) {
+        m_scsiCmdLogCount++;
+        std::ostringstream ss;
+        ss << "[SCSI] SAT CDB[" << m_cdbLength << "]: " << FormatCdb()
+           << " target=" << m_selectedTarget << " lun=" << m_selectedLun;
+        DiagLog(ss.str());
+    }
+
+    // Execute the SCSI command
+    auto result = m_targets[m_selectedTarget]->ProcessCommand(m_cdb.data(), m_cdbLength, m_selectedLun);
+    m_currentResult = result;
+    m_statusByte = result.StatusByte;
+    m_satInProgress = true;
+
+    if (result.HasDataIn) {
+        m_dataBuffer = std::move(result.DataIn);
+        m_dataOffset = 0;
+        m_dataLength = result.DataInLength;
+        m_phase = ScsiPhase::DataIn;
+
+        if (m_scsiCmdLogCount <= 200 && DiagLog && (m_cdb[0] == 0x08 || m_cdb[0] == 0x28 || m_cdb[0] == 0x25 || m_cdb[0] == 0x12)) {
+            LogDataBuffer("SAT DataIn", m_dataBuffer.data(), m_dataLength);
+        }
+
+        // The Linux driver sets up PCC DMA before issuing SAT.
+        // If PCC/memory are available, do immediate DMA transfer.
+        // Otherwise, signal SRV_REQ for the driver to set up transfer.
+        if (m_pcc && m_memory)
+            DoDmaDataIn();
+        else
+            SetCsrAndInterrupt(0x89); // SRV_REQ | DATA_IN (fallback)
+    } else if (result.HasDataOut) {
+        m_dataBuffer = result.DataOut.empty() ? std::vector<uint8_t>(result.DataOutLength, 0) : std::move(result.DataOut);
+        m_dataOffset = 0;
+        m_dataLength = result.DataOutLength;
+        SaveWriteParams();
+        m_phase = ScsiPhase::DataOut;
+
+        if (m_pcc && m_memory)
+            DoDmaDataOut();
+        else
+            SetCsrAndInterrupt(0x88); // SRV_REQ | DATA_OUT (fallback)
+    } else {
+        // No data phase — complete SAT immediately
+        CompleteSat();
+    }
+}
+
+// --- SAT completion ---
+
+void Wd33c93Device::CompleteSat()
+{
+    m_satInProgress = false;
     m_phase = ScsiPhase::Idle;
     m_selectedTarget = -1;
-    SetCsrAndInterrupt(0x16);
+    m_regs[0x0F] = m_statusByte;  // Status byte (read by driver)
+    m_regs[0x19] = 0x00;          // Command Complete message
+    m_regs[0x10] = 0x60;          // Command Phase: all phases done
+    // TC already reflects remaining bytes (set by DoDmaDataIn/Out)
+    SetCsrAndInterrupt(0x16);     // SEL_XFER_DONE
 }
 
 // --- XFER_INFO ---
@@ -527,7 +681,7 @@ void Wd33c93Device::CompletePhaseTransfer()
         case ScsiPhase::MsgOut:
             m_phase = ScsiPhase::Command;
             m_cdbOffset = 0;
-            SetCsrAndInterrupt(0x2A); // MIS | COMMAND phase
+            SetCsrAndInterrupt(0x1A); // XFER_DONE | COMMAND phase
             break;
 
         case ScsiPhase::Command:
@@ -536,20 +690,26 @@ void Wd33c93Device::CompletePhaseTransfer()
 
         case ScsiPhase::DataIn:
             if (m_dataOffset < m_dataLength) {
-                SetCsrAndInterrupt(0x29);
+                SetCsrAndInterrupt(m_satInProgress ? 0x89 : 0x19);
+            } else if (m_satInProgress) {
+                CompleteSat();
             } else {
                 m_phase = ScsiPhase::Status;
-                SetCsrAndInterrupt(0x2B);
+                SetCsrAndInterrupt(0x1B); // XFER_DONE | STATUS
             }
             break;
 
         case ScsiPhase::DataOut:
             if (m_dataOffset < m_dataLength) {
-                SetCsrAndInterrupt(0x28);
+                SetCsrAndInterrupt(m_satInProgress ? 0x88 : 0x18);
             } else {
                 CompleteDataOut();
-                m_phase = ScsiPhase::Status;
-                SetCsrAndInterrupt(0x2B);
+                if (m_satInProgress) {
+                    CompleteSat();
+                } else {
+                    m_phase = ScsiPhase::Status;
+                    SetCsrAndInterrupt(0x1B); // XFER_DONE | STATUS
+                }
             }
             break;
 
@@ -558,7 +718,7 @@ void Wd33c93Device::CompletePhaseTransfer()
             m_dataBuffer = { 0x00 }; // COMMAND COMPLETE
             m_dataOffset = 0;
             m_dataLength = 1;
-            SetCsrAndInterrupt(0x2F); // MIS | MSG_IN phase
+            SetCsrAndInterrupt(0x1F); // XFER_DONE | MSG_IN phase
             break;
 
         case ScsiPhase::MsgIn:
@@ -589,7 +749,7 @@ void Wd33c93Device::ExecuteScsiCommand()
     if (m_selectedTarget < 0 || m_targets[m_selectedTarget] == nullptr) {
         m_statusByte = 0x02;
         m_phase = ScsiPhase::Status;
-        SetCsrAndInterrupt(0x2B);
+        SetCsrAndInterrupt(0x1B); // XFER_DONE | STATUS
         return;
     }
 
@@ -607,17 +767,17 @@ void Wd33c93Device::ExecuteScsiCommand()
             LogDataBuffer("DataIn", m_dataBuffer.data(), m_dataLength);
         }
 
-        SetCsrAndInterrupt(0x29); // MIS | DATA_IN phase
+        SetCsrAndInterrupt(0x19); // XFER_DONE | DATA_IN phase
     } else if (result.HasDataOut) {
         m_dataBuffer = result.DataOut.empty() ? std::vector<uint8_t>(result.DataOutLength, 0) : std::move(result.DataOut);
         m_dataOffset = 0;
         m_dataLength = result.DataOutLength;
         SaveWriteParams();
         m_phase = ScsiPhase::DataOut;
-        SetCsrAndInterrupt(0x28); // MIS | DATA_OUT phase
+        SetCsrAndInterrupt(0x18); // XFER_DONE | DATA_OUT phase
     } else {
         m_phase = ScsiPhase::Status;
-        SetCsrAndInterrupt(0x2B); // MIS | STATUS phase
+        SetCsrAndInterrupt(0x1B); // XFER_DONE | STATUS phase
     }
 }
 
@@ -683,15 +843,18 @@ void Wd33c93Device::DoDmaDataIn()
         DiagLog(msg.str());
     }
 
-    SetTransferCount(0);
+    SetTransferCount(tc - transferLen);
     m_pcc->SetDmaDataAddress(dmaAddr);
     m_pcc->SetDmaDone();
 
     if (m_dataOffset < m_dataLength) {
-        SetCsrAndInterrupt(0x29);
+        // Partial transfer — SAT: SRV_REQ for next segment; SEL_ATN: MIS
+        SetCsrAndInterrupt(m_satInProgress ? 0x89 : 0x19);
+    } else if (m_satInProgress) {
+        CompleteSat();
     } else {
         m_phase = ScsiPhase::Status;
-        SetCsrAndInterrupt(0x2B);
+        SetCsrAndInterrupt(0x1B); // XFER_DONE | STATUS
     }
 }
 
@@ -721,16 +884,20 @@ void Wd33c93Device::DoDmaDataOut()
             m_dataBuffer[m_dataOffset++] = b;
     }
 
-    SetTransferCount(0);
+    SetTransferCount(tc - transferLen);
     m_pcc->SetDmaDataAddress(dmaAddr);
     m_pcc->SetDmaDone();
 
     if (m_dataOffset < m_dataLength) {
-        SetCsrAndInterrupt(0x28);
+        SetCsrAndInterrupt(m_satInProgress ? 0x88 : 0x18);
     } else {
         CompleteDataOut();
-        m_phase = ScsiPhase::Status;
-        SetCsrAndInterrupt(0x2B);
+        if (m_satInProgress) {
+            CompleteSat();
+        } else {
+            m_phase = ScsiPhase::Status;
+            SetCsrAndInterrupt(0x1B); // XFER_DONE | STATUS
+        }
     }
 }
 

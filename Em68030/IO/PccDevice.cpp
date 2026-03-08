@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "PccDevice.h"
+#include "Wd33c93Device.h"
 #include "../Core/MC68030.h"
 
 namespace Em68030::IO {
@@ -86,6 +87,10 @@ void PccDevice::Tick()
             AdvanceTimer(m_timer2Count, m_timer2Control, m_timer2Preload,
                 m_timer2OverflowCount, m_timer2Icr, ticks);
     }
+
+    // Fire deferred SCSI interrupts (Level I SEL_ATN follow-up)
+    if (m_scsiDevice)
+        m_scsiDevice->Tick();
 }
 
 uint16_t PccDevice::GetCurrentTimerCount(uint32_t count, int64_t fractional, uint8_t control) const
@@ -152,6 +157,13 @@ void PccDevice::SetDeviceInterrupt(const std::string& device, bool active)
         if (active) m_lanceIcr |= 0x80; else m_lanceIcr &= 0x7F;
     }
     UpdateIPL();
+    if (device == "scsi" && active) {
+        // WD33C93 SAT commands complete synchronously during WriteByte,
+        // but the Linux driver needs a few instructions after the command write
+        // to set up hostdata->connected and hostdata->state before the ISR runs.
+        // Real hardware takes milliseconds for SCSI selection/transfer.
+        m_cpu.SuppressInterrupt(8);
+    }
 }
 
 void PccDevice::UpdateIPL()
@@ -227,6 +239,7 @@ uint8_t PccDevice::ReadByte(uint32_t address)
         case 0x2D: return m_vectorBase;
         case 0x2E: return m_soft2Icr;
         case 0x2F: return m_revision;
+        case 0x30: return m_scsiIcr; // SCSI ICR alias (real HW offset; Linux uses this)
         default: return 0;
     }
 }
@@ -268,8 +281,12 @@ void PccDevice::WriteByte(uint32_t address, uint8_t value)
         case 0x17: m_timer2Count = (m_timer2Count & 0xFF00u) | value; break;
 
         // Timer ICR and Control
-        case 0x18: WriteIcr(m_timer1Icr, value); break;
-        case 0x19: WriteTimerControl(m_timer1Control, m_timer1Count, m_timer1Preload, m_timer1OverflowCount, value); break;
+        case 0x18:
+            WriteIcr(m_timer1Icr, value);
+            break;
+        case 0x19:
+            WriteTimerControl(m_timer1Control, m_timer1Count, m_timer1Preload, m_timer1OverflowCount, value);
+            break;
         case 0x1A: WriteIcr(m_timer2Icr, value); break;
         case 0x1B: WriteTimerControl(m_timer2Control, m_timer2Count, m_timer2Preload, m_timer2OverflowCount, value); break;
 
@@ -294,6 +311,7 @@ void PccDevice::WriteByte(uint32_t address, uint8_t value)
         case 0x2D: m_vectorBase = value; break;
         case 0x2E: WriteSoftIcr(m_soft2Icr, value); break;
         case 0x2F: m_revision = value; break;
+        case 0x30: WriteDeviceIcr(m_scsiIcr, value, m_scsiDeviceActive); break; // SCSI ICR alias (real HW offset; Linux uses this)
     }
 }
 
