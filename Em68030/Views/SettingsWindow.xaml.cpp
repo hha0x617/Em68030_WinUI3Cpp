@@ -94,6 +94,10 @@ namespace winrt::Em68030::implementation
         JitCompileThresholdBox(FindName(L"JitCompileThresholdBox").try_as<Controls::TextBox>());
         AddScsiDiskBtn(FindName(L"AddScsiDiskBtn").try_as<Controls::Button>());
         BootPartitionBox(FindName(L"BootPartitionBox").try_as<Controls::ComboBox>());
+        TargetOSBox(FindName(L"TargetOSBox").try_as<Controls::ComboBox>());
+        NetBsdPanel(FindName(L"NetBsdPanel").try_as<Controls::StackPanel>());
+        LinuxPanel(FindName(L"LinuxPanel").try_as<Controls::StackPanel>());
+        LinuxCommandLineBox(FindName(L"LinuxCommandLineBox").try_as<Controls::TextBox>());
         NetworkModeBox(FindName(L"NetworkModeBox").try_as<Controls::ComboBox>());
         NatGatewayIpBox(FindName(L"NatGatewayIpBox").try_as<Controls::TextBox>());
         NatGatewayMacBox(FindName(L"NatGatewayMacBox").try_as<Controls::TextBox>());
@@ -127,6 +131,12 @@ namespace winrt::Em68030::implementation
                 }
                 AddDiskRow("", freeId);
                 RefreshScsiIdOptions();
+            });
+        }
+        if (TargetOSBox())
+        {
+            TargetOSBox().SelectionChanged([this]([[maybe_unused]] auto const&, [[maybe_unused]] auto const&) {
+                UpdateTargetOSVisibility();
             });
         }
         if (ScsiCdromIdBox())
@@ -374,6 +384,11 @@ namespace winrt::Em68030::implementation
         m_desiredCdromId = std::clamp(config.Mvme147ScsiCdromId, 0, 6);
         if (BootPartitionBox())
             BootPartitionBox().SelectedIndex(std::clamp(config.Mvme147BootPartition, 0, 1));
+        if (TargetOSBox())
+            TargetOSBox().SelectedIndex(config.TargetOS == "Linux" ? 1 : 0);
+        if (LinuxCommandLineBox())
+            LinuxCommandLineBox().Text(winrt::to_hstring(config.LinuxCommandLine));
+        UpdateTargetOSVisibility();
         if (NetworkModeBox())
             NetworkModeBox().SelectedIndex(config.NetworkMode == "NAT" ? 1 : 0);
         if (NatGatewayIpBox())
@@ -441,6 +456,10 @@ namespace winrt::Em68030::implementation
         config.Mvme147ScsiCdromId = GetSelectedScsiId(ScsiCdromIdBox());
         if (BootPartitionBox())
             config.Mvme147BootPartition = BootPartitionBox().SelectedIndex();
+        if (TargetOSBox())
+            config.TargetOS = (TargetOSBox().SelectedIndex() == 1) ? "Linux" : "NetBSD";
+        if (LinuxCommandLineBox())
+            config.LinuxCommandLine = winrt::to_string(LinuxCommandLineBox().Text());
         if (NetworkModeBox())
             config.NetworkMode = (NetworkModeBox().SelectedIndex() == 1) ? "NAT" : "Virtual";
         if (NatGatewayIpBox())
@@ -578,6 +597,15 @@ namespace winrt::Em68030::implementation
     {
         bool isMvme = BoardTypeBox().SelectedIndex() == 1;
         Mvme147Panel().Visibility(isMvme ? Visibility::Visible : Visibility::Collapsed);
+    }
+
+    void SettingsWindow::UpdateTargetOSVisibility()
+    {
+        bool isLinux = TargetOSBox() && TargetOSBox().SelectedIndex() == 1;
+        if (NetBsdPanel())
+            NetBsdPanel().Visibility(isLinux ? Visibility::Collapsed : Visibility::Visible);
+        if (LinuxPanel())
+            LinuxPanel().Visibility(isLinux ? Visibility::Visible : Visibility::Collapsed);
     }
 
     void SettingsWindow::UpdateNatGatewayEnabled()

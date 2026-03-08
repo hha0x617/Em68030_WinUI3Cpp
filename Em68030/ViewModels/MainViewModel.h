@@ -19,6 +19,7 @@
 #include "IO/LanceDevice.h"
 #include "IO/Mvme147IoSpaceDevice.h"
 #include "IO/Z8530Device.h"
+#include "IO/Uart16550Device.h"
 #include "IO/Wd33c93Device.h"
 #include "IO/ScsiDisk.h"
 #include "IO/ScsiCdrom.h"
@@ -255,6 +256,7 @@ namespace winrt::Em68030::implementation
         void SetupTrapHandler();
         void Handle147BugCall();
         void SetupMvme147BootStub(uint32_t topOfRam);
+        void SetupMvme147LinuxBootStub(uint32_t topOfRam, uint32_t endOfKernel);
         void WriteBoardIdPacket(uint32_t addr);
         void InitStackPointer();
         void CheckForLstFile(const std::string& filePath);
@@ -297,6 +299,7 @@ namespace winrt::Em68030::implementation
         std::unique_ptr<::Em68030::IO::Mk48t02Device> m_rtcDevice;
         std::unique_ptr<::Em68030::IO::Wd33c93Device> m_scsiDevice;
         std::unique_ptr<::Em68030::IO::LanceDevice> m_lanceDevice;
+        std::unique_ptr<::Em68030::IO::Uart16550Device> m_uartDevice;
         std::unique_ptr<::Em68030::IO::Mvme147IoSpaceDevice> m_ioSpaceDevice;
         std::vector<std::unique_ptr<::Em68030::IO::ScsiDisk>> m_scsiDisks;
         std::unique_ptr<::Em68030::IO::ScsiCdrom> m_scsiCdrom;

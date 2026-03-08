@@ -71,7 +71,7 @@ uint8_t Mk48t02Device::ReadClockRegister(uint32_t reg)
         case 4: return static_cast<uint8_t>(local_tm.tm_wday + 1); // Sunday=1
         case 5: return ToBcd(local_tm.tm_mday);
         case 6: return ToBcd(local_tm.tm_mon + 1); // tm_mon is 0-based
-        case 7: return ToBcd((local_tm.tm_year - 68) % 100); // YEAR0=1968 (Sun/NetBSD convention)
+        case 7: return ToBcd((local_tm.tm_year - m_yearOffset) % 100);
         default: return 0;
     }
 }

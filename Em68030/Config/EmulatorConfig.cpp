@@ -73,6 +73,8 @@ void to_json(nlohmann::json& j, const EmulatorConfig& c)
         {"Mvme147ScsiCdromPath",    c.Mvme147ScsiCdromPath},
         {"Mvme147ScsiCdromId",      c.Mvme147ScsiCdromId},
         {"Mvme147BootPartition",    c.Mvme147BootPartition},
+        {"TargetOS",                c.TargetOS},
+        {"LinuxCommandLine",        c.LinuxCommandLine},
         {"NetworkMode",             c.NetworkMode},
         {"NatGatewayIp",            c.NatGatewayIp},
         {"NatGatewayMac",           c.NatGatewayMac},
@@ -107,6 +109,8 @@ void from_json(const nlohmann::json& j, EmulatorConfig& c)
     if (j.contains("Mvme147ScsiCdromPath"))   j.at("Mvme147ScsiCdromPath").get_to(c.Mvme147ScsiCdromPath);
     if (j.contains("Mvme147ScsiCdromId"))     j.at("Mvme147ScsiCdromId").get_to(c.Mvme147ScsiCdromId);
     if (j.contains("Mvme147BootPartition")) j.at("Mvme147BootPartition").get_to(c.Mvme147BootPartition);
+    if (j.contains("TargetOS"))              j.at("TargetOS").get_to(c.TargetOS);
+    if (j.contains("LinuxCommandLine"))      j.at("LinuxCommandLine").get_to(c.LinuxCommandLine);
     if (j.contains("NetworkMode"))             j.at("NetworkMode").get_to(c.NetworkMode);
     if (j.contains("NatGatewayIp"))            j.at("NatGatewayIp").get_to(c.NatGatewayIp);
     if (j.contains("NatGatewayMac"))           j.at("NatGatewayMac").get_to(c.NatGatewayMac);

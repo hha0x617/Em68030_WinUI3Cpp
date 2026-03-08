@@ -36,6 +36,12 @@ public:
     /// Pre-populate NVRAM with MVME147 hardware configuration values.
     void SetMvme147Config(uint32_t onboardRamEnd, const uint8_t* ethernetAddr, size_t ethernetAddrLen);
 
+    /// Set the year base offset for RTC year register.
+    /// NetBSD uses YEAR0=1968: year stored as (year - 1968) % 100.
+    /// Linux uses raw 2-digit year: year stored as year % 100.
+    /// Default is 0 (Linux/standard).
+    void SetYearOffset(int offset) { m_yearOffset = offset; }
+
 private:
     static constexpr uint32_t BaseAddress = 0xFFFE0000;
 
@@ -43,6 +49,7 @@ private:
     static uint8_t ToBcd(int val);
 
     std::array<uint8_t, 2048> m_nvram{};
+    int m_yearOffset = 0; // 68 for NetBSD (YEAR0=1968), 0 for Linux
 };
 
 } // namespace Em68030::IO

@@ -63,6 +63,12 @@ public:
     // Boot partition: 0='a', 1='b', etc. Used by boot stub to tell kernel which partition is root.
     int Mvme147BootPartition = 0;
 
+    // Target OS: "NetBSD" or "Linux"
+    std::string TargetOS = "NetBSD";
+
+    // Linux kernel command line (used when TargetOS == "Linux")
+    std::string LinuxCommandLine = "root=/dev/sda1 earlyprintk";
+
     // Network mode: "Virtual" (internal echo server) or "NAT" (host network via user-mode NAT)
     std::string NetworkMode = "Virtual";
 

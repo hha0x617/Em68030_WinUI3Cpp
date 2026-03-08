@@ -221,6 +221,10 @@ namespace winrt::Em68030::implementation
         m_sccDevice = std::make_unique<::Em68030::IO::Z8530Device>();
         m_scsiDevice = std::make_unique<::Em68030::IO::Wd33c93Device>();
 
+        // RTC year offset: NetBSD uses YEAR0=1968, Linux uses raw 2-digit year
+        if (m_config.TargetOS != "Linux")
+            m_rtcDevice->SetYearOffset(68);
+
         uint8_t ethAddr[] = { 0x21, 0x00, 0x00 }; // 08:00:3E:21:00:00
         m_rtcDevice->SetMvme147Config(
             static_cast<uint32_t>(m_config.MemorySize),
@@ -268,6 +272,13 @@ namespace winrt::Em68030::implementation
         // Attach memory and PCC to SCSI controller
         m_scsiDevice->AttachMemory(m_memory.get());
         m_scsiDevice->AttachPcc(m_pccDevice.get());
+        m_pccDevice->SetScsiDevice(m_scsiDevice.get());
+        // SCSI diagnostic logging disabled for performance
+        // m_scsiDevice->DiagLog = [this](const std::string& msg) {
+        //     if (m_traceWriter)
+        //         *m_traceWriter << msg << "\n";
+        //     m_consoleStringOutput(*this, to_hstring_from_std(msg + "\n"));
+        // };
 
         // Wire SCC Channel A output to console
         m_sccDevice->GetChannelA().CharTransmitted = [this](uint8_t ch) {
@@ -281,11 +292,26 @@ namespace winrt::Em68030::implementation
             if (m_traceWriter) m_traceWriter->put(static_cast<char>(ch));
         };
 
+        // Virtual 16550 UART at 0xFFFE2000 for Linux serial console
+        // Only register for Linux -- NetBSD does not expect a device at this address
+        // and will crash if it probes one during bus scanning.
+        if (m_config.TargetOS == "Linux") {
+            m_uartDevice = std::make_unique<::Em68030::IO::Uart16550Device>(0xFFFE2000);
+            m_uartDevice->OnTransmit = [this](uint8_t ch) {
+                m_consoleCharOutput(*this, ch);
+                if (m_traceWriter) m_traceWriter->put(static_cast<char>(ch));
+            };
+            m_memory->RegisterDevice(0xFFFE2000, 8, m_uartDevice.get());
+        }
+
         // CPU tick handlers for PCC timer, SCC, and LANCE TX
         m_cpu->AddTickHandler([this]() {
             m_pccDevice->Tick();
             m_sccDevice->Tick(m_cpu->Stopped);
             m_lanceDevice->Tick();
+
+
+
         });
 
         // RESET instruction: reset all external devices (PCC timers, interrupt lines)
@@ -293,10 +319,13 @@ namespace winrt::Em68030::implementation
             m_pccDevice->HardwareReset();
         };
 
-        // Diagnostic output: trace file only (not shown in console window)
+        // Diagnostic output: trace file + console window for critical messages
         m_cpu->DiagnosticOutput = [this](const std::string& msg) {
             if (m_traceWriter)
                 *m_traceWriter << msg;
+            // Show tagged diagnostic messages on console
+            if (msg.find("[EMU]") != std::string::npos)
+                m_consoleStringOutput(*this, to_hstring_from_std(msg));
         };
 
         // Load ROM image if configured
@@ -317,7 +346,8 @@ namespace winrt::Em68030::implementation
         {
             if (!diskConfig.Path.empty() && std::filesystem::exists(diskConfig.Path))
             {
-                EnsureCpuDisklabel(diskConfig.Path);
+                if (m_config.TargetOS != "Linux")
+                    EnsureCpuDisklabel(diskConfig.Path);
                 auto disk = std::make_unique<::Em68030::IO::ScsiDisk>();
                 disk->MountImage(diskConfig.Path);
                 m_scsiDevice->AttachTarget(diskConfig.ScsiId, disk.get());
@@ -457,7 +487,10 @@ namespace winrt::Em68030::implementation
                         if (m_config.BoardType == "MVME147")
                         {
                             uint32_t topOfRam = static_cast<uint32_t>(m_config.MemorySize);
-                            SetupMvme147BootStub(topOfRam);
+                            if (m_config.TargetOS == "Linux")
+                                SetupMvme147LinuxBootStub(topOfRam, m_programEndAddress);
+                            else
+                                SetupMvme147BootStub(topOfRam);
                             m_cpu->SR = 0x2700;
                         }
                     }
@@ -567,6 +600,97 @@ namespace winrt::Em68030::implementation
         m_cpu->VBR = 0;
         m_cpu->SSP = bootArgs;
         m_cpu->A[7] = bootArgs;
+    }
+
+    void MainViewModel::SetupMvme147LinuxBootStub(uint32_t topOfRam, uint32_t endOfKernel)
+    {
+        // Linux/m68k boot protocol: the kernel's get_bi_record() in head.S
+        // searches for bi_record structures starting at _end (the end of
+        // the kernel image), NOT from a register pointer.
+        //
+        // struct bi_record {
+        //     uint16_t tag;    // record type
+        //     uint16_t size;   // total size in bytes (header + data)
+        //     uint32_t data[]; // payload
+        // };
+        //
+        // Reference: arch/m68k/kernel/head.S (get_bi_record: lea %pc@(_end),%a0)
+        //            arch/m68k/include/uapi/asm/bootinfo.h
+
+        uint32_t ssp = topOfRam - 0x3000;
+
+        // Place bootinfo chain at _end (end of kernel image), aligned to 4 bytes
+        uint32_t biAddr = (endOfKernel + 3) & ~3u;
+
+        // --- BI_MACHTYPE (tag=0x0001): machine type ---
+        constexpr uint32_t MACH_MVME147 = 6;
+        m_memory->PokeWord(biAddr + 0, 0x0001); // BI_MACHTYPE
+        m_memory->PokeWord(biAddr + 2, 8);      // size = 4 (header) + 4 (data)
+        m_memory->PokeLong(biAddr + 4, MACH_MVME147);
+        biAddr += 8;
+
+        // --- BI_CPUTYPE (tag=0x0002): CPU_68030 = (1 << 1) ---
+        m_memory->PokeWord(biAddr + 0, 0x0002); // BI_CPUTYPE
+        m_memory->PokeWord(biAddr + 2, 8);
+        m_memory->PokeLong(biAddr + 4, (1 << 1)); // CPU_68030
+        biAddr += 8;
+
+        // --- BI_FPUTYPE (tag=0x0003): FPU_68882 = (1 << 1) ---
+        m_memory->PokeWord(biAddr + 0, 0x0003); // BI_FPUTYPE
+        m_memory->PokeWord(biAddr + 2, 8);
+        m_memory->PokeLong(biAddr + 4, (1 << 1)); // FPU_68882
+        biAddr += 8;
+
+        // --- BI_MMUTYPE (tag=0x0004): MMU_68030 = (1 << 1) ---
+        m_memory->PokeWord(biAddr + 0, 0x0004); // BI_MMUTYPE
+        m_memory->PokeWord(biAddr + 2, 8);
+        m_memory->PokeLong(biAddr + 4, (1 << 1)); // MMU_68030
+        biAddr += 8;
+
+        // --- BI_MEMCHUNK (tag=0x0005): memory region ---
+        m_memory->PokeWord(biAddr + 0, 0x0005); // BI_MEMCHUNK
+        m_memory->PokeWord(biAddr + 2, 12);     // size = 4 (header) + 8 (start + size)
+        m_memory->PokeLong(biAddr + 4, 0);      // start address
+        m_memory->PokeLong(biAddr + 8, topOfRam); // size
+        biAddr += 12;
+
+        // --- BI_COMMAND_LINE (tag=0x0007): kernel command line ---
+        const std::string& cmdline = m_config.LinuxCommandLine;
+        uint32_t cmdLen = static_cast<uint32_t>(cmdline.size()) + 1; // include NUL
+        uint32_t cmdRecSize = 4 + ((cmdLen + 3) & ~3u); // header + padded string
+        m_memory->PokeWord(biAddr + 0, 0x0007); // BI_COMMAND_LINE
+        m_memory->PokeWord(biAddr + 2, static_cast<uint16_t>(cmdRecSize));
+        for (uint32_t i = 0; i < cmdLen; i++)
+            m_memory->PokeByte(biAddr + 4 + i, i < cmdline.size() ? static_cast<uint8_t>(cmdline[i]) : 0);
+        // Zero-fill padding
+        for (uint32_t i = cmdLen; i < ((cmdLen + 3) & ~3u); i++)
+            m_memory->PokeByte(biAddr + 4 + i, 0);
+        biAddr += cmdRecSize;
+
+        // --- BI_VME_TYPE (tag=0x8000): VME board type ---
+        constexpr uint16_t VME_TYPE_MVME147 = 0x0147;
+        m_memory->PokeWord(biAddr + 0, 0x8000); // BI_VME_TYPE
+        m_memory->PokeWord(biAddr + 2, 8);      // size = 4 + 4
+        m_memory->PokeLong(biAddr + 4, VME_TYPE_MVME147);
+        biAddr += 8;
+
+        // --- BI_VME_BRDINFO (tag=0x8001): board info (struct mvme_brdinfo) ---
+        // Minimal board info: 24 bytes (offset, tag, clun, dlun, ctype, dtype, session, etc.)
+        m_memory->PokeWord(biAddr + 0, 0x8001); // BI_VME_BRDINFO
+        m_memory->PokeWord(biAddr + 2, 4 + 24); // size = header + 24 bytes of brdinfo
+        // Zero-fill brdinfo (kernel uses defaults for most fields)
+        for (uint32_t i = 0; i < 24; i++)
+            m_memory->PokeByte(biAddr + 4 + i, 0);
+        biAddr += 4 + 24;
+
+        // --- BI_LAST (tag=0x0000): end of chain ---
+        m_memory->PokeWord(biAddr + 0, 0x0000); // BI_LAST
+        m_memory->PokeWord(biAddr + 2, 4);      // size = 4 (header only)
+
+        // Set up CPU state
+        m_cpu->VBR = 0;
+        m_cpu->SSP = ssp;
+        m_cpu->A[7] = ssp;
     }
 
     void MainViewModel::EnsureCpuDisklabel(const std::string& path)
@@ -691,7 +815,10 @@ namespace winrt::Em68030::implementation
         if (m_config.BoardType == "MVME147")
         {
             uint32_t topOfRam = static_cast<uint32_t>(m_config.MemorySize);
-            SetupMvme147BootStub(topOfRam);
+            if (m_config.TargetOS == "Linux")
+                SetupMvme147LinuxBootStub(topOfRam, m_programEndAddress);
+            else
+                SetupMvme147BootStub(topOfRam);
             m_cpu->SR = 0x2700; // Supervisor mode, IPL 7
         }
         else
@@ -718,6 +845,9 @@ namespace winrt::Em68030::implementation
         // In MVME147 mode, feed into SCC Channel A user input staging queue
         if (m_sccDevice)
             m_sccDevice->GetChannelA().QueueInput(ch);
+        // Also feed into virtual 16550 UART RX buffer (for Linux serial console)
+        if (m_uartDevice)
+            m_uartDevice->ReceiveChar(ch);
     }
 
     // ======================================================================
