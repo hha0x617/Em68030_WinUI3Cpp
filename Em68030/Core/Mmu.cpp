@@ -371,8 +371,11 @@ uint32_t Mmu::TableWalk(uint32_t logicalAddress, bool supervisorMode, bool write
                     (m ? 0x0200 : 0)                     // M (Modified, bit 9)
                 );
 
-                // Cache in ATC
-                CacheInAtc(logicalAddress, functionCode, physPage,
+                // Cache in ATC — for early-terminating descriptors that map
+                // regions larger than a single page, compute the correct
+                // physPage for the specific page within the larger region.
+                uint32_t atcPhysPage = physAddr & ~CachedPageMask;
+                CacheInAtc(logicalAddress, functionCode, atcPhysPage,
                            writeProtected, cacheInhibit, m,
                            entrySize == 8 ? descAddr + 4 : descAddr);
 
