@@ -134,6 +134,11 @@
     <ClCompile Include="NetworkTests\SlirpNetworkHandlerTests.cpp" />
     <ClCompile Include="CpuTests\JitCompilerTests.cpp" />
     <ClCompile Include="CpuTests\CycleTableTests.cpp" />
+    <ClCompile Include="IoTests\Z8530DeviceTests.cpp" />
+    <ClCompile Include="IoTests\Wd33c93DeviceTests.cpp" />
+    <ClCompile Include="IoTests\PccDeviceTests.cpp" />
+    <ClCompile Include="IoTests\Uart16550DeviceTests.cpp" />
+    <ClCompile Include="IoTests\Mk48t02DeviceTests.cpp" />
   </ItemGroup>
   <!-- ================================================================ -->
   <!-- Shared Core sources (compiled without main project's WinRT PCH)  -->
@@ -211,6 +216,9 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="$(SolutionDir)Em68030\IO\SlirpNetworkHandler.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(SolutionDir)Em68030\IO\Uart16550Device.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>
