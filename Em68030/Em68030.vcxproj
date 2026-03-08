@@ -148,6 +148,7 @@
     <ClInclude Include="IO\Mvme147IoSpaceDevice.h" />
     <ClInclude Include="IO\PccDevice.h" />
     <ClInclude Include="IO\Z8530Device.h" />
+    <ClInclude Include="IO\Uart16550Device.h" />
     <ClInclude Include="IO\Wd33c93Device.h" />
     <ClInclude Include="IO\ScsiDisk.h" />
     <ClInclude Include="IO\ScsiCdrom.h" />
@@ -161,6 +162,7 @@
     <ClCompile Include="IO\Mvme147IoSpaceDevice.cpp" />
     <ClCompile Include="IO\PccDevice.cpp" />
     <ClCompile Include="IO\Z8530Device.cpp" />
+    <ClCompile Include="IO\Uart16550Device.cpp" />
     <ClCompile Include="IO\Wd33c93Device.cpp" />
     <ClCompile Include="IO\ScsiDisk.cpp" />
     <ClCompile Include="IO\ScsiCdrom.cpp" />
