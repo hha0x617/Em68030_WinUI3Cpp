@@ -465,4 +465,70 @@ TEST_F(PccDeviceTest, SameLevel_EarlierDeviceWins)
     EXPECT_EQ(cpu.GetPendingVector(), 0x40 + 3); // SCC
 }
 
+// ============================================================================
+// Watchdog Timer
+// ============================================================================
+
+TEST_F(PccDeviceTest, Watchdog_ArmValue_TriggersCallback)
+{
+    bool callbackInvoked = false;
+    pcc.OnWatchdogReset = [&callbackInvoked]() {
+        callbackInvoked = true;
+    };
+
+    // Writing 0xA5 to watchdog register arms it and triggers immediate reset
+    pcc.WriteByte(Base + 0x1D, 0xA5);
+    EXPECT_TRUE(callbackInvoked);
+}
+
+TEST_F(PccDeviceTest, Watchdog_ClearValue_DoesNotTriggerCallback)
+{
+    bool callbackInvoked = false;
+    pcc.OnWatchdogReset = [&callbackInvoked]() {
+        callbackInvoked = true;
+    };
+
+    // Writing 0x0A (clear) should NOT trigger watchdog — treated as normal ICR write
+    pcc.WriteByte(Base + 0x1D, 0x0A);
+    EXPECT_FALSE(callbackInvoked);
+}
+
+TEST_F(PccDeviceTest, Watchdog_OtherValues_DoNotTriggerCallback)
+{
+    int callCount = 0;
+    pcc.OnWatchdogReset = [&callCount]() {
+        callCount++;
+    };
+
+    // Various non-0xA5 values should not trigger watchdog
+    pcc.WriteByte(Base + 0x1D, 0x00);
+    pcc.WriteByte(Base + 0x1D, 0x0D); // IEN=1, level=5
+    pcc.WriteByte(Base + 0x1D, 0x80); // W1C
+    pcc.WriteByte(Base + 0x1D, 0xFF);
+    EXPECT_EQ(callCount, 0);
+}
+
+TEST_F(PccDeviceTest, Watchdog_NoCallback_DoesNotCrash)
+{
+    // No callback set — writing 0xA5 should not crash
+    pcc.OnWatchdogReset = nullptr;
+    pcc.WriteByte(Base + 0x1D, 0xA5);
+    // Just verify no crash
+}
+
+TEST_F(PccDeviceTest, Watchdog_LinuxRebootSequence)
+{
+    // Simulates Linux mvme147_reset(): clear then arm
+    bool callbackInvoked = false;
+    pcc.OnWatchdogReset = [&callbackInvoked]() {
+        callbackInvoked = true;
+    };
+
+    pcc.WriteByte(Base + 0x1D, 0x0A); // Clear timer
+    EXPECT_FALSE(callbackInvoked);
+
+    pcc.WriteByte(Base + 0x1D, 0xA5); // Arm watchdog
+    EXPECT_TRUE(callbackInvoked);
+}
+
 } // namespace Em68030::Tests
