@@ -15,6 +15,7 @@
 #include "Views/SettingsWindow.xaml.h"
 #include "Views/AboutDialog.xaml.h"
 #include "Views/ConsoleWindow.xaml.h"
+#include "GitVersion.h"
 #include "Views/BreakpointsWindow.xaml.h"
 #include "ViewModels/MainViewModel.h"
 #include "ViewModels/DisasmLineViewModel.h"
@@ -463,7 +464,13 @@ namespace winrt::Em68030::implementation
         });
 
         // Set window title and default size
-        Title(L"Em68030 - MC68030 Emulator (C++/WinUI3)");
+        {
+            std::wstring title = L"Em68030 - MC68030 Emulator (C++/WinUI3) [";
+            std::string hash = GIT_COMMIT_HASH;
+            title.append(hash.begin(), hash.end());
+            title += L"]";
+            Title(title);
+        }
         AppWindow().Resize({ 1100, 750 });
 
         // Initialize register display from ViewModel

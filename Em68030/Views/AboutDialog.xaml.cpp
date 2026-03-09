@@ -3,6 +3,7 @@
 #if __has_include("AboutDialog.g.cpp")
 #include "AboutDialog.g.cpp"
 #endif
+#include "GitVersion.h"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -56,5 +57,12 @@ namespace winrt::Em68030::implementation
     AboutDialog::AboutDialog()
     {
         InitializeComponent();
+        if (auto tb = FindName(L"BuildHashText").try_as<TextBlock>())
+        {
+            std::wstring text = L"Build: ";
+            std::string hash = GIT_COMMIT_HASH;
+            text.append(hash.begin(), hash.end());
+            tb.Text(text);
+        }
     }
 }

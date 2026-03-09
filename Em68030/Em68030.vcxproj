@@ -262,6 +262,18 @@
     <PackageReference Include="Microsoft.Windows.ImplementationLibrary" Version="1.0.240803.1" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
   </ItemGroup>
+  <!-- Generate GitVersion.h with the current git commit hash -->
+  <Target Name="GenerateGitVersion" BeforeTargets="ClCompile">
+    <Exec Command="git rev-parse --short HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitHash" />
+    </Exec>
+    <PropertyGroup>
+      <GitCommitHash Condition="'$(GitCommitHash)' == ''">unknown</GitCommitHash>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(IntDir)GitVersion.h"
+                     Lines="#pragma once%0D%0A#define GIT_COMMIT_HASH &quot;$(GitCommitHash)&quot;"
+                     Overwrite="true" />
+  </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
