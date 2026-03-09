@@ -285,16 +285,27 @@ void Wd33c93Device::ResetBusState()
     m_phase = ScsiPhase::Idle;
     m_pioTransferActive = false;
     m_sbtPending = false;
+    m_sbtOutput = false;
     m_satInProgress = false;
     m_selectedTarget = -1;
+    m_selectedLun = 0;
     m_cdbOffset = 0;
+    m_cdbLength = 0;
     m_dataOffset = 0;
     m_dataLength = 0;
+    m_statusByte = 0;
     m_deferredInterruptCsr = 0;
     m_dataBuffer.clear();
     m_currentResult = {};
-    // Clear INT flag in ASR without triggering interrupt callback
-    m_regs[0x1F] &= ~0x80;
+
+    // Reset all registers and CDB to power-on defaults
+    m_regs.fill(0);
+    m_cdb.fill(0);
+    m_addressReg = 0;
+
+    // Deassert interrupt line
+    if (InterruptOutput)
+        InterruptOutput(false);
 }
 
 // --- SEL_ATN ---
@@ -389,6 +400,19 @@ void Wd33c93Device::HandleSelAtnXfer()
         } else {
             SetCsrAndInterrupt(m_phase == ScsiPhase::DataIn ? 0x89 : 0x88);
         }
+        return;
+    }
+
+    // Command phase 0x46 = data transfer complete, finish status/message phases.
+    // The Level I driver (NetBSD sbic) handles select + CDB + data manually, then
+    // issues SAT with cmdPhase=0x46 to automate the status byte read and command
+    // complete message. The SCSI command was already executed during the Level I
+    // command phase, so m_statusByte already holds the correct status.
+    if (cmdPhase == 0x46) {
+        if (DiagLog)
+            DiagLog("[SCSI] SAT cmdPhase=$46 → CompleteSat (Level I status completion)");
+        m_satInProgress = true;
+        CompleteSat();
         return;
     }
 
