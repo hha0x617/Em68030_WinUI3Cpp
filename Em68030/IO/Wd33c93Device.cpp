@@ -280,6 +280,23 @@ void Wd33c93Device::HandleReset()
     SetCsrAndInterrupt(0x01);
 }
 
+void Wd33c93Device::ResetBusState()
+{
+    m_phase = ScsiPhase::Idle;
+    m_pioTransferActive = false;
+    m_sbtPending = false;
+    m_satInProgress = false;
+    m_selectedTarget = -1;
+    m_cdbOffset = 0;
+    m_dataOffset = 0;
+    m_dataLength = 0;
+    m_deferredInterruptCsr = 0;
+    m_dataBuffer.clear();
+    m_currentResult = {};
+    // Clear INT flag in ASR without triggering interrupt callback
+    m_regs[0x1F] &= ~0x80;
+}
+
 // --- SEL_ATN ---
 
 void Wd33c93Device::HandleSelectAtn()

@@ -48,6 +48,10 @@ public:
     /// Called periodically from PCC::Tick() to fire deferred interrupts.
     void Tick();
 
+    /// Reset all SCSI bus state without triggering an interrupt.
+    /// Used when hot-swapping SCSI devices via settings.
+    void ResetBusState();
+
     // Diagnostics
     std::function<void(bool)> InterruptOutput;
     std::function<void(const std::string&)> DiagLog;

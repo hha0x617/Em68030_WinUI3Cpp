@@ -1331,6 +1331,9 @@ namespace winrt::Em68030::implementation
                 disk->UnmountImage();
             m_scsiDisks.clear();
 
+            // Reset SCSI controller bus state to clear any in-flight operations
+            m_scsiDevice->ResetBusState();
+
             // Mount and attach new SCSI disks from updated config
             for (const auto& diskConfig : m_config.Mvme147ScsiDisks)
             {
