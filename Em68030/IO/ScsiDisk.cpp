@@ -110,10 +110,14 @@ ScsiResult ScsiDisk::CmdRequestSense(const uint8_t* cdb)
 {
     int allocLen = cdb[4];
     if (allocLen == 0) allocLen = 18;
-    int len = std::min(allocLen, 18);
-    std::vector<uint8_t> data(m_senseData, m_senseData + len);
+    // Return allocLen bytes (zero-padded beyond 18) to match the transfer count
+    // the driver sets up. Returning fewer bytes leaves a non-zero residual TC,
+    // which causes the NetBSD wdsc driver to report EINVAL (error 22).
+    std::vector<uint8_t> data(allocLen, 0);
+    int copyLen = std::min(allocLen, 18);
+    std::memcpy(data.data(), m_senseData, copyLen);
     ClearSense();
-    return ScsiResult{ 0x00, std::move(data), len, {}, 0, true, false };
+    return ScsiResult{ 0x00, std::move(data), allocLen, {}, 0, true, false };
 }
 
 ScsiResult ScsiDisk::CmdInquiryNoDevice(const uint8_t* cdb)
