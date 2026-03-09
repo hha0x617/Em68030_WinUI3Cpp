@@ -292,7 +292,15 @@ void PccDevice::WriteByte(uint32_t address, uint8_t value)
 
         // Device ICR and control registers
         case 0x1C: WriteIcr(m_acFailIcr, value); break;
-        case 0x1D: WriteIcr(m_wdogIcr, value); break;
+        case 0x1D:
+            if (value == 0xA5) {
+                // Watchdog armed with ~100ms timeout — trigger immediate reset in emulation
+                if (OnWatchdogReset)
+                    OnWatchdogReset();
+            } else {
+                WriteIcr(m_wdogIcr, value);
+            }
+            break;
         case 0x1E: WriteIcr(m_printerIcr, value); break;
         case 0x1F: m_printerControl = value; break;
         case 0x20: WriteIcr(m_dmaIcr, value); break;

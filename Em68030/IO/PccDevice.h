@@ -64,6 +64,10 @@ public:
     /// Resets all PCC registers to power-on defaults.
     void HardwareReset();
 
+    /// Callback invoked when the watchdog timer is armed (0xA5 written to watchdog register).
+    /// Used by MVME147 Linux kernel for hardware reboot (mvme147_reset).
+    std::function<void()> OnWatchdogReset;
+
     /// Called by external devices (SCC, SCSI, LANCE) to signal interrupt state.
     void SetDeviceInterrupt(const std::string& device, bool active);
 

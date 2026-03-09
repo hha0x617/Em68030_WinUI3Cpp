@@ -319,6 +319,43 @@ namespace winrt::Em68030::implementation
             m_pccDevice->HardwareReset();
         };
 
+        // PCC watchdog timer: Linux MVME147 uses this for hardware reboot
+        m_pccDevice->OnWatchdogReset = [this]() {
+            if (m_cpu->DiagnosticOutput)
+                m_cpu->DiagnosticOutput("\n[EMU] Watchdog reset triggered — performing warm reboot\n");
+            m_pccDevice->HardwareReset();
+            if (m_scsiDevice) m_scsiDevice->ResetBusState();
+            m_systemBooted = false;
+
+            // Disable MMU before reloading the kernel — the old page tables will be
+            // overwritten by LoadElf, so any MMU-translated fetch would use corrupt tables.
+            // FlushAll triggers OnFlush which invalidates fetch/data caches and JIT.
+            m_cpu->GetMmu().Reset();
+            m_cpu->GetMmu().FlushAll();
+
+            if (!m_config.LastOpenedFile.empty() && std::filesystem::exists(m_config.LastOpenedFile))
+            {
+                auto result = ::Em68030::IO::FileLoader::LoadElf(*m_memory, m_config.LastOpenedFile);
+                m_cpu->PC = result.EntryPoint;
+                m_programStartAddress = result.StartAddress;
+                m_programEndAddress = result.EndAddress;
+
+                if (m_config.BoardType == "MVME147")
+                {
+                    uint32_t topOfRam = static_cast<uint32_t>(m_config.MemorySize);
+                    if (m_config.TargetOS == "Linux")
+                        SetupMvme147LinuxBootStub(topOfRam, m_programEndAddress);
+                    else
+                        SetupMvme147BootStub(topOfRam);
+                    m_cpu->SR = 0x2700;
+                }
+            }
+            else
+            {
+                m_cpu->Reset();
+            }
+        };
+
         // Diagnostic output: trace file + console window for critical messages
         m_cpu->DiagnosticOutput = [this](const std::string& msg) {
             if (m_traceWriter)
