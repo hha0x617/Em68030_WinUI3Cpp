@@ -105,7 +105,12 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="Command Line:" Style="{StaticResource SettingLabelStyle}" />
-                        <TextBox x:Name="LinuxCommandLineBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+                        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Disabled" HorizontalScrollMode="Auto"
+                                      Background="Transparent" Padding="0">
+                            <TextBox x:Name="LinuxCommandLineBox" Style="{StaticResource SettingTextBoxStyle}"
+                                     MinWidth="400" />
+                        </ScrollViewer>
                     </Grid>
                 </StackPanel>
 
@@ -118,10 +123,6 @@
                 <StackPanel Orientation="Horizontal" Margin="0,8">
                     <TextBlock Text="New Image Size (MB):" Style="{StaticResource SettingLabelStyle}" Width="150" />
                     <TextBox x:Name="NewScsiImageSizeBox" Width="60" Style="{StaticResource SettingTextBoxStyle}" Text="100" />
-                    <ComboBox x:Name="NewScsiImageTypeBox" Margin="8,0" Width="100">
-                        <ComboBoxItem Content="NetBSD" IsSelected="True" />
-                        <ComboBoxItem Content="Empty" />
-                    </ComboBox>
                     <Button x:Name="CreateScsiImageBtn" Content="Create" Margin="8,0"
                             Background="#FF3E3E42" Foreground="#FFD4D4D4" Padding="8,2" />
                 </StackPanel>

@@ -13,6 +13,7 @@ namespace winrt::Em68030::implementation
         Microsoft::UI::Xaml::Controls::ComboBox IdBox{ nullptr };
         Microsoft::UI::Xaml::Controls::Button BrowseBtn{ nullptr };
         Microsoft::UI::Xaml::Controls::Button RemoveBtn{ nullptr };
+        Microsoft::UI::Xaml::Controls::Button DisklabelBtn{ nullptr };
         int DesiredId = 0; // tracks the desired SCSI ID during refresh
     };
 
