@@ -29,6 +29,7 @@
 #include "IO/ScsiDisk.h"
 #include "IO/SlirpNetworkHandler.h"
 
+using ::Em68030::ResourceHelper;
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
@@ -195,6 +196,100 @@ namespace winrt::Em68030::implementation
                 UpdateNatGatewayEnabled();
             });
         }
+
+        // --- Localize dialog ---
+        Title(winrt::box_value(ResourceHelper::GetString(L"Window_Settings")));
+        PrimaryButtonText(ResourceHelper::GetString(L"Dialog_OK"));
+        CloseButtonText(ResourceHelper::GetString(L"Dialog_Cancel"));
+
+        // Section headers
+        if (auto tb = FindName(L"LblBoardType").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_BoardType"));
+        if (auto tb = FindName(L"LblMvme147Settings").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_Mvme147Settings"));
+        if (auto tb = FindName(L"LblTargetOS").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_TargetOS"));
+        if (auto tb = FindName(L"LblScsiDisks").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_ScsiDisks"));
+        if (auto tb = FindName(L"LblScsiCdRom").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_ScsiCdRom"));
+        if (auto tb = FindName(L"LblNetwork").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_Network"));
+        if (auto tb = FindName(L"LblMemory").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_Memory"));
+        if (auto tb = FindName(L"LblIoDevices").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_IoDevices"));
+        if (auto tb = FindName(L"LblHddImage").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_HddImage"));
+        if (auto tb = FindName(L"LblPerformance").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_Performance"));
+        if (auto tb = FindName(L"LblDisplay").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_Display"));
+
+        // Field labels
+        if (auto tb = FindName(L"LblBoard").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_Board"));
+        if (auto tb = FindName(L"LblRomImage").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_RomImage"));
+        if (auto tb = FindName(L"LblOperatingSystem").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_OperatingSystem"));
+        if (auto tb = FindName(L"LblBootPartition").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_BootPartition"));
+        if (auto tb = FindName(L"LblCommandLine").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_CommandLine"));
+        if (auto tb = FindName(L"LblScsiNewImageSize").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_NewImageSizeMB"));
+        if (auto tb = FindName(L"LblIsoImage").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_IsoImage"));
+        if (auto tb = FindName(L"LblScsiCdromId").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_ScsiId"));
+        if (auto tb = FindName(L"LblNetworkMode").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_NetworkMode"));
+        if (auto tb = FindName(L"LblGatewayIP").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_GatewayIP"));
+        if (auto tb = FindName(L"LblGatewayMAC").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_GatewayMAC"));
+        if (auto tb = FindName(L"LblMemorySizeMB").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_MemorySizeMB"));
+        if (auto tb = FindName(L"LblConsoleBaseAddr").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_ConsoleBaseAddr"));
+        if (auto tb = FindName(L"LblScrollbackLines").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_ScrollbackLines"));
+        if (auto tb = FindName(L"LblTerminalSize").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_TerminalSize"));
+        if (auto tb = FindName(L"LblHddBaseAddr").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_HddBaseAddr"));
+        if (auto tb = FindName(L"LblImageFile").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_ImageFile"));
+        if (auto tb = FindName(L"LblHddNewImageSize").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_NewImageSizeMB"));
+        if (auto tb = FindName(L"LblMinBlockLength").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_MinBlockLength"));
+        if (auto tb = FindName(L"LblCompileThreshold").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_CompileThreshold"));
+        if (auto tb = FindName(L"LblFontFamily").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_FontFamily"));
+        if (auto tb = FindName(L"LblFontSize").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_FontSize"));
+        if (auto tb = FindName(L"LblJitDescription").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_JitDescription"));
+
+        // CheckBoxes
+        if (ConsoleEnabledBox())
+            ConsoleEnabledBox().Content(winrt::box_value(ResourceHelper::GetString(L"Settings_ConsoleEnabled")));
+        if (HddEnabledBox())
+            HddEnabledBox().Content(winrt::box_value(ResourceHelper::GetString(L"Settings_HddEnabled")));
+        if (JitEnabledBox())
+            JitEnabledBox().Content(winrt::box_value(ResourceHelper::GetString(L"Settings_EnableJit")));
+
+        // Buttons
+        if (AddScsiDiskBtn())
+            AddScsiDiskBtn().Content(winrt::box_value(ResourceHelper::GetString(L"Settings_AddDisk")));
+        if (auto btn = FindName(L"CreateScsiImageBtn").try_as<Controls::Button>())
+            btn.Content(winrt::box_value(ResourceHelper::GetString(L"Settings_Create")));
+        if (auto btn = FindName(L"CreateHddImageBtn").try_as<Controls::Button>())
+            btn.Content(winrt::box_value(ResourceHelper::GetString(L"Settings_Create")));
+
     }
 
     // ========================================================================
@@ -555,7 +650,10 @@ namespace winrt::Em68030::implementation
 
         // Memory size
         auto memText = winrt::to_string(MemSizeBox().Text());
-        try { config.MemorySize = std::stoi(memText) * 1024 * 1024; }
+        try {
+            int memMB = std::clamp(std::stoi(memText), 4, 4096);
+            config.MemorySize = memMB * 1024 * 1024;
+        }
         catch (...) { /* keep previous */ }
 
         // I/O
@@ -565,17 +663,17 @@ namespace winrt::Em68030::implementation
         catch (...) { /* keep previous */ }
 
         auto scrollbackText = winrt::to_string(ConsoleScrollbackBox().Text());
-        try { config.ConsoleScrollbackLines = std::stoi(scrollbackText); }
+        try { config.ConsoleScrollbackLines = std::clamp(std::stoi(scrollbackText), 0, 100000); }
         catch (...) { /* keep previous */ }
 
         if (ConsoleColumnsBox())
         {
-            try { config.ConsoleColumns = std::max(80, std::stoi(winrt::to_string(ConsoleColumnsBox().Text()))); }
+            try { config.ConsoleColumns = std::clamp(std::stoi(winrt::to_string(ConsoleColumnsBox().Text())), 80, 320); }
             catch (...) { /* keep previous */ }
         }
         if (ConsoleRowsBox())
         {
-            try { config.ConsoleRows = std::max(24, std::stoi(winrt::to_string(ConsoleRowsBox().Text()))); }
+            try { config.ConsoleRows = std::clamp(std::stoi(winrt::to_string(ConsoleRowsBox().Text())), 24, 80); }
             catch (...) { /* keep previous */ }
         }
 
@@ -693,7 +791,7 @@ namespace winrt::Em68030::implementation
 
     void SettingsWindow::UpdateNatGatewayEnabled()
     {
-        bool isNat = GetSelectedItemText(NetworkModeBox()) == "NAT";
+        bool isNat = GetSelectedItemText(NetworkModeBox()).find("NAT") != std::string::npos;
         if (NatGatewayIpBox())
         {
             NatGatewayIpBox().IsEnabled(isNat);
@@ -778,6 +876,7 @@ namespace winrt::Em68030::implementation
         catch (...) { co_return; }
 
         if (sizeMB <= 0) co_return;
+        sizeMB = std::clamp(sizeMB, 100, 2097152);
 
         long long sizeBytes = static_cast<long long>(sizeMB) * 1024 * 1024;
 

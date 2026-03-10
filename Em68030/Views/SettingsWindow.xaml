@@ -24,6 +24,9 @@
     RequestedTheme="Dark">
 
     <ContentDialog.Resources>
+        <Style x:Key="DefaultContentDialogButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="80" />
+        </Style>
         <Style x:Key="SettingLabelStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#FFD4D4D4" />
             <Setter Property="FontSize" Value="13" />
@@ -54,13 +57,13 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500" Background="Transparent">
         <StackPanel Spacing="0" Background="Transparent">
             <!-- Board Type -->
-            <TextBlock Text="Board Type" Style="{StaticResource SectionHeaderStyle}" />
+            <TextBlock x:Name="LblBoardType" Text="Board Type" Style="{StaticResource SectionHeaderStyle}" />
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="150" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Board:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBlock x:Name="LblBoard" Text="Board:" Style="{StaticResource SettingLabelStyle}" />
                 <ComboBox x:Name="BoardTypeBox" Grid.Column="1">
                     <ComboBoxItem Content="Generic" />
                     <ComboBoxItem Content="MVME147" />
@@ -69,27 +72,27 @@
 
             <!-- MVME147 Settings -->
             <StackPanel x:Name="Mvme147Panel" Visibility="Collapsed">
-                <TextBlock Text="MVME147 Settings" Style="{StaticResource SectionHeaderStyle}" />
+                <TextBlock x:Name="LblMvme147Settings" Text="MVME147 Settings" Style="{StaticResource SectionHeaderStyle}" />
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="ROM Image:" Style="{StaticResource SettingLabelStyle}" />
+                    <TextBlock x:Name="LblRomImage" Text="ROM Image:" Style="{StaticResource SettingLabelStyle}" />
                     <TextBox x:Name="Mvme147RomBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
                     <Button x:Name="BrowseRomBtn" Content="..." Grid.Column="2"
                             Style="{StaticResource BrowseButtonStyle}" />
                 </Grid>
 
                 <!-- Target OS -->
-                <TextBlock Text="Target OS" Style="{StaticResource SectionHeaderStyle}" />
+                <TextBlock x:Name="LblTargetOS" Text="Target OS" Style="{StaticResource SectionHeaderStyle}" />
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Operating System:" Style="{StaticResource SettingLabelStyle}" />
+                    <TextBlock x:Name="LblOperatingSystem" Text="Operating System:" Style="{StaticResource SettingLabelStyle}" />
                     <ComboBox x:Name="TargetOSBox" Grid.Column="1">
                         <ComboBoxItem Content="NetBSD" />
                         <ComboBoxItem Content="Linux" />
@@ -102,7 +105,7 @@
                             <ColumnDefinition Width="150" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Boot Partition:" Style="{StaticResource SettingLabelStyle}" />
+                        <TextBlock x:Name="LblBootPartition" Text="Boot Partition:" Style="{StaticResource SettingLabelStyle}" />
                         <ComboBox x:Name="BootPartitionBox" Grid.Column="1"
                                   Width="60" HorizontalAlignment="Left">
                             <ComboBoxItem Content="a" />
@@ -117,7 +120,7 @@
                             <ColumnDefinition Width="150" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Command Line:" Style="{StaticResource SettingLabelStyle}" />
+                        <TextBlock x:Name="LblCommandLine" Text="Command Line:" Style="{StaticResource SettingLabelStyle}" />
                         <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Disabled" HorizontalScrollMode="Auto"
                                       Background="Transparent" Padding="0">
@@ -128,20 +131,21 @@
                 </StackPanel>
 
                 <!-- SCSI Disk Settings -->
-                <TextBlock Text="SCSI Disks" Style="{StaticResource SectionHeaderStyle}" />
+                <TextBlock x:Name="LblScsiDisks" Text="SCSI Disks" Style="{StaticResource SectionHeaderStyle}" />
                 <StackPanel x:Name="ScsiDiskListPanel" />
                 <Button x:Name="AddScsiDiskBtn" Content="+ Add Disk"
-                        Margin="0,4" Padding="8,2"
+                        Margin="0,4" Padding="8,2" HorizontalAlignment="Left"
                         Background="#FF3E3E42" Foreground="#FFD4D4D4" />
                 <StackPanel Orientation="Horizontal" Margin="0,8">
-                    <TextBlock Text="New Image Size (MB):" Style="{StaticResource SettingLabelStyle}" Width="150" />
-                    <TextBox x:Name="NewScsiImageSizeBox" Width="60" Style="{StaticResource SettingTextBoxStyle}" Text="100" />
+                    <TextBlock x:Name="LblScsiNewImageSize" Text="New Image Size (MB):" Style="{StaticResource SettingLabelStyle}" Width="150" />
+                    <TextBox x:Name="NewScsiImageSizeBox" Width="80" Style="{StaticResource SettingTextBoxStyle}" Text="2048"
+                             ToolTipService.ToolTip="100-2097152" />
                     <Button x:Name="CreateScsiImageBtn" Content="Create" Margin="8,0"
                             Background="#FF3E3E42" Foreground="#FFD4D4D4" Padding="8,2" />
                 </StackPanel>
 
                 <!-- SCSI CD-ROM Settings -->
-                <TextBlock Text="SCSI CD-ROM" Style="{StaticResource SectionHeaderStyle}" />
+                <TextBlock x:Name="LblScsiCdRom" Text="SCSI CD-ROM" Style="{StaticResource SectionHeaderStyle}" />
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150" />
@@ -152,11 +156,11 @@
                         <RowDefinition />
                         <RowDefinition />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="ISO Image:" Style="{StaticResource SettingLabelStyle}" />
+                    <TextBlock x:Name="LblIsoImage" Text="ISO Image:" Style="{StaticResource SettingLabelStyle}" />
                     <TextBox x:Name="ScsiCdromPathBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
                     <Button x:Name="BrowseScsiCdromBtn" Content="..." Grid.Column="2"
                             Style="{StaticResource BrowseButtonStyle}" />
-                    <TextBlock Text="SCSI ID:" Grid.Row="1" Style="{StaticResource SettingLabelStyle}" />
+                    <TextBlock x:Name="LblScsiCdromId" Text="SCSI ID:" Grid.Row="1" Style="{StaticResource SettingLabelStyle}" />
                     <ComboBox x:Name="ScsiCdromIdBox" Grid.Row="1" Grid.Column="1"
                               Width="60" HorizontalAlignment="Left">
                         <ComboBoxItem Content="0" />
@@ -169,13 +173,13 @@
                     </ComboBox>
                 </Grid>
                 <!-- Network Mode -->
-                <TextBlock Text="Network" Style="{StaticResource SectionHeaderStyle}" />
+                <TextBlock x:Name="LblNetwork" Text="Network" Style="{StaticResource SectionHeaderStyle}" />
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Network Mode:" Style="{StaticResource SettingLabelStyle}" />
+                    <TextBlock x:Name="LblNetworkMode" Text="Network Mode:" Style="{StaticResource SettingLabelStyle}" />
                     <ComboBox x:Name="NetworkModeBox" Grid.Column="1">
                         <ComboBoxItem Content="Virtual (Echo Server)" />
                         <ComboBoxItem Content="NAT (Host Network)" />
@@ -186,7 +190,7 @@
                         <ColumnDefinition Width="150" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Gateway IP:" Style="{StaticResource SettingLabelStyle}" />
+                    <TextBlock x:Name="LblGatewayIP" Text="Gateway IP:" Style="{StaticResource SettingLabelStyle}" />
                     <TextBox x:Name="NatGatewayIpBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
                 </Grid>
                 <Grid>
@@ -194,24 +198,25 @@
                         <ColumnDefinition Width="150" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Gateway MAC:" Style="{StaticResource SettingLabelStyle}" />
+                    <TextBlock x:Name="LblGatewayMAC" Text="Gateway MAC:" Style="{StaticResource SettingLabelStyle}" />
                     <TextBox x:Name="NatGatewayMacBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
                 </Grid>
             </StackPanel>
 
             <!-- Memory Settings -->
-            <TextBlock Text="Memory" Style="{StaticResource SectionHeaderStyle}" />
+            <TextBlock x:Name="LblMemory" Text="Memory" Style="{StaticResource SectionHeaderStyle}" />
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="150" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Memory Size (MB):" Style="{StaticResource SettingLabelStyle}" />
-                <TextBox x:Name="MemSizeBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+                <TextBlock x:Name="LblMemorySizeMB" Text="Memory Size (MB):" Style="{StaticResource SettingLabelStyle}" />
+                <TextBox x:Name="MemSizeBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}"
+                         ToolTipService.ToolTip="4-4096" />
             </Grid>
 
             <!-- I/O Device Settings -->
-            <TextBlock Text="I/O Devices" Style="{StaticResource SectionHeaderStyle}" />
+            <TextBlock x:Name="LblIoDevices" Text="I/O Devices" Style="{StaticResource SectionHeaderStyle}" />
             <CheckBox x:Name="ConsoleEnabledBox" Content="Console Device Enabled"
                       Foreground="#FFD4D4D4" Margin="0,4" />
             <Grid>
@@ -219,7 +224,7 @@
                     <ColumnDefinition Width="150" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Console Base Addr:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBlock x:Name="LblConsoleBaseAddr" Text="Console Base Addr:" Style="{StaticResource SettingLabelStyle}" />
                 <TextBox x:Name="ConsoleAddrBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
             </Grid>
             <Grid>
@@ -227,8 +232,9 @@
                     <ColumnDefinition Width="150" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Scrollback Lines:" Style="{StaticResource SettingLabelStyle}" />
-                <TextBox x:Name="ConsoleScrollbackBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+                <TextBlock x:Name="LblScrollbackLines" Text="Scrollback Lines:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBox x:Name="ConsoleScrollbackBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}"
+                         ToolTipService.ToolTip="0-100000" />
             </Grid>
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -237,10 +243,12 @@
                     <ColumnDefinition Width="30" />
                     <ColumnDefinition Width="60" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Terminal Size:" Style="{StaticResource SettingLabelStyle}" />
-                <TextBox x:Name="ConsoleColumnsBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+                <TextBlock x:Name="LblTerminalSize" Text="Terminal Size:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBox x:Name="ConsoleColumnsBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}"
+                         ToolTipService.ToolTip="80-320" />
                 <TextBlock Text=" x " Grid.Column="2" Style="{StaticResource SettingLabelStyle}" HorizontalAlignment="Center" />
-                <TextBox x:Name="ConsoleRowsBox" Grid.Column="3" Style="{StaticResource SettingTextBoxStyle}" />
+                <TextBox x:Name="ConsoleRowsBox" Grid.Column="3" Style="{StaticResource SettingTextBoxStyle}"
+                         ToolTipService.ToolTip="24-80" />
             </Grid>
 
             <CheckBox x:Name="HddEnabledBox" Content="HDD Device Enabled"
@@ -250,53 +258,54 @@
                     <ColumnDefinition Width="150" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="HDD Base Addr:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBlock x:Name="LblHddBaseAddr" Text="HDD Base Addr:" Style="{StaticResource SettingLabelStyle}" />
                 <TextBox x:Name="HddAddrBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
             </Grid>
 
             <!-- HDD Image Settings -->
-            <TextBlock Text="HDD Image" Style="{StaticResource SectionHeaderStyle}" />
+            <TextBlock x:Name="LblHddImage" Text="HDD Image" Style="{StaticResource SectionHeaderStyle}" />
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="150" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Image File:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBlock x:Name="LblImageFile" Text="Image File:" Style="{StaticResource SettingLabelStyle}" />
                 <TextBox x:Name="HddPathBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
                 <Button x:Name="BrowseHddBtn" Content="..." Grid.Column="2"
                         Style="{StaticResource BrowseButtonStyle}" />
             </Grid>
             <StackPanel Orientation="Horizontal" Margin="0,8">
-                <TextBlock Text="New Image Size (MB):" Style="{StaticResource SettingLabelStyle}" Width="150" />
-                <TextBox x:Name="NewImageSizeBox" Width="60" Style="{StaticResource SettingTextBoxStyle}" Text="32" />
+                <TextBlock x:Name="LblHddNewImageSize" Text="New Image Size (MB):" Style="{StaticResource SettingLabelStyle}" Width="150" />
+                <TextBox x:Name="NewImageSizeBox" Width="80" Style="{StaticResource SettingTextBoxStyle}" Text="2048"
+                         ToolTipService.ToolTip="100-2097152" />
                 <Button x:Name="CreateHddImageBtn" Content="Create" Margin="8,0"
                         Background="#FF3E3E42" Foreground="#FFD4D4D4" Padding="8,2" />
             </StackPanel>
 
             <!-- Performance -->
-            <TextBlock Text="Performance" Style="{StaticResource SectionHeaderStyle}" />
+            <TextBlock x:Name="LblPerformance" Text="Performance" Style="{StaticResource SectionHeaderStyle}" />
             <CheckBox x:Name="JitEnabledBox" Content="Enable JIT Compiler (experimental)"
                       Foreground="#FFD4D4D4" Margin="0,4" />
-            <TextBlock Text="Compiles register-only basic blocks for faster execution. May slightly reduce performance on some workloads."
+            <TextBlock x:Name="LblJitDescription" Text="Compiles register-only basic blocks for faster execution. May slightly reduce performance on some workloads."
                        Foreground="#FF808080" FontSize="11" TextWrapping="Wrap" Margin="24,0,0,4" />
             <Grid Margin="24,4,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="180" /><ColumnDefinition Width="60" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Min Block Length:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBlock x:Name="LblMinBlockLength" Text="Min Block Length:" Style="{StaticResource SettingLabelStyle}" />
                 <TextBox x:Name="JitMinBlockLengthBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
             </Grid>
             <Grid Margin="24,4,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="180" /><ColumnDefinition Width="60" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Compile Threshold:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBlock x:Name="LblCompileThreshold" Text="Compile Threshold:" Style="{StaticResource SettingLabelStyle}" />
                 <TextBox x:Name="JitCompileThresholdBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
             </Grid>
 
             <!-- Display Settings -->
-            <TextBlock Text="Display" Style="{StaticResource SectionHeaderStyle}" />
+            <TextBlock x:Name="LblDisplay" Text="Display" Style="{StaticResource SectionHeaderStyle}" />
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="150" />
@@ -306,9 +315,9 @@
                     <RowDefinition />
                     <RowDefinition />
                 </Grid.RowDefinitions>
-                <TextBlock Text="Font Family:" Style="{StaticResource SettingLabelStyle}" />
+                <TextBlock x:Name="LblFontFamily" Text="Font Family:" Style="{StaticResource SettingLabelStyle}" />
                 <TextBox x:Name="FontFamilyBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
-                <TextBlock Text="Font Size:" Grid.Row="1" Style="{StaticResource SettingLabelStyle}" />
+                <TextBlock x:Name="LblFontSize" Text="Font Size:" Grid.Row="1" Style="{StaticResource SettingLabelStyle}" />
                 <TextBox x:Name="FontSizeBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
             </Grid>
         </StackPanel>
