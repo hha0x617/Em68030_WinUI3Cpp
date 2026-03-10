@@ -34,8 +34,8 @@
                    Foreground="#FFD4D4D4" />
         <TextBlock Text="Licensed under Apache-2.0" FontSize="13"
                    Foreground="#FFD4D4D4" />
-        <HyperlinkButton Content="https://github.com/hha0x617/em68030"
-                         NavigateUri="https://github.com/hha0x617/em68030"
+        <HyperlinkButton Content="https://github.com/hha0x617/Em68030_WinUI3Cpp"
+                         NavigateUri="https://github.com/hha0x617/Em68030_WinUI3Cpp"
                          Foreground="#FF569CD6" FontSize="13"
                          Padding="0" />
     </StackPanel>
