@@ -108,6 +108,10 @@
   <ItemGroup>
     <ResourceCompile Include="Em68030.rc" />
     <None Include="Assets\Em68030.ico" />
+    <Content Include="Assets\em68030_icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <DeploymentContent>true</DeploymentContent>
+    </Content>
   </ItemGroup>
   <!-- Precompiled Header -->
   <ItemGroup>

@@ -22,10 +22,16 @@
     RequestedTheme="Dark">
 
     <StackPanel Spacing="4">
-        <TextBlock Text="Em68030" FontSize="20" FontWeight="Bold"
-                   Foreground="#FF569CD6" />
-        <TextBlock Text="MC68030 Emulator (C++/WinUI3)" FontSize="13"
-                   Foreground="#FFD4D4D4" Margin="0,0,0,8" />
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <Image Source="ms-appx:///Assets/em68030_icon.png" Width="48" Height="48"
+                   Margin="0,0,12,0" VerticalAlignment="Center" />
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Em68030" FontSize="20" FontWeight="Bold"
+                           Foreground="#FF569CD6" />
+                <TextBlock Text="MC68030 Emulator (C++/WinUI3)" FontSize="13"
+                           Foreground="#FFD4D4D4" />
+            </StackPanel>
+        </StackPanel>
         <TextBlock Text="Version 0.1.0" FontSize="13"
                    Foreground="#FFD4D4D4" />
         <TextBlock x:Name="BuildHashText" FontSize="13"
