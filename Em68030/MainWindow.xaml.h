@@ -96,10 +96,6 @@ namespace winrt::Em68030::implementation
         void ContextSetPC_Click(winrt::Windows::Foundation::IInspectable const& sender,
                                 winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
 
-        // --- Manual disassembly ---
-        void ManualUpdate_Click(winrt::Windows::Foundation::IInspectable const& sender,
-                                winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
-
         // --- Memory dump ---
         void MemAddrBox_KeyDown(winrt::Windows::Foundation::IInspectable const& sender,
                                 winrt::Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const& e);
@@ -131,6 +127,7 @@ namespace winrt::Em68030::implementation
         // Helpers
         HWND GetHwnd();
         void NavigateDisassembly();
+        uint32_t ParseDisasmSize();
         void NavigateMemory();
         void CopyDisasmSelection();
         void RebuildDisasmList();

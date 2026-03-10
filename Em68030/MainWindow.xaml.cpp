@@ -188,6 +188,7 @@ namespace winrt::Em68030::implementation
 
             // Memory dump
             MemAddrBox(root.FindName(L"MemAddrBox").try_as<Controls::TextBox>());
+            MemSizeBox(root.FindName(L"MemSizeBox").try_as<Controls::TextBox>());
             MemoryDumpText(root.FindName(L"MemoryDumpText").try_as<Controls::TextBox>());
             m_memEditPanel = root.FindName(L"MemoryEditPanel").try_as<Controls::StackPanel>();
 
@@ -258,8 +259,6 @@ namespace winrt::Em68030::implementation
             if (auto btn = root.FindName(L"BtnFollowPC").try_as<Controls::Primitives::ToggleButton>())
             { BtnFollowPC(btn); btn.Click({ this, &MainWindow::DisasmFollowPC_Click }); }
             DisasmSizeBox(root.FindName(L"DisasmSizeBox").try_as<Controls::TextBox>());
-            if (auto btn = root.FindName(L"BtnManualUpdate").try_as<Controls::Button>())
-            { BtnManualUpdate(btn); btn.Click({ this, &MainWindow::ManualUpdate_Click }); }
             if (LstButton())
                 LstButton().Click({ this, &MainWindow::ToggleLst_Click });
             if (DisasmList())
@@ -288,6 +287,8 @@ namespace winrt::Em68030::implementation
             // --- Memory dump controls ---
             if (MemAddrBox())
                 MemAddrBox().KeyDown({ this, &MainWindow::MemAddrBox_KeyDown });
+            if (MemSizeBox())
+                MemSizeBox().KeyDown({ this, &MainWindow::MemAddrBox_KeyDown });
             if (auto btn = root.FindName(L"BtnMemGo").try_as<Controls::Button>())
             { BtnMemGo(btn); btn.Click({ this, &MainWindow::MemGo_Click }); }
             if (auto btn = root.FindName(L"BtnMemEdit").try_as<Controls::Button>())
@@ -302,6 +303,15 @@ namespace winrt::Em68030::implementation
         // Initial button states
         // ==================================================================
         UpdateButtonStates();
+
+        // Set initial address boxes to PC value
+        {
+            auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
+            wchar_t buf[16];
+            swprintf_s(buf, L"%08X", vmImpl->PC());
+            if (DisasmAddrBox()) DisasmAddrBox().Text(buf);
+            if (MemAddrBox()) MemAddrBox().Text(buf);
+        }
 
         // ==================================================================
         // Subscribe to ViewModel events
@@ -894,62 +904,25 @@ namespace winrt::Em68030::implementation
         }
     }
 
-    void MainWindow::ManualUpdate_Click([[maybe_unused]] IInspectable const& sender,
-                                        [[maybe_unused]] RoutedEventArgs const& e)
+    uint32_t MainWindow::ParseDisasmSize()
     {
-        auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
-        if (vmImpl->HasProgramLoaded()) return;
-
-        // Parse address from DisasmAddrBox
-        auto addrText = winrt::to_string(DisasmAddrBox().Text());
-        if (!addrText.empty() && addrText[0] == '$')
-            addrText = addrText.substr(1);
-        else if (addrText.size() >= 2 && (addrText.substr(0, 2) == "0x" || addrText.substr(0, 2) == "0X"))
-            addrText = addrText.substr(2);
-
-        uint32_t addr = 0;
-        try
-        {
-            if (!addrText.empty())
-                addr = static_cast<uint32_t>(std::stoul(addrText, nullptr, 16));
-        }
-        catch (...)
-        {
-            ShowMessageDialog(L"Error", L"Invalid hex address.");
-            return;
-        }
-
-        // Parse size from DisasmSizeBox (hex, default 0x400 = 1KB)
-        uint32_t sizeBytes = 0x400;
+        uint32_t sizeBytes = 1024;
         if (DisasmSizeBox())
         {
             auto sizeText = winrt::to_string(DisasmSizeBox().Text());
-            if (!sizeText.empty() && sizeText[0] == '$')
-                sizeText = sizeText.substr(1);
-            else if (sizeText.size() >= 2 && (sizeText.substr(0, 2) == "0x" || sizeText.substr(0, 2) == "0X"))
-                sizeText = sizeText.substr(2);
+            while (!sizeText.empty() && sizeText.front() == ' ') sizeText.erase(sizeText.begin());
+            while (!sizeText.empty() && sizeText.back() == ' ') sizeText.pop_back();
 
             try
             {
-                if (!sizeText.empty())
-                    sizeBytes = static_cast<uint32_t>(std::stoul(sizeText, nullptr, 16));
+                if (!sizeText.empty() && sizeText[0] == '$')
+                    sizeBytes = static_cast<uint32_t>(std::stoul(sizeText.substr(1), nullptr, 16));
+                else if (!sizeText.empty())
+                    sizeBytes = static_cast<uint32_t>(std::stoul(sizeText, nullptr, 10));
             }
-            catch (...)
-            {
-                ShowMessageDialog(L"Error", L"Invalid hex size.");
-                return;
-            }
+            catch (...) { /* keep default */ }
         }
-
-        if (sizeBytes == 0) sizeBytes = 0x400;
-
-        vmImpl->ManualDisassembly(addr, sizeBytes);
-        RebuildDisasmList();
-
-        // Update address box to reflect actual start
-        wchar_t buf[16];
-        swprintf_s(buf, L"%08X", addr);
-        DisasmAddrBox().Text(buf);
+        return sizeBytes == 0 ? 1024 : sizeBytes;
     }
 
     void MainWindow::NavigateDisassembly()
@@ -976,8 +949,9 @@ namespace winrt::Em68030::implementation
         try
         {
             uint32_t addr = static_cast<uint32_t>(std::stoul(text, nullptr, 16));
+            uint32_t sizeBytes = ParseDisasmSize();
             auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
-            vmImpl->NavigateDisassembly(addr);
+            vmImpl->NavigateDisassembly(addr, sizeBytes);
             RebuildDisasmList();
             wchar_t buf[16];
             swprintf_s(buf, L"%08X", addr);
@@ -1135,8 +1109,33 @@ namespace winrt::Em68030::implementation
         try
         {
             uint32_t addr = static_cast<uint32_t>(std::stoul(text, nullptr, 16));
+
+            // Parse size (decimal by default, $ prefix = hex)
+            uint32_t size = 256;
+            if (MemSizeBox())
+            {
+                auto sizeText = winrt::to_string(MemSizeBox().Text());
+                // Trim whitespace
+                while (!sizeText.empty() && sizeText.front() == ' ') sizeText.erase(sizeText.begin());
+                while (!sizeText.empty() && sizeText.back() == ' ') sizeText.pop_back();
+
+                try
+                {
+                    if (!sizeText.empty() && sizeText[0] == '$')
+                    {
+                        size = static_cast<uint32_t>(std::stoul(sizeText.substr(1), nullptr, 16));
+                    }
+                    else if (!sizeText.empty())
+                    {
+                        size = static_cast<uint32_t>(std::stoul(sizeText, nullptr, 10));
+                    }
+                }
+                catch (...) { /* keep default */ }
+            }
+            if (size == 0) size = 256;
+
             auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
-            vmImpl->NavigateMemoryDump(addr);
+            vmImpl->NavigateMemoryDump(addr, size);
             wchar_t buf[16];
             swprintf_s(buf, L"%08X", addr);
             MemAddrBox().Text(buf);
@@ -1809,10 +1808,6 @@ namespace winrt::Em68030::implementation
             StopReasonText().Text(vmImpl->StopReason());
         }
 
-        if (BtnManualUpdate())
-        {
-            BtnManualUpdate().IsEnabled(!vmImpl->HasProgramLoaded());
-        }
     }
 
     // ========================================================================

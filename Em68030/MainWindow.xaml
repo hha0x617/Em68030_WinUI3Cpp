@@ -237,17 +237,14 @@
                             <TextBox x:Name="DisasmAddrBox" Width="80" FontFamily="Consolas" FontSize="13"
                                      Background="#FF2D2D30" Foreground="#FFD4D4D4"
                                      BorderBrush="#FF3F3F46" VerticalAlignment="Center" />
+                            <TextBlock Text="Size:" FontFamily="Consolas" FontSize="13"
+                                       Foreground="#FFD4D4D4" VerticalAlignment="Center" Margin="8,0,2,0" />
+                            <TextBox x:Name="DisasmSizeBox" Width="50" FontFamily="Consolas" FontSize="13"
+                                     Background="#FF2D2D30" Foreground="#FFD4D4D4"
+                                     BorderBrush="#FF3F3F46" VerticalAlignment="Center" Text="1024" />
                             <Button x:Name="BtnDisasmGo" Content="Go" Style="{StaticResource ToolBarButtonStyle}" Margin="4,2" />
                             <ToggleButton x:Name="BtnFollowPC" Content="Follow PC" IsChecked="True"
                                          Style="{StaticResource ToolBarToggleButtonStyle}" Margin="4,2" />
-                            <Border Width="1" Background="#FF555555" Margin="4,2" />
-                            <TextBlock Text="Size:" FontFamily="Consolas" FontSize="13"
-                                       Foreground="#FFD4D4D4" VerticalAlignment="Center" Margin="4,0,2,0" />
-                            <TextBox x:Name="DisasmSizeBox" Width="50" FontFamily="Consolas" FontSize="13"
-                                     Background="#FF2D2D30" Foreground="#FFD4D4D4"
-                                     BorderBrush="#FF3F3F46" VerticalAlignment="Center" Text="400" />
-                            <Button x:Name="BtnManualUpdate" Content="Manual Update"
-                                    Style="{StaticResource ToolBarButtonStyle}" Margin="4,2" />
                             <Button x:Name="LstButton" Content="LST"
                                     Style="{StaticResource ToolBarButtonStyle}" Margin="8,2"
                                     Visibility="Collapsed" />
@@ -503,6 +500,11 @@
                         <TextBox x:Name="MemAddrBox" Width="80" FontFamily="Consolas" FontSize="13"
                                  Background="#FF2D2D30" Foreground="#FFD4D4D4"
                                  BorderBrush="#FF3F3F46" VerticalAlignment="Center" />
+                        <TextBlock Text="Size:" FontFamily="Consolas" FontSize="13"
+                                   Foreground="#FFD4D4D4" VerticalAlignment="Center" Margin="8,0,2,0" />
+                        <TextBox x:Name="MemSizeBox" Width="50" FontFamily="Consolas" FontSize="13"
+                                 Background="#FF2D2D30" Foreground="#FFD4D4D4"
+                                 BorderBrush="#FF3F3F46" VerticalAlignment="Center" Text="256" />
                         <Button x:Name="BtnMemGo" Content="Go" Style="{StaticResource ToolBarButtonStyle}" Margin="4,2" />
                         <Border Width="1" Background="#FF555555" Margin="8,2" />
                         <Button x:Name="BtnMemEdit" Content="Edit" Style="{StaticResource ToolBarButtonStyle}" Margin="4,2" />

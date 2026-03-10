@@ -806,7 +806,7 @@ namespace winrt::Em68030::implementation
         m_programEndAddress = loadAddress + size;
         SetDisasmFollowPC(true);
         m_fullProgramDisassembled = false;
-        ClearManualDisasmMode();
+
         InitStackPointer();
 
         // Extract filename
@@ -839,7 +839,7 @@ namespace winrt::Em68030::implementation
         m_programEndAddress = end;
         SetDisasmFollowPC(true);
         m_fullProgramDisassembled = false;
-        ClearManualDisasmMode();
+
         InitStackPointer();
 
         auto fsPath = std::filesystem::path(pathStr);
@@ -860,7 +860,7 @@ namespace winrt::Em68030::implementation
         m_programEndAddress = result.EndAddress;
         SetDisasmFollowPC(true);
         m_fullProgramDisassembled = false;
-        ClearManualDisasmMode();
+
 
         if (m_config.BoardType == "MVME147")
         {
@@ -1308,20 +1308,6 @@ namespace winrt::Em68030::implementation
         UpdateDisassembly();
     }
 
-    void MainViewModel::ManualDisassembly(uint32_t address, uint32_t sizeBytes)
-    {
-        m_manualDisasmMode = true;
-        SetDisasmFollowPC(false);
-        m_fullProgramDisassembled = false;
-        m_disasmAddress = address;
-        UpdateDisassemblyRange(address, address + sizeBytes);
-    }
-
-    void MainViewModel::ClearManualDisasmMode()
-    {
-        m_manualDisasmMode = false;
-    }
-
     void MainViewModel::RebuildEnabledSet()
     {
         m_enabledBreakpoints.clear();
@@ -1434,19 +1420,23 @@ namespace winrt::Em68030::implementation
     // Navigation
     // ======================================================================
 
-    void MainViewModel::NavigateMemoryDump(uint32_t address)
+    void MainViewModel::NavigateMemoryDump(uint32_t address, uint32_t sizeBytes)
     {
         m_memoryDumpAddress = address;
+        m_memoryDumpRowCount = std::max(1u, (sizeBytes + 15) / 16);
         RaisePropertyChanged(L"MemoryDumpAddress");
         UpdateMemoryDump();
     }
 
-    void MainViewModel::NavigateDisassembly(uint32_t address)
+    void MainViewModel::NavigateDisassembly(uint32_t address, uint32_t sizeBytes)
     {
         m_disasmAddress = address;
         SetDisasmFollowPC(false);
         m_fullProgramDisassembled = false;
-        UpdateDisassemblyAt(m_disasmAddress);
+        if (sizeBytes > 0)
+            UpdateDisassemblyRange(address, address + sizeBytes);
+        else
+            UpdateDisassemblyAt(m_disasmAddress);
     }
 
     void MainViewModel::ScrollToAddress(uint32_t address)
@@ -1509,13 +1499,6 @@ namespace winrt::Em68030::implementation
 
     void MainViewModel::UpdateDisassembly()
     {
-        if (m_manualDisasmMode)
-        {
-            // In manual mode, only update PC highlight; don't rebuild
-            UpdatePCHighlight();
-            return;
-        }
-
         if (m_disasmFollowPC)
         {
             if (m_fullProgramDisassembled)
@@ -1666,13 +1649,14 @@ namespace winrt::Em68030::implementation
     void MainViewModel::UpdateMemoryDump()
     {
         uint32_t addr = m_memoryDumpAddress & 0xFFFFFFF0; // Align to 16
+        uint32_t numRows = m_memoryDumpRowCount;
 
-        if (m_memoryDumpRows.Size() != 16)
+        if (m_memoryDumpRows.Size() != numRows)
         {
             m_memoryDumpRows.Clear();
-            for (int row = 0; row < 16; row++)
+            for (uint32_t row = 0; row < numRows; row++)
             {
-                uint32_t lineAddr = addr + static_cast<uint32_t>(row * 16);
+                uint32_t lineAddr = addr + row * 16;
                 auto dumpRow = winrt::make<implementation::MemoryDumpRow>();
                 dumpRow.as<implementation::MemoryDumpRow>()->Init(lineAddr, *m_memory, row);
                 m_memoryDumpRows.Append(dumpRow);
@@ -1680,9 +1664,9 @@ namespace winrt::Em68030::implementation
         }
         else
         {
-            for (int row = 0; row < 16; row++)
+            for (uint32_t row = 0; row < numRows; row++)
             {
-                uint32_t lineAddr = addr + static_cast<uint32_t>(row * 16);
+                uint32_t lineAddr = addr + row * 16;
                 auto existing = m_memoryDumpRows.GetAt(row);
                 existing.as<implementation::MemoryDumpRow>()->Update(lineAddr, *m_memory, row);
             }

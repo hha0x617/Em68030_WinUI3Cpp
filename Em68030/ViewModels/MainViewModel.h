@@ -163,8 +163,8 @@ namespace winrt::Em68030::implementation
         void LoadSRecordFile(hstring const& path);
         ::Em68030::IO::ElfLoadResult LoadElfFileNative(const std::string& path);
 
-        void NavigateMemoryDump(uint32_t address);
-        void NavigateDisassembly(uint32_t address);
+        void NavigateMemoryDump(uint32_t address, uint32_t sizeBytes = 256);
+        void NavigateDisassembly(uint32_t address, uint32_t sizeBytes = 0);
         void ScrollToAddress(uint32_t address);
         void NavigateToProgram();
 
@@ -181,10 +181,6 @@ namespace winrt::Em68030::implementation
         void RemoveBreakpoint(uint32_t addr);
         void ClearAllBreakpoints();
         const std::unordered_map<uint32_t, BreakpointData>& AllBreakpoints() const { return m_breakpoints; }
-
-        void ManualDisassembly(uint32_t address, uint32_t sizeBytes);
-        bool IsManualDisasmMode() const { return m_manualDisasmMode; }
-        void ClearManualDisasmMode();
 
         void UnmountAllScsiDisks();
         void ApplyConfig(::Em68030::Config::EmulatorConfig const& newConfig);
@@ -347,6 +343,7 @@ namespace winrt::Em68030::implementation
 
         // Memory dump
         uint32_t m_memoryDumpAddress = 0;
+        uint32_t m_memoryDumpRowCount = 16;
 
         // Disassembly navigation
         uint32_t m_disasmAddress = 0;
@@ -354,7 +351,6 @@ namespace winrt::Em68030::implementation
         uint32_t m_programEndAddress = 0;
         bool m_disasmFollowPC = true;
         bool m_fullProgramDisassembled = false;
-        bool m_manualDisasmMode = false;
         hstring m_loadedFileName;
 
         // Clock frequency estimation

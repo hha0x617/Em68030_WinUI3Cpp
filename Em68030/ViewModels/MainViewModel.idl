@@ -134,8 +134,8 @@ namespace Em68030
         // LoadElfFile returns structured result -- not projected; use from C++ only.
         // Declared here for IDL completeness but callers typically use native API.
 
-        void NavigateMemoryDump(UInt32 address);
-        void NavigateDisassembly(UInt32 address);
+        void NavigateMemoryDump(UInt32 address, UInt32 sizeBytes);
+        void NavigateDisassembly(UInt32 address, UInt32 sizeBytes);
         void NavigateToProgram();
 
         void Step();
