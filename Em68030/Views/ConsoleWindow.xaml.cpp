@@ -153,6 +153,7 @@ namespace winrt::Em68030::implementation
     void ConsoleWindow::InitConsoleWindow()
     {
         InitializeComponent();
+        AppWindow().SetIcon(L"Assets/Em68030.ico");
 
         // Populate named elements via FindName on the Window's content tree
         if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>())

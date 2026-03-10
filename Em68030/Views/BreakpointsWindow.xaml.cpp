@@ -73,6 +73,7 @@ namespace winrt::Em68030::implementation
     BreakpointsWindow::BreakpointsWindow()
     {
         InitializeComponent();
+        AppWindow().SetIcon(L"Assets/Em68030.ico");
 
         // Resolve named elements
         if (auto root = Content().try_as<FrameworkElement>())
