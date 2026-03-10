@@ -148,14 +148,22 @@
 
         <!-- Menu Bar -->
         <MenuBar Grid.Row="0" Background="#FF2D2D30">
-            <MenuBarItem Title="File">
+            <MenuBarItem x:Name="MenuBarFile" Title="File">
+                <MenuFlyoutItem x:Name="MenuOpenElf" Text="Open ELF...">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="E" Modifiers="Control" />
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
                 <MenuFlyoutItem x:Name="MenuOpenBinary" Text="Open Binary...">
                     <MenuFlyoutItem.KeyboardAccelerators>
                         <KeyboardAccelerator Key="O" Modifiers="Control" />
                     </MenuFlyoutItem.KeyboardAccelerators>
                 </MenuFlyoutItem>
-                <MenuFlyoutItem x:Name="MenuOpenSRecord" Text="Open S-Record..." />
-                <MenuFlyoutItem x:Name="MenuOpenElf" Text="Open ELF..." />
+                <MenuFlyoutItem x:Name="MenuOpenSRecord" Text="Open S-Record...">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="S" Modifiers="Control" />
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
                 <MenuFlyoutSeparator />
                 <MenuFlyoutItem x:Name="MenuExit" Text="Exit">
                     <MenuFlyoutItem.KeyboardAccelerators>
@@ -163,7 +171,7 @@
                     </MenuFlyoutItem.KeyboardAccelerators>
                 </MenuFlyoutItem>
             </MenuBarItem>
-            <MenuBarItem Title="Run">
+            <MenuBarItem x:Name="MenuBarRun" Title="Run">
                 <MenuFlyoutItem x:Name="MenuRun" Text="Run (F5)" />
                 <MenuFlyoutItem x:Name="MenuStop" Text="Stop (Shift+F5)" />
                 <MenuFlyoutItem x:Name="MenuStep" Text="Step (F10)" />
@@ -173,15 +181,15 @@
                 <MenuFlyoutItem x:Name="MenuReset" Text="Reset" />
                 <MenuFlyoutItem x:Name="MenuFullReset" Text="Full Reset" />
             </MenuBarItem>
-            <MenuBarItem Title="View">
+            <MenuBarItem x:Name="MenuBarView" Title="View">
                 <MenuFlyoutItem x:Name="MenuShowConsole" Text="Console Window" />
                 <MenuFlyoutItem x:Name="MenuShowBreakpoints" Text="Breakpoints Window" />
-                <MenuFlyoutItem x:Name="MenuToggleLst" Text="Toggle LST View" />
+                <MenuFlyoutItem x:Name="MenuToggleLst" Text="Toggle LST View" IsEnabled="False" />
             </MenuBarItem>
-            <MenuBarItem Title="Settings">
+            <MenuBarItem x:Name="MenuBarSettings" Title="Settings">
                 <MenuFlyoutItem x:Name="MenuSettings" Text="Emulator Settings..." />
             </MenuBarItem>
-            <MenuBarItem Title="Help">
+            <MenuBarItem x:Name="MenuBarHelp" Title="Help">
                 <MenuFlyoutItem x:Name="MenuAbout" Text="About..." />
             </MenuBarItem>
         </MenuBar>
@@ -229,15 +237,15 @@
 
                         <!-- Disassembly toolbar -->
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#FF2D2D30" Padding="4,2">
-                            <TextBlock Text="Disassembly" FontFamily="Segoe UI" FontSize="12"
+                            <TextBlock x:Name="LblDisasmTitle" Text="Disassembly" FontFamily="Segoe UI" FontSize="12"
                                        FontWeight="SemiBold" Foreground="#FF569CD6" Margin="4,2"
                                        VerticalAlignment="Center" />
-                            <TextBlock Text="Address:" FontFamily="Consolas" FontSize="13"
+                            <TextBlock x:Name="LblDisasmAddress" Text="Address:" FontFamily="Consolas" FontSize="13"
                                        Foreground="#FFD4D4D4" VerticalAlignment="Center" Margin="16,0,4,0" />
                             <TextBox x:Name="DisasmAddrBox" Width="80" FontFamily="Consolas" FontSize="13"
                                      Background="#FF2D2D30" Foreground="#FFD4D4D4"
                                      BorderBrush="#FF3F3F46" VerticalAlignment="Center" />
-                            <TextBlock Text="Size:" FontFamily="Consolas" FontSize="13"
+                            <TextBlock x:Name="LblDisasmSize" Text="Size:" FontFamily="Consolas" FontSize="13"
                                        Foreground="#FFD4D4D4" VerticalAlignment="Center" Margin="8,0,2,0" />
                             <TextBox x:Name="DisasmSizeBox" Width="50" FontFamily="Consolas" FontSize="13"
                                      Background="#FF2D2D30" Foreground="#FFD4D4D4"
@@ -247,7 +255,7 @@
                                          Style="{StaticResource ToolBarToggleButtonStyle}" Margin="4,2" />
                             <Button x:Name="LstButton" Content="LST"
                                     Style="{StaticResource ToolBarButtonStyle}" Margin="8,2"
-                                    Visibility="Collapsed" />
+                                    Visibility="Collapsed" IsEnabled="False" />
                         </StackPanel>
 
                         <!-- Disassembly list (items populated programmatically) -->
@@ -265,7 +273,7 @@
                                     <MenuFlyoutItem x:Name="CtxRunToCursor" Text="Run to Cursor" />
                                     <MenuFlyoutItem x:Name="CtxSetPC" Text="Set PC to Address" />
                                     <MenuFlyoutSeparator />
-                                    <MenuFlyoutItem Text="Cancel" />
+                                    <MenuFlyoutItem x:Name="CtxCancel" Text="Cancel" />
                                 </MenuFlyout>
                             </ListView.ContextFlyout>
                             <ListView.ItemContainerStyle>
@@ -289,7 +297,7 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="Registers" FontFamily="Segoe UI" FontSize="12"
+                                <TextBlock x:Name="LblRegsTitle" Text="Registers" FontFamily="Segoe UI" FontSize="12"
                                            FontWeight="SemiBold" Foreground="#FF569CD6" Margin="4,2" />
                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                                     <Button x:Name="BtnEditReg" Content="Edit"
@@ -302,7 +310,7 @@
                             </Grid>
 
                             <!-- Data Registers -->
-                            <TextBlock Text="Data Registers" FontFamily="Segoe UI" FontSize="12"
+                            <TextBlock x:Name="LblDataRegs" Text="Data Registers" FontFamily="Segoe UI" FontSize="12"
                                        FontWeight="SemiBold" Foreground="#FF4EC9B0" Margin="4,8,4,2" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -350,7 +358,7 @@
                             </Grid>
 
                             <!-- Address Registers -->
-                            <TextBlock Text="Address Registers" FontFamily="Segoe UI" FontSize="12"
+                            <TextBlock x:Name="LblAddrRegs" Text="Address Registers" FontFamily="Segoe UI" FontSize="12"
                                        FontWeight="SemiBold" Foreground="#FF4EC9B0" Margin="4,8,4,2" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -398,7 +406,7 @@
                             </Grid>
 
                             <!-- Flags -->
-                            <TextBlock Text="Flags" FontFamily="Segoe UI" FontSize="12"
+                            <TextBlock x:Name="LblFlags" Text="Flags" FontFamily="Segoe UI" FontSize="12"
                                        FontWeight="SemiBold" Foreground="#FF4EC9B0" Margin="4,8,4,2" />
                             <StackPanel Orientation="Horizontal" Margin="2" Spacing="4">
                                 <CheckBox x:Name="FlagX" Content="X" Foreground="#FFD4D4D4" MinWidth="0" />
@@ -411,7 +419,7 @@
                             </StackPanel>
 
                             <!-- Special Registers -->
-                            <TextBlock Text="Special Registers" FontFamily="Segoe UI" FontSize="12"
+                            <TextBlock x:Name="LblSpecialRegs" Text="Special Registers" FontFamily="Segoe UI" FontSize="12"
                                        FontWeight="SemiBold" Foreground="#FF4EC9B0" Margin="4,8,4,2" />
                             <StackPanel Orientation="Horizontal" Margin="2">
                                 <TextBlock Text="PC: " Width="35" Style="{StaticResource MonoTextStyle}" />
@@ -431,7 +439,7 @@
                             </StackPanel>
 
                             <!-- FPU Registers -->
-                            <TextBlock Text="FPU Registers" FontFamily="Segoe UI" FontSize="12"
+                            <TextBlock x:Name="LblFpuRegs" Text="FPU Registers" FontFamily="Segoe UI" FontSize="12"
                                        FontWeight="SemiBold" Foreground="#FF4EC9B0" Margin="4,8,4,2" />
                             <StackPanel Orientation="Horizontal" Margin="2">
                                 <TextBlock Text="FP0:" Width="35" Style="{StaticResource MonoTextStyle}" />
@@ -492,15 +500,15 @@
 
                     <!-- Memory toolbar -->
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#FF2D2D30" Padding="4,2">
-                        <TextBlock Text="Memory Dump" FontFamily="Segoe UI" FontSize="12"
+                        <TextBlock x:Name="LblMemDumpTitle" Text="Memory Dump" FontFamily="Segoe UI" FontSize="12"
                                    FontWeight="SemiBold" Foreground="#FF569CD6" Margin="4,2"
                                    VerticalAlignment="Center" />
-                        <TextBlock Text="Address:" FontFamily="Consolas" FontSize="13"
+                        <TextBlock x:Name="LblMemAddress" Text="Address:" FontFamily="Consolas" FontSize="13"
                                    Foreground="#FFD4D4D4" VerticalAlignment="Center" Margin="16,0,4,0" />
                         <TextBox x:Name="MemAddrBox" Width="80" FontFamily="Consolas" FontSize="13"
                                  Background="#FF2D2D30" Foreground="#FFD4D4D4"
                                  BorderBrush="#FF3F3F46" VerticalAlignment="Center" />
-                        <TextBlock Text="Size:" FontFamily="Consolas" FontSize="13"
+                        <TextBlock x:Name="LblMemSize" Text="Size:" FontFamily="Consolas" FontSize="13"
                                    Foreground="#FFD4D4D4" VerticalAlignment="Center" Margin="8,0,2,0" />
                         <TextBox x:Name="MemSizeBox" Width="50" FontFamily="Consolas" FontSize="13"
                                  Background="#FF2D2D30" Foreground="#FFD4D4D4"

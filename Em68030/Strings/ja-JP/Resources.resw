@@ -101,7 +101,7 @@
     <value>PC をカーソル位置に設定</value>
   </data>
   <data name="Menu_Reset" xml:space="preserve">
-    <value>リセット</value>
+    <value>CPU リセット</value>
   </data>
   <data name="Menu_FullReset" xml:space="preserve">
     <value>フルリセット</value>
@@ -148,7 +148,7 @@
     <value>ステップ (F10)</value>
   </data>
   <data name="Toolbar_Reset" xml:space="preserve">
-    <value>リセット</value>
+    <value>CPU リセット</value>
   </data>
   <data name="Toolbar_FullReset" xml:space="preserve">
     <value>フルリセット</value>
@@ -325,7 +325,7 @@
 
   <!-- Console -->
   <data name="Console_Log" xml:space="preserve">
-    <value>ログ</value>
+    <value>履歴閲覧モード</value>
   </data>
   <data name="Console_Live" xml:space="preserve">
     <value>ライブ</value>
@@ -498,7 +498,7 @@
     <value>JIT コンパイラを有効にする (実験的)</value>
   </data>
   <data name="Settings_JitDescription" xml:space="preserve">
-    <value>レジスタ操作のみの基本ブロックをコンパイルして高速化します。ワークロードによっては全体的な速度が低下する場合があります。</value>
+    <value>レジスタ操作のみの基本ブロックを実行時にネイティブコードにコンパイルします。現在対応している命令セットは限定的です (MOVEQ, MOVE.L Dn, ADD/SUB/CMP.L, AND/OR/EOR.L, Bcc.B, BRA.B)。命令ごとのオーバーヘッドがコンパイル済みブロックの効果を上回り、全体的な速度が低下する場合があります。</value>
   </data>
   <data name="Settings_MinBlockLength" xml:space="preserve">
     <value>最小ブロック長:</value>

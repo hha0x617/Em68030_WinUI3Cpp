@@ -36,6 +36,7 @@
 #include "ViewModels/MemoryByteCell.h"
 #include "Helpers/ResourceHelper.h"
 
+using ::Em68030::ResourceHelper;
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
@@ -238,19 +239,65 @@ namespace winrt::Em68030::implementation
             if (auto mi = root.FindName(L"MenuAbout").try_as<Controls::MenuFlyoutItem>())
                 mi.Click({ this, &MainWindow::About_Click });
 
+            // --- Localize menu bar items ---
+            if (auto mbi = root.FindName(L"MenuBarFile").try_as<Controls::MenuBarItem>())
+                mbi.Title(ResourceHelper::GetString(L"Menu_File"));
+            if (auto mbi = root.FindName(L"MenuBarRun").try_as<Controls::MenuBarItem>())
+                mbi.Title(ResourceHelper::GetString(L"Menu_Run"));
+            if (auto mbi = root.FindName(L"MenuBarView").try_as<Controls::MenuBarItem>())
+                mbi.Title(ResourceHelper::GetString(L"Menu_View"));
+            if (auto mbi = root.FindName(L"MenuBarSettings").try_as<Controls::MenuBarItem>())
+                mbi.Title(ResourceHelper::GetString(L"Menu_Settings"));
+            if (auto mbi = root.FindName(L"MenuBarHelp").try_as<Controls::MenuBarItem>())
+                mbi.Title(ResourceHelper::GetString(L"Menu_Help"));
+
+            // --- Localize menu items ---
+            if (auto mi = root.FindName(L"MenuOpenElf").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_OpenElf"));
+            if (auto mi = root.FindName(L"MenuOpenBinary").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_OpenBinary"));
+            if (auto mi = root.FindName(L"MenuOpenSRecord").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_OpenSRecord"));
+            if (auto mi = root.FindName(L"MenuExit").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_Exit"));
+            if (auto mi = root.FindName(L"MenuRun").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_RunF5"));
+            if (auto mi = root.FindName(L"MenuStop").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_StopShiftF5"));
+            if (auto mi = root.FindName(L"MenuStep").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_StepF10"));
+            if (auto mi = root.FindName(L"MenuRunToCursor").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_RunToCursor"));
+            if (auto mi = root.FindName(L"MenuSetPCToCursor").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_SetPCToCursor"));
+            if (auto mi = root.FindName(L"MenuReset").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_Reset"));
+            if (auto mi = root.FindName(L"MenuFullReset").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_FullReset"));
+            if (auto mi = root.FindName(L"MenuShowConsole").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_ConsoleWindow"));
+            if (auto mi = root.FindName(L"MenuShowBreakpoints").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_BreakpointsWindow"));
+            if (auto mi = root.FindName(L"MenuToggleLst").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_ToggleLstView"));
+            if (auto mi = root.FindName(L"MenuSettings").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_EmulatorSettings"));
+            if (auto mi = root.FindName(L"MenuAbout").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_About"));
+
             // --- Toolbar buttons ---
             if (auto btn = root.FindName(L"BtnRun").try_as<Controls::Button>())
-            { BtnRun(btn); btn.Click({ this, &MainWindow::Run_Click }); }
+            { BtnRun(btn); btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_Run"))); btn.Click({ this, &MainWindow::Run_Click }); }
             if (auto btn = root.FindName(L"BtnStop").try_as<Controls::Button>())
-            { BtnStop(btn); btn.Click({ this, &MainWindow::Stop_Click }); }
+            { BtnStop(btn); btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_Stop"))); btn.Click({ this, &MainWindow::Stop_Click }); }
             if (auto btn = root.FindName(L"BtnStep").try_as<Controls::Button>())
-            { BtnStep(btn); btn.Click({ this, &MainWindow::Step_Click }); }
+            { BtnStep(btn); btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_Step"))); btn.Click({ this, &MainWindow::Step_Click }); }
             if (auto btn = root.FindName(L"BtnReset").try_as<Controls::Button>())
-            { BtnReset(btn); btn.Click({ this, &MainWindow::Reset_Click }); }
+            { BtnReset(btn); btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_Reset"))); btn.Click({ this, &MainWindow::Reset_Click }); }
             if (auto btn = root.FindName(L"BtnFullReset").try_as<Controls::Button>())
-            { BtnFullReset(btn); btn.Click({ this, &MainWindow::FullReset_Click }); }
+            { BtnFullReset(btn); btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_FullReset"))); btn.Click({ this, &MainWindow::FullReset_Click }); }
             if (auto btn = root.FindName(L"BtnTrace").try_as<Controls::Button>())
-            { BtnTrace(btn); btn.Click({ this, &MainWindow::Trace_Click }); }
+            { BtnTrace(btn); btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_Trace"))); btn.Click({ this, &MainWindow::Trace_Click }); }
 
             // --- Disassembly controls ---
             if (DisasmAddrBox())
@@ -298,6 +345,65 @@ namespace winrt::Em68030::implementation
             { BtnMemApply(btn); btn.Click({ this, &MainWindow::ApplyMemory_Click }); }
             if (auto btn = root.FindName(L"BtnMemCancel").try_as<Controls::Button>())
             { BtnMemCancel(btn); btn.Click({ this, &MainWindow::CancelMemory_Click }); }
+
+            // --- Localize pane labels ---
+            // Disassembly pane
+            if (auto tb = root.FindName(L"LblDisasmTitle").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"Disasm_Title"));
+            if (auto tb = root.FindName(L"LblDisasmAddress").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"Disasm_Address"));
+            if (auto tb = root.FindName(L"LblDisasmSize").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"Disasm_Size"));
+            if (BtnDisasmGo())
+                BtnDisasmGo().Content(winrt::box_value(ResourceHelper::GetString(L"Disasm_Go")));
+            if (BtnFollowPC())
+                BtnFollowPC().Content(winrt::box_value(ResourceHelper::GetString(L"Disasm_FollowPC")));
+
+            // Context menu
+            if (auto mi = root.FindName(L"CtxCopy").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Context_Copy"));
+            if (auto mi = root.FindName(L"CtxRunToCursor").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Context_RunToCursor"));
+            if (auto mi = root.FindName(L"CtxSetPC").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Context_SetPCToAddress"));
+            if (auto mi = root.FindName(L"CtxCancel").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Context_Cancel"));
+
+            // Register pane
+            if (auto tb = root.FindName(L"LblRegsTitle").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"Regs_Title"));
+            if (BtnEditReg())
+                BtnEditReg().Content(winrt::box_value(ResourceHelper::GetString(L"Regs_Edit")));
+            if (BtnApplyReg())
+                BtnApplyReg().Content(winrt::box_value(ResourceHelper::GetString(L"Regs_Apply")));
+            if (BtnCancelReg())
+                BtnCancelReg().Content(winrt::box_value(ResourceHelper::GetString(L"Regs_Cancel")));
+            if (auto tb = root.FindName(L"LblDataRegs").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"Regs_DataRegisters"));
+            if (auto tb = root.FindName(L"LblAddrRegs").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"Regs_AddressRegisters"));
+            if (auto tb = root.FindName(L"LblFlags").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"Regs_Flags"));
+            if (auto tb = root.FindName(L"LblSpecialRegs").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"Regs_SpecialRegisters"));
+            if (auto tb = root.FindName(L"LblFpuRegs").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"Regs_FpuRegisters"));
+
+            // Memory dump pane
+            if (auto tb = root.FindName(L"LblMemDumpTitle").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"MemDump_Title"));
+            if (auto tb = root.FindName(L"LblMemAddress").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"MemDump_Address"));
+            if (auto tb = root.FindName(L"LblMemSize").try_as<Controls::TextBlock>())
+                tb.Text(ResourceHelper::GetString(L"MemDump_Size"));
+            if (BtnMemGo())
+                BtnMemGo().Content(winrt::box_value(ResourceHelper::GetString(L"MemDump_Go")));
+            if (BtnMemEdit())
+                BtnMemEdit().Content(winrt::box_value(ResourceHelper::GetString(L"MemDump_Edit")));
+            if (BtnMemApply())
+                BtnMemApply().Content(winrt::box_value(ResourceHelper::GetString(L"MemDump_Apply")));
+            if (BtnMemCancel())
+                BtnMemCancel().Content(winrt::box_value(ResourceHelper::GetString(L"MemDump_Cancel")));
         }
 
         // ==================================================================
@@ -559,7 +665,7 @@ namespace winrt::Em68030::implementation
         catch (const std::exception& ex)
         {
             ShowMessageDialog(ResourceHelper::GetString(L"Msg_LoadError"),
-                winrt::to_hstring(ResourceHelper::GetStdString(L"Msg_FailedToLoadBinary") + L"\n" +
+                winrt::hstring(ResourceHelper::GetStdString(L"Msg_FailedToLoadBinary") + L"\n" +
                     std::wstring(winrt::to_hstring(ex.what()))));
         }
     }
@@ -596,7 +702,7 @@ namespace winrt::Em68030::implementation
         catch (const std::exception& ex)
         {
             ShowMessageDialog(ResourceHelper::GetString(L"Msg_LoadError"),
-                winrt::to_hstring(ResourceHelper::GetStdString(L"Msg_FailedToLoadSRecord") + L"\n" +
+                winrt::hstring(ResourceHelper::GetStdString(L"Msg_FailedToLoadSRecord") + L"\n" +
                     std::wstring(winrt::to_hstring(ex.what()))));
         }
     }
@@ -640,7 +746,7 @@ namespace winrt::Em68030::implementation
         catch (const std::exception& ex)
         {
             ShowMessageDialog(ResourceHelper::GetString(L"Msg_ElfLoaderError"),
-                winrt::to_hstring(ResourceHelper::GetStdString(L"Msg_FailedToLoadElf") + L"\n" +
+                winrt::hstring(ResourceHelper::GetStdString(L"Msg_FailedToLoadElf") + L"\n" +
                     std::wstring(winrt::to_hstring(ex.what()))));
         }
     }

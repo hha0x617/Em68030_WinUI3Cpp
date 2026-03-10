@@ -24,6 +24,7 @@
 #include <vector>
 #include <algorithm>
 
+using ::Em68030::ResourceHelper;
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
@@ -85,6 +86,10 @@ namespace winrt::Em68030::implementation
 
         Title(ResourceHelper::GetString(L"Window_Breakpoints"));
         AppWindow().Resize({ 400, 450 });
+
+        // Localize Clear All button
+        if (ClearAllButton())
+            ClearAllButton().Content(winrt::box_value(ResourceHelper::GetString(L"Breakpoints_ClearAll")));
 
         // Wire Clear All button
         if (ClearAllButton())

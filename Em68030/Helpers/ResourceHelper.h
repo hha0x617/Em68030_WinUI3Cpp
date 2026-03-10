@@ -3,6 +3,8 @@
 #include <string>
 #include <sstream>
 #include <type_traits>
+#include <vector>
+#include <windows.h>
 
 namespace Em68030
 {
@@ -12,7 +14,10 @@ namespace Em68030
         /// Load a localized string by resource key.
         static winrt::hstring GetString(const wchar_t* key)
         {
-            return GetLoader().GetString(key);
+            auto& [mgr, ctx] = GetManagerAndContext();
+            auto candidate = mgr.MainResourceMap().GetValue(
+                winrt::hstring(std::wstring(L"Resources/") + key), ctx);
+            return candidate.ValueAsString();
         }
 
         /// Load a localized string by resource key, returned as std::wstring.
@@ -40,10 +45,31 @@ namespace Em68030
         }
 
     private:
-        static winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceLoader& GetLoader()
+        struct ManagerAndContext {
+            winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceManager mgr{ nullptr };
+            winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceContext ctx{ nullptr };
+        };
+
+        static ManagerAndContext& GetManagerAndContext()
         {
-            static winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-            return loader;
+            static ManagerAndContext mc = []() {
+                ManagerAndContext result;
+                result.mgr = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceManager();
+                result.ctx = result.mgr.CreateResourceContext();
+                // Set language from OS display language (not regional format)
+                ULONG numLangs = 0;
+                ULONG bufSize = 0;
+                if (GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &numLangs, nullptr, &bufSize) && bufSize > 0)
+                {
+                    std::vector<wchar_t> buf(bufSize);
+                    if (GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &numLangs, buf.data(), &bufSize) && numLangs > 0)
+                    {
+                        result.ctx.QualifierValues().Insert(L"Language", buf.data());
+                    }
+                }
+                return result;
+            }();
+            return mc;
         }
 
         // Convert a value to wstring for placeholder replacement.

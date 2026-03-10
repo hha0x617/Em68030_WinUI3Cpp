@@ -22,6 +22,7 @@
 #include <commctrl.h>
 #pragma comment(lib, "comctl32.lib")
 
+using ::Em68030::ResourceHelper;
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Input;
@@ -195,6 +196,9 @@ namespace winrt::Em68030::implementation
         }
         if (ScrollbackButton())
         {
+            ScrollbackButton().Content(winrt::box_value(ResourceHelper::GetString(L"Console_Log")));
+            Controls::ToolTipService::SetToolTip(ScrollbackButton(),
+                winrt::box_value(ResourceHelper::GetString(L"Console_ToggleTooltip")));
             ScrollbackButton().Click({ this, &ConsoleWindow::ScrollbackToggle_Click });
         }
 

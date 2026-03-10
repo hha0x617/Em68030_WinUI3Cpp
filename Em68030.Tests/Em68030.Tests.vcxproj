@@ -139,6 +139,7 @@
     <ClCompile Include="IoTests\PccDeviceTests.cpp" />
     <ClCompile Include="IoTests\Uart16550DeviceTests.cpp" />
     <ClCompile Include="IoTests\Mk48t02DeviceTests.cpp" />
+    <ClCompile Include="Helpers\ResourceHelperTests.cpp" />
   </ItemGroup>
   <!-- ================================================================ -->
   <!-- Shared Core sources (compiled without main project's WinRT PCH)  -->
