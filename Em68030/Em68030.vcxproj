@@ -264,6 +264,11 @@
     <ClInclude Include="ViewModels\MainViewModel.h" />
     <ClCompile Include="ViewModels\MainViewModel.cpp" />
   </ItemGroup>
+  <!-- Localized String Resources -->
+  <ItemGroup>
+    <PRIResource Include="Strings\en-US\Resources.resw" />
+    <PRIResource Include="Strings\ja-JP\Resources.resw" />
+  </ItemGroup>
   <!-- NuGet packages -->
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
