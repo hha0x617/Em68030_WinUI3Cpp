@@ -1402,6 +1402,43 @@ namespace winrt::Em68030::implementation
             }
         }
 
+        // TargetOS change: update UART 16550, RTC year offset, and boot stub
+        if (m_config.BoardType == "MVME147")
+        {
+            // UART 16550 for Linux serial console
+            if (m_config.TargetOS == "Linux")
+            {
+                if (!m_uartDevice)
+                {
+                    m_uartDevice = std::make_unique<::Em68030::IO::Uart16550Device>(0xFFFE2000);
+                    m_uartDevice->OnTransmit = [this](uint8_t ch) {
+                        m_consoleCharOutput(*this, ch);
+                        if (m_traceWriter) m_traceWriter->put(static_cast<char>(ch));
+                    };
+                }
+                m_memory->RegisterDevice(0xFFFE2000, 8, m_uartDevice.get());
+            }
+            else
+            {
+                if (m_uartDevice)
+                    m_memory->UnregisterDevice(0xFFFE2000, 8);
+            }
+
+            // RTC year offset: NetBSD uses YEAR0=1968, Linux uses raw 2-digit year
+            if (m_rtcDevice)
+                m_rtcDevice->SetYearOffset(m_config.TargetOS == "Linux" ? 0 : 68);
+
+            // Re-setup boot stub if a kernel is already loaded
+            if (m_programEndAddress > m_programStartAddress)
+            {
+                uint32_t topOfRam = static_cast<uint32_t>(m_config.MemorySize);
+                if (m_config.TargetOS == "Linux")
+                    SetupMvme147LinuxBootStub(topOfRam, m_programEndAddress);
+                else
+                    SetupMvme147BootStub(topOfRam);
+            }
+        }
+
         // JIT setting
         if (m_cpu)
         {
