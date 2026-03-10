@@ -17,6 +17,7 @@
 #include "MainViewModel.g.cpp"
 #endif
 
+#include "Helpers/ResourceHelper.h"
 #include "Core/MC68030.h"
 #include "Core/Memory.h"
 #include "Core/Disassembler.h"
@@ -511,7 +512,7 @@ namespace winrt::Em68030::implementation
             case 0x0060: // .RETURN (alias)
             case 0x0063: // .RETURN / .EXIT - Return to Bug monitor
                 m_cpu->Halted = true;
-                m_cpu->StopReason = "147Bug .RETURN";
+                m_cpu->StopReason = winrt::to_string(ResourceHelper::GetString(L"Status_147BugReturn"));
                 break;
 
             case 0x0070: // .BRD_ID
@@ -1004,7 +1005,10 @@ namespace winrt::Em68030::implementation
                             if (++loopDetectCount >= 1000)
                             {
                                 m_cpu->Halted = true;
-                                m_cpu->StopReason = std::format("Infinite loop at ${:08X}", m_cpu->PC);
+                                { auto pcHex = std::format("{:08X}", m_cpu->PC);
+                                m_cpu->StopReason = winrt::to_string(winrt::hstring(
+                                    ResourceHelper::Format(L"Status_InfiniteLoopFormat",
+                                        std::wstring(pcHex.begin(), pcHex.end())))); }
                                 if (m_cpu->DiagnosticOutput)
                                     m_cpu->DiagnosticOutput(std::format("\n[EMU] Infinite loop detected at PC=${:08X}, SR=${:04X} — halting\n", m_cpu->PC, m_cpu->SR));
                                 RequestStopOnUI();
@@ -1038,7 +1042,10 @@ namespace winrt::Em68030::implementation
                         if (m_cpu->Halted) { RequestStopOnUI(); return; }
                         if (hasBreakpoints && m_enabledBreakpoints.contains(m_cpu->PC))
                         {
-                            m_cpu->StopReason = std::format("Breakpoint at ${:08X}", m_cpu->PC);
+                            { auto pcHex = std::format("{:08X}", m_cpu->PC);
+                            m_cpu->StopReason = winrt::to_string(winrt::hstring(
+                                ResourceHelper::Format(L"Status_BreakpointFormat",
+                                    std::wstring(pcHex.begin(), pcHex.end())))); }
                             RequestStopOnUI();
                             return;
                         }
@@ -1050,7 +1057,10 @@ namespace winrt::Em68030::implementation
                             if (++loopDetectCount >= 1000)
                             {
                                 m_cpu->Halted = true;
-                                m_cpu->StopReason = std::format("Infinite loop at ${:08X}", m_cpu->PC);
+                                { auto pcHex = std::format("{:08X}", m_cpu->PC);
+                                m_cpu->StopReason = winrt::to_string(winrt::hstring(
+                                    ResourceHelper::Format(L"Status_InfiniteLoopFormat",
+                                        std::wstring(pcHex.begin(), pcHex.end())))); }
                                 if (m_cpu->DiagnosticOutput)
                                     m_cpu->DiagnosticOutput(std::format("\n[EMU] Infinite loop detected at PC=${:08X}, SR=${:04X} — halting\n", m_cpu->PC, m_cpu->SR));
                                 RequestStopOnUI();
@@ -2118,9 +2128,14 @@ namespace winrt::Em68030::implementation
         double mips = m_showAvgMhz ? m_avgMips : m_estimatedMips;
         if (mhz > 0)
         {
-            wchar_t buf[80];
-            swprintf_s(buf, m_showAvgMhz ? L"Avg %.2f MHz (%.2f MIPS)" : L"%.2f MHz (%.2f MIPS)", mhz, mips);
-            return buf;
+            // Format MHz/MIPS values with 2 decimal places
+            wchar_t mhzBuf[16], mipsBuf[16];
+            swprintf_s(mhzBuf, L"%.2f", mhz);
+            swprintf_s(mipsBuf, L"%.2f", mips);
+            auto key = m_showAvgMhz ? L"Status_AvgMhzFormat" : L"Status_MhzFormat";
+            auto result = ResourceHelper::Format(key,
+                std::wstring(mhzBuf), std::wstring(mipsBuf));
+            return winrt::hstring(result);
         }
         return L"";
     }

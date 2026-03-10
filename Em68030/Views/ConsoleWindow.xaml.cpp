@@ -17,6 +17,7 @@
 #include "ConsoleWindow.g.cpp"
 #endif
 
+#include "Helpers/ResourceHelper.h"
 #include <microsoft.ui.xaml.window.h>
 #include <commctrl.h>
 #pragma comment(lib, "comctl32.lib")
@@ -173,19 +174,19 @@ namespace winrt::Em68030::implementation
             auto menuFlyout = Microsoft::UI::Xaml::Controls::MenuFlyout();
 
             auto copyItem = Microsoft::UI::Xaml::Controls::MenuFlyoutItem();
-            copyItem.Text(L"Copy");
+            copyItem.Text(ResourceHelper::GetString(L"Context_Copy"));
             copyItem.KeyboardAcceleratorTextOverride(L"Ctrl+C");
             copyItem.Click([this](auto&&, auto&&) { OnContextCopy(); });
             menuFlyout.Items().Append(copyItem);
 
             auto pasteItem = Microsoft::UI::Xaml::Controls::MenuFlyoutItem();
-            pasteItem.Text(L"Paste");
+            pasteItem.Text(ResourceHelper::GetString(L"Context_Paste"));
             pasteItem.KeyboardAcceleratorTextOverride(L"Ctrl+V");
             pasteItem.Click([this](auto&&, auto&&) { PasteFromClipboard(OnCharInput != nullptr); });
             menuFlyout.Items().Append(pasteItem);
 
             auto selectAllItem = Microsoft::UI::Xaml::Controls::MenuFlyoutItem();
-            selectAllItem.Text(L"Select All");
+            selectAllItem.Text(ResourceHelper::GetString(L"Context_SelectAll"));
             selectAllItem.KeyboardAcceleratorTextOverride(L"Ctrl+A");
             selectAllItem.Click([this](auto&&, auto&&) { OutputBox().SelectAll(); });
             menuFlyout.Items().Append(selectAllItem);
@@ -390,9 +391,8 @@ namespace winrt::Em68030::implementation
 
     void ConsoleWindow::UpdateTitle()
     {
-        wchar_t buf[64];
-        swprintf_s(buf, L"Console - %d\u00d7%d", m_terminal.GetCols(), m_terminal.GetRows());
-        Title(buf);
+        Title(winrt::hstring(ResourceHelper::Format(L"Window_ConsoleFormat",
+            m_terminal.GetCols(), m_terminal.GetRows())));
     }
 
     void ConsoleWindow::OnSizeChanged([[maybe_unused]] IInspectable const& sender,
@@ -546,7 +546,9 @@ namespace winrt::Em68030::implementation
                                                [[maybe_unused]] RoutedEventArgs const& e)
     {
         m_showScrollback = !m_showScrollback;
-        ScrollbackButton().Content(winrt::box_value(m_showScrollback ? L"Live" : L"Log"));
+        ScrollbackButton().Content(winrt::box_value(
+            m_showScrollback ? ResourceHelper::GetString(L"Console_Live")
+                             : ResourceHelper::GetString(L"Console_Log")));
 
         // Force re-render with the new mode
         m_terminal.SetDirty();

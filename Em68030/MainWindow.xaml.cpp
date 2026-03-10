@@ -34,6 +34,7 @@
 #include "ViewModels/DisasmLineViewModel.h"
 #include "ViewModels/MemoryDumpRow.h"
 #include "ViewModels/MemoryByteCell.h"
+#include "Helpers/ResourceHelper.h"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -488,10 +489,9 @@ namespace winrt::Em68030::implementation
 
         // Set window title and default size
         {
-            std::wstring title = L"Em68030 - MC68030 Emulator (C++/WinUI3) [";
             std::string hash = GIT_COMMIT_HASH;
-            title.append(hash.begin(), hash.end());
-            title += L"]";
+            std::wstring whash(hash.begin(), hash.end());
+            auto title = ResourceHelper::GetStdString(L"MainWindow_Title") + L" [" + whash + L"]";
             Title(title);
         }
         AppWindow().Resize({ 1100, 750 });
@@ -541,8 +541,10 @@ namespace winrt::Em68030::implementation
 
         // Show input dialog for load address
         auto inputDialog = winrt::make<Em68030::implementation::InputDialog>();
-        auto result = co_await inputDialog.ShowAsync(L"Load Address",
-            L"Enter load address (hex):", L"00001000", this->Content());
+        auto result = co_await inputDialog.ShowAsync(
+            ResourceHelper::GetString(L"FileDialog_LoadAddress"),
+            ResourceHelper::GetString(L"FileDialog_EnterLoadAddress"),
+            L"00001000", this->Content());
         if (result.empty()) co_return;
 
         try
@@ -556,8 +558,9 @@ namespace winrt::Em68030::implementation
         }
         catch (const std::exception& ex)
         {
-            ShowMessageDialog(L"Load Error",
-                winrt::to_hstring(std::string("Failed to load binary file:\n") + ex.what()));
+            ShowMessageDialog(ResourceHelper::GetString(L"Msg_LoadError"),
+                winrt::to_hstring(ResourceHelper::GetStdString(L"Msg_FailedToLoadBinary") + L"\n" +
+                    std::wstring(winrt::to_hstring(ex.what()))));
         }
     }
 
@@ -592,8 +595,9 @@ namespace winrt::Em68030::implementation
         }
         catch (const std::exception& ex)
         {
-            ShowMessageDialog(L"Load Error",
-                winrt::to_hstring(std::string("Failed to load S-Record file:\n") + ex.what()));
+            ShowMessageDialog(ResourceHelper::GetString(L"Msg_LoadError"),
+                winrt::to_hstring(ResourceHelper::GetStdString(L"Msg_FailedToLoadSRecord") + L"\n" +
+                    std::wstring(winrt::to_hstring(ex.what()))));
         }
     }
 
@@ -623,16 +627,21 @@ namespace winrt::Em68030::implementation
             UpdateMemoryDumpDisplay();
             UpdateToolbarInfo();
 
-            std::string msg = std::format("ELF loaded successfully.\n"
-                "Entry: ${:08X}\nRange: ${:08X}-${:08X}\n{} segments loaded",
-                result.EntryPoint, result.StartAddress, result.EndAddress,
+            auto entryStr = std::format("{:08X}", result.EntryPoint);
+            auto startStr = std::format("{:08X}", result.StartAddress);
+            auto endStr = std::format("{:08X}", result.EndAddress);
+            auto msg = ResourceHelper::Format(L"Msg_ElfLoadedFormat",
+                std::wstring(entryStr.begin(), entryStr.end()),
+                std::wstring(startStr.begin(), startStr.end()),
+                std::wstring(endStr.begin(), endStr.end()),
                 result.SegmentsLoaded);
-            ShowMessageDialog(L"ELF Loader", winrt::to_hstring(msg));
+            ShowMessageDialog(ResourceHelper::GetString(L"Msg_ElfLoaderTitle"), winrt::hstring(msg));
         }
         catch (const std::exception& ex)
         {
-            ShowMessageDialog(L"ELF Loader Error",
-                winrt::to_hstring(std::string("Failed to load ELF file:\n") + ex.what()));
+            ShowMessageDialog(ResourceHelper::GetString(L"Msg_ElfLoaderError"),
+                winrt::to_hstring(ResourceHelper::GetStdString(L"Msg_FailedToLoadElf") + L"\n" +
+                    std::wstring(winrt::to_hstring(ex.what()))));
         }
     }
 
@@ -959,7 +968,8 @@ namespace winrt::Em68030::implementation
         }
         catch (...)
         {
-            ShowMessageDialog(L"Error", L"Invalid hex address.");
+            ShowMessageDialog(ResourceHelper::GetString(L"Msg_Error"),
+                ResourceHelper::GetString(L"Msg_InvalidHexAddress"));
         }
     }
 
@@ -1142,7 +1152,8 @@ namespace winrt::Em68030::implementation
         }
         catch (...)
         {
-            ShowMessageDialog(L"Error", L"Invalid hex address.");
+            ShowMessageDialog(ResourceHelper::GetString(L"Msg_Error"),
+                ResourceHelper::GetString(L"Msg_InvalidHexAddress"));
         }
     }
 
@@ -1757,27 +1768,30 @@ namespace winrt::Em68030::implementation
         if (StatusText())
         {
             if (vmImpl->IsRunning())
-                StatusText().Text(L"Running: True");
+                StatusText().Text(ResourceHelper::GetString(L"Status_Running"));
             else if (vmImpl->IsHalted())
-                StatusText().Text(L"HALTED");
+                StatusText().Text(ResourceHelper::GetString(L"Status_Halted"));
             else if (vmImpl->IsStopped())
-                StatusText().Text(L"STOPPED");
+                StatusText().Text(ResourceHelper::GetString(L"Status_Stopped"));
             else
-                StatusText().Text(L"Running: False");
+                StatusText().Text(ResourceHelper::GetString(L"Status_NotRunning"));
         }
         if (m_networkModeText)
         {
             auto mode = vmImpl->Config().NetworkMode;
             auto wmode = std::wstring(mode.begin(), mode.end());
-            m_networkModeText.Text(L"Net: " + wmode);
+            m_networkModeText.Text(winrt::hstring(ResourceHelper::Format(L"Status_NetFormat", wmode)));
         }
         if (m_jitStatusText)
         {
-            m_jitStatusText.Text(vmImpl->Cpu().JitEnabled ? L"JIT: ON" : L"JIT: OFF");
+            m_jitStatusText.Text(vmImpl->Cpu().JitEnabled
+                ? ResourceHelper::GetString(L"Status_JitOn")
+                : ResourceHelper::GetString(L"Status_JitOff"));
         }
         if (TraceStatusText())
         {
-            TraceStatusText().Text(vmImpl->Cpu().VerboseTrace ? L"[TRACE ON]" : L"");
+            TraceStatusText().Text(vmImpl->Cpu().VerboseTrace
+                ? ResourceHelper::GetString(L"Status_TraceOn") : L"");
         }
     }
 
@@ -1788,14 +1802,15 @@ namespace winrt::Em68030::implementation
         if (FileNameText())
         {
             auto name = vmImpl->LoadedFileName();
-            FileNameText().Text(name.empty() ? L"File: (none)" : L"File: " + name);
+            FileNameText().Text(name.empty()
+                ? ResourceHelper::GetString(L"Status_FileNone")
+                : winrt::hstring(ResourceHelper::Format(L"Status_FileFormat", std::wstring(name))));
         }
 
         if (CycleCountText())
         {
-            wchar_t buf[32];
-            swprintf_s(buf, L"Cycles: %lld", vmImpl->CycleCount());
-            CycleCountText().Text(buf);
+            CycleCountText().Text(winrt::hstring(
+                ResourceHelper::Format(L"Status_CyclesFormat", static_cast<long long>(vmImpl->CycleCount()))));
         }
 
         if (MhzText())

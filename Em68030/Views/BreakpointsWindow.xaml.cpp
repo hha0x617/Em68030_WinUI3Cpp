@@ -17,6 +17,7 @@
 #include "BreakpointsWindow.g.cpp"
 #endif
 
+#include "Helpers/ResourceHelper.h"
 #include "ViewModels/MainViewModel.h"
 
 #include <format>
@@ -82,7 +83,7 @@ namespace winrt::Em68030::implementation
             ClearAllButton(root.FindName(L"ClearAllButton").try_as<Button>());
         }
 
-        Title(L"Breakpoints");
+        Title(ResourceHelper::GetString(L"Window_Breakpoints"));
         AppWindow().Resize({ 400, 450 });
 
         // Wire Clear All button
@@ -177,7 +178,7 @@ namespace winrt::Em68030::implementation
 
             // Delete button
             Button delBtn;
-            delBtn.Content(winrt::box_value(L"Del"));
+            delBtn.Content(winrt::box_value(ResourceHelper::GetString(L"Breakpoints_Delete")));
             delBtn.Background(Microsoft::UI::Xaml::Media::SolidColorBrush(
                 Windows::UI::Color{ 0xFF, 0x3E, 0x3E, 0x42 }));
             delBtn.Foreground(deleteFg);

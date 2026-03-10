@@ -24,6 +24,7 @@
 #include <filesystem>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 
+#include "Helpers/ResourceHelper.h"
 #include "IO/HddDevice.h"
 #include "IO/ScsiDisk.h"
 #include "IO/SlirpNetworkHandler.h"
@@ -207,7 +208,7 @@ namespace winrt::Em68030::implementation
 
         // ID label
         TextBlock idLabel;
-        idLabel.Text(L"ID:");
+        idLabel.Text(ResourceHelper::GetString(L"Settings_ScsiId"));
         idLabel.FontSize(13);
         idLabel.VerticalAlignment(VerticalAlignment::Center);
         idLabel.Margin(ThicknessHelper::FromLengths(0, 0, 4, 0));
@@ -238,7 +239,7 @@ namespace winrt::Em68030::implementation
         browseBtn.VerticalAlignment(VerticalAlignment::Center);
         size_t rowIndex = m_diskRows.size(); // capture current index
         browseBtn.Click([this, pathBox]([[maybe_unused]] auto const&, [[maybe_unused]] auto const&) {
-            BrowseFile(L"Disk Image", L".img", L"Select SCSI Disk Image", pathBox);
+            BrowseFile(L"Disk Image", L".img", ResourceHelper::GetString(L"Settings_SelectScsiDisk"), pathBox);
         });
         row.BrowseBtn = browseBtn;
 
@@ -252,21 +253,21 @@ namespace winrt::Em68030::implementation
 
         // Write NetBSD Disklabel button (enabled only when TargetOS is NetBSD)
         Button disklabelBtn;
-        disklabelBtn.Content(box_value(L"Disklabel"));
+        disklabelBtn.Content(box_value(ResourceHelper::GetString(L"Settings_Disklabel")));
         disklabelBtn.Margin(ThicknessHelper::FromLengths(4, 0, 0, 0));
         disklabelBtn.VerticalAlignment(VerticalAlignment::Center);
         disklabelBtn.FontSize(11);
         ToolTipService::SetToolTip(disklabelBtn,
-            box_value(L"Write a NetBSD disklabel to this disk image"));
+            box_value(ResourceHelper::GetString(L"Settings_WriteDisklabel")));
         disklabelBtn.Click([this, pathBox]([[maybe_unused]] auto const&, [[maybe_unused]] auto const&) {
             auto filePath = winrt::to_string(pathBox.Text());
             if (filePath.empty() || !std::filesystem::exists(filePath))
                 return;
+            auto confirmText = ResourceHelper::GetStdString(L"Settings_DisklabelConfirm");
+            auto titleText = ResourceHelper::GetStdString(L"Settings_WriteDisklabel");
             auto result = MessageBoxW(GetOwnerHwnd(),
-                L"Write a NetBSD disklabel to this disk image?\n\n"
-                L"This overwrites the first sector of the image with a NetBSD-format "
-                L"partition table. Only use this for NetBSD disk images.",
-                L"Write NetBSD Disklabel", MB_OKCANCEL | MB_ICONQUESTION);
+                confirmText.c_str(),
+                titleText.c_str(), MB_OKCANCEL | MB_ICONQUESTION);
             if (result != IDOK) return;
             try {
                 ::Em68030::IO::ScsiDisk::WriteNetBsdDisklabel(filePath);
@@ -812,19 +813,19 @@ namespace winrt::Em68030::implementation
     void SettingsWindow::BrowseRom_Click([[maybe_unused]] IInspectable const& sender,
                                          [[maybe_unused]] RoutedEventArgs const& e)
     {
-        BrowseFile(L"ROM Image", L".bin", L"Select MVME147 ROM Image", Mvme147RomBox());
+        BrowseFile(L"ROM Image", L".bin", ResourceHelper::GetString(L"Settings_SelectRomImage"), Mvme147RomBox());
     }
 
     void SettingsWindow::BrowseHdd_Click([[maybe_unused]] IInspectable const& sender,
                                          [[maybe_unused]] RoutedEventArgs const& e)
     {
-        BrowseFile(L"HDD Image", L".img", L"Select HDD Image File", HddPathBox());
+        BrowseFile(L"HDD Image", L".img", ResourceHelper::GetString(L"Settings_SelectHddImage"), HddPathBox());
     }
 
     void SettingsWindow::BrowseScsiCdrom_Click([[maybe_unused]] IInspectable const& sender,
                                                [[maybe_unused]] RoutedEventArgs const& e)
     {
-        BrowseFile(L"ISO Image", L".iso", L"Select SCSI CD-ROM ISO Image", ScsiCdromPathBox());
+        BrowseFile(L"ISO Image", L".iso", ResourceHelper::GetString(L"Settings_SelectCdRomIso"), ScsiCdromPathBox());
     }
 
     // ========================================================================
@@ -847,12 +848,12 @@ namespace winrt::Em68030::implementation
             RefreshScsiIdOptions();
             targetBox = m_diskRows.back().PathBox;
         }
-        SaveFile(L"Disk Image", L".img", L"Create SCSI Disk Image", targetBox, true);
+        SaveFile(L"Disk Image", L".img", ResourceHelper::GetString(L"Settings_CreateScsiDisk"), targetBox, true);
     }
 
     void SettingsWindow::CreateImage_Click([[maybe_unused]] IInspectable const& sender,
                                            [[maybe_unused]] RoutedEventArgs const& e)
     {
-        SaveFile(L"HDD Image", L".img", L"Create HDD Image File", HddPathBox(), false);
+        SaveFile(L"HDD Image", L".img", ResourceHelper::GetString(L"Settings_CreateHddImage"), HddPathBox(), false);
     }
 }
