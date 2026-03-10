@@ -75,7 +75,7 @@ private:
 
     std::array<uint8_t, 6> m_guestMac{};
     std::array<uint8_t, 4> m_guestIp{};
-    bool m_guestIpKnown = false;
+
     std::queue<std::vector<uint8_t>> m_rxQueue;
     std::unordered_map<uint16_t, TcpConnectionState> m_tcpConnections;
 };

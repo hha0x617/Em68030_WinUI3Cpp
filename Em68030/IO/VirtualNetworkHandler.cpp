@@ -73,7 +73,6 @@ void VirtualNetworkHandler::HandleArp(const uint8_t* frame, int length)
 
     // Learn guest IP from SPA (offset 28)
     std::memcpy(m_guestIp.data(), frame + 28, 4);
-    m_guestIpKnown = true;
 
     // Don't respond if TPA = guest IP (gratuitous ARP / DAD announcement)
     if (std::memcmp(frame + 38, m_guestIp.data(), 4) == 0)
