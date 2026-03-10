@@ -36,6 +36,7 @@
 #include "IO/ScsiCdrom.h"
 #include "IO/SlirpNetworkHandler.h"
 
+using ::Em68030::ResourceHelper;
 using namespace winrt;
 using namespace Windows::Foundation;
 using namespace Windows::Foundation::Collections;
@@ -949,6 +950,8 @@ namespace winrt::Em68030::implementation
         m_runStartTimestamp = std::chrono::steady_clock::now();
         m_avgMHz = 0.0;
         m_avgMips = 0.0;
+        m_totalStopSeconds = 0.0;
+        m_cpu->ConsumeStopDuration(); // Drain any stale stop time
 
         m_emulationThread = std::thread([this]() { EmulationThreadLoop(); });
     }
@@ -1073,9 +1076,12 @@ namespace winrt::Em68030::implementation
 
                 // Periodic MHz display update (~every 500ms)
                 auto now = std::chrono::steady_clock::now();
-                double seconds = std::chrono::duration<double>(now - lastMhzUpdate).count();
-                if (seconds >= 0.5)
+                if (std::chrono::duration<double>(now - lastMhzUpdate).count() >= 0.5)
                 {
+                    auto stopDur = m_cpu->ConsumeStopDuration();
+                    double stopSeconds = std::chrono::duration<double>(stopDur).count();
+                    double seconds = std::chrono::duration<double>(now - lastMhzUpdate).count() - stopSeconds;
+                    if (seconds < 0.001) seconds = 0.001; // Avoid division by zero
                     int64_t cycles = static_cast<int64_t>(m_cpu->CycleCount) - m_mhzCyclesSnapshot;
                     m_estimatedMHz = static_cast<double>(cycles) / seconds / 1'000'000.0;
                     m_mhzCyclesSnapshot = m_cpu->CycleCount;
@@ -1088,7 +1094,8 @@ namespace winrt::Em68030::implementation
                     m_mhzTimestamp = now;
 
                     // Cumulative average since Run started
-                    double totalSec = std::chrono::duration<double>(now - m_runStartTimestamp).count();
+                    m_totalStopSeconds += stopSeconds;
+                    double totalSec = std::chrono::duration<double>(now - m_runStartTimestamp).count() - m_totalStopSeconds;
                     if (totalSec > 0.01) {
                         m_avgMHz = static_cast<double>(m_cpu->CycleCount - m_runStartCycleCount) / totalSec / 1'000'000.0;
                         m_avgMips = static_cast<double>(m_cpu->InstructionCount - m_runStartInsnCount) / totalSec / 1'000'000.0;
@@ -1141,7 +1148,9 @@ namespace winrt::Em68030::implementation
 
         // Final MHz/MIPS calculation
         auto now = std::chrono::steady_clock::now();
-        double seconds = std::chrono::duration<double>(now - m_mhzTimestamp).count();
+        auto stopDur = m_cpu->ConsumeStopDuration();
+        double stopSeconds = std::chrono::duration<double>(stopDur).count();
+        double seconds = std::chrono::duration<double>(now - m_mhzTimestamp).count() - stopSeconds;
         if (seconds > 0.01)
         {
             int64_t cycles = static_cast<int64_t>(m_cpu->CycleCount) - m_mhzCyclesSnapshot;
@@ -1150,7 +1159,8 @@ namespace winrt::Em68030::implementation
             m_estimatedMips = static_cast<double>(insns) / seconds / 1'000'000.0;
         }
         // Final average calculation
-        double totalSec = std::chrono::duration<double>(now - m_runStartTimestamp).count();
+        m_totalStopSeconds += stopSeconds;
+        double totalSec = std::chrono::duration<double>(now - m_runStartTimestamp).count() - m_totalStopSeconds;
         if (totalSec > 0.01) {
             m_avgMHz = static_cast<double>(m_cpu->CycleCount - m_runStartCycleCount) / totalSec / 1'000'000.0;
             m_avgMips = static_cast<double>(m_cpu->InstructionCount - m_runStartInsnCount) / totalSec / 1'000'000.0;
@@ -1171,7 +1181,9 @@ namespace winrt::Em68030::implementation
 
         // Final MHz/MIPS calculation
         auto now = std::chrono::steady_clock::now();
-        double seconds = std::chrono::duration<double>(now - m_mhzTimestamp).count();
+        auto stopDur = m_cpu->ConsumeStopDuration();
+        double stopSeconds = std::chrono::duration<double>(stopDur).count();
+        double seconds = std::chrono::duration<double>(now - m_mhzTimestamp).count() - stopSeconds;
         if (seconds > 0.01)
         {
             int64_t cycles = static_cast<int64_t>(m_cpu->CycleCount) - m_mhzCyclesSnapshot;
@@ -1180,7 +1192,8 @@ namespace winrt::Em68030::implementation
             m_estimatedMips = static_cast<double>(insns) / seconds / 1'000'000.0;
         }
         // Final average calculation
-        double totalSec = std::chrono::duration<double>(now - m_runStartTimestamp).count();
+        m_totalStopSeconds += stopSeconds;
+        double totalSec = std::chrono::duration<double>(now - m_runStartTimestamp).count() - m_totalStopSeconds;
         if (totalSec > 0.01) {
             m_avgMHz = static_cast<double>(m_cpu->CycleCount - m_runStartCycleCount) / totalSec / 1'000'000.0;
             m_avgMips = static_cast<double>(m_cpu->InstructionCount - m_runStartInsnCount) / totalSec / 1'000'000.0;

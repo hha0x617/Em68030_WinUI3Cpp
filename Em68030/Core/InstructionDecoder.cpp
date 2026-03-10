@@ -1176,6 +1176,8 @@ void InstructionDecoder::DecodeGroup4(uint16_t opcode)
         _cpu.SetSR(imm);
         _cpu.Stopped = true;
         _cpu.StopReason = "STOP instruction";
+        _cpu._stopEnteredTime = std::chrono::steady_clock::now();
+        _cpu._stopTimingActive = true;
         return;
     }
 

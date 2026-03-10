@@ -366,6 +366,7 @@ namespace winrt::Em68030::implementation
         std::chrono::steady_clock::time_point m_runStartTimestamp;
         double m_avgMHz = 0.0;
         double m_avgMips = 0.0;
+        double m_totalStopSeconds = 0.0;
         bool m_showAvgMhz = false;
 
         // Breakpoints

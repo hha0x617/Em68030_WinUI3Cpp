@@ -75,6 +75,8 @@ void MC68030::Reset()
     StopReason.clear();
     CycleCount = 0;
     InstructionCount = 0;
+    _stopTimingActive = false;
+    _totalStopDuration = std::chrono::steady_clock::duration{};
 }
 
 // ============================================================================
@@ -444,6 +446,11 @@ void MC68030::ExecuteStep()
         if (_interruptSuppress > 0) {
             --_interruptSuppress;
         } else {
+            if (_stopTimingActive)
+            {
+                _totalStopDuration += std::chrono::steady_clock::now() - _stopEnteredTime;
+                _stopTimingActive = false;
+            }
             Stopped = false;
             StopReason.clear();
             // Save state before interrupt processing for bus error recovery
@@ -516,6 +523,11 @@ bool MC68030::ExecuteNextFast()
         if (_interruptSuppress > 0) {
             --_interruptSuppress;
         } else {
+            if (_stopTimingActive)
+            {
+                _totalStopDuration += std::chrono::steady_clock::now() - _stopEnteredTime;
+                _stopTimingActive = false;
+            }
             Stopped = false;
             StopReason.clear();
             _lastPC = PC;
@@ -562,6 +574,11 @@ bool MC68030::ExecuteNextFastJit()
         if (_interruptSuppress > 0) {
             --_interruptSuppress;
         } else {
+            if (_stopTimingActive)
+            {
+                _totalStopDuration += std::chrono::steady_clock::now() - _stopEnteredTime;
+                _stopTimingActive = false;
+            }
             Stopped = false;
             StopReason.clear();
             _lastPC = PC;

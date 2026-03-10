@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -99,6 +100,19 @@ public:
     std::string StopReason;   // empty = none
     int64_t CycleCount = 0;
     int64_t InstructionCount = 0;
+
+    // STOP idle time tracking — accumulated wall-clock time spent in STOP state
+    std::chrono::steady_clock::time_point _stopEnteredTime{};
+    std::chrono::steady_clock::duration _totalStopDuration{};
+    bool _stopTimingActive = false;
+
+    // Returns accumulated STOP idle duration and resets the accumulator.
+    std::chrono::steady_clock::duration ConsumeStopDuration()
+    {
+        auto d = _totalStopDuration;
+        _totalStopDuration = std::chrono::steady_clock::duration{};
+        return d;
+    }
 
     // MOVES instruction override: when >= 0, GetFunctionCode returns this value
     // instead of computing from supervisor mode. Used for DFC/SFC.
