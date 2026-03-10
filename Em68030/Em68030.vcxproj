@@ -104,6 +104,11 @@
       <EntryPointSymbol>wWinMainCRTStartup</EntryPointSymbol>
     </Link>
   </ItemDefinitionGroup>
+  <!-- Application Icon -->
+  <ItemGroup>
+    <ResourceCompile Include="Em68030.rc" />
+    <None Include="Assets\Em68030.ico" />
+  </ItemGroup>
   <!-- Precompiled Header -->
   <ItemGroup>
     <ClCompile Include="pch.cpp">

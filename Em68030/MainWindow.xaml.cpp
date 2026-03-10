@@ -485,6 +485,7 @@ namespace winrt::Em68030::implementation
             Title(title);
         }
         AppWindow().Resize({ 1100, 750 });
+        AppWindow().SetIcon(L"Assets/Em68030.ico");
 
         // Initialize register display from ViewModel
         RebuildDisasmList();

@@ -1,0 +1,3 @@
+// Application icon resource
+// IDI_ICON1 must be the lowest-numbered icon resource for Windows to use it as the EXE icon.
+IDI_ICON1 ICON "Assets\\Em68030.ico"
