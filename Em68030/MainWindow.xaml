@@ -209,21 +209,18 @@
         <!-- Main Content Area -->
         <Grid Grid.Row="2" Margin="0">
             <Grid.RowDefinitions>
-                <!-- Upper pane: Disassembly + Registers -->
+                <!-- Upper pane: Disassembly -->
                 <RowDefinition Height="3*" />
                 <!-- Lower pane: Memory Dump -->
                 <RowDefinition Height="2*" />
             </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="360" />
+            </Grid.ColumnDefinitions>
 
-            <!-- Upper pane -->
-            <Grid Grid.Row="0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="3*" />
-                    <ColumnDefinition Width="360" />
-                </Grid.ColumnDefinitions>
-
-                <!-- Disassembly View -->
-                <Border Grid.Column="0" BorderBrush="#FF3F3F46" BorderThickness="1" Margin="2">
+            <!-- Disassembly View -->
+            <Border Grid.Row="0" Grid.Column="0" BorderBrush="#FF3F3F46" BorderThickness="1" Margin="2">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -285,8 +282,8 @@
                     </Grid>
                 </Border>
 
-                <!-- Register Panel -->
-                <Border Grid.Column="1" BorderBrush="#FF3F3F46" BorderThickness="1" Margin="2">
+            <!-- Register Panel (spans all rows) -->
+            <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" BorderBrush="#FF3F3F46" BorderThickness="1" Margin="2">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Background="Transparent">
                         <StackPanel Margin="4" Background="Transparent">
                             <!-- Register header with edit buttons -->
@@ -403,6 +400,19 @@
                                 </StackPanel>
                             </Grid>
 
+                            <!-- Flags -->
+                            <TextBlock Text="Flags" FontFamily="Segoe UI" FontSize="12"
+                                       FontWeight="SemiBold" Foreground="#FF4EC9B0" Margin="4,8,4,2" />
+                            <StackPanel Orientation="Horizontal" Margin="2" Spacing="4">
+                                <CheckBox x:Name="FlagX" Content="X" Foreground="#FFD4D4D4" MinWidth="0" />
+                                <CheckBox x:Name="FlagN" Content="N" Foreground="#FFD4D4D4" MinWidth="0" />
+                                <CheckBox x:Name="FlagZ" Content="Z" Foreground="#FFD4D4D4" MinWidth="0" />
+                                <CheckBox x:Name="FlagV" Content="V" Foreground="#FFD4D4D4" MinWidth="0" />
+                                <CheckBox x:Name="FlagC" Content="C" Foreground="#FFD4D4D4" MinWidth="0" />
+                                <CheckBox x:Name="FlagS" Content="S" Foreground="#FFD4D4D4" MinWidth="0" />
+                                <CheckBox x:Name="FlagT" Content="T" Foreground="#FFD4D4D4" MinWidth="0" />
+                            </StackPanel>
+
                             <!-- Special Registers -->
                             <TextBlock Text="Special Registers" FontFamily="Segoe UI" FontSize="12"
                                        FontWeight="SemiBold" Foreground="#FF4EC9B0" Margin="4,8,4,2" />
@@ -471,25 +481,12 @@
                                 <TextBox x:Name="RegFPIAR" Width="95" Style="{StaticResource RegisterTextBoxStyle}" />
                             </StackPanel>
 
-                            <!-- Flags -->
-                            <TextBlock Text="Flags" FontFamily="Segoe UI" FontSize="12"
-                                       FontWeight="SemiBold" Foreground="#FF4EC9B0" Margin="4,8,4,2" />
-                            <StackPanel Orientation="Horizontal" Margin="2" Spacing="4">
-                                <CheckBox x:Name="FlagX" Content="X" Foreground="#FFD4D4D4" MinWidth="0" />
-                                <CheckBox x:Name="FlagN" Content="N" Foreground="#FFD4D4D4" MinWidth="0" />
-                                <CheckBox x:Name="FlagZ" Content="Z" Foreground="#FFD4D4D4" MinWidth="0" />
-                                <CheckBox x:Name="FlagV" Content="V" Foreground="#FFD4D4D4" MinWidth="0" />
-                                <CheckBox x:Name="FlagC" Content="C" Foreground="#FFD4D4D4" MinWidth="0" />
-                                <CheckBox x:Name="FlagS" Content="S" Foreground="#FFD4D4D4" MinWidth="0" />
-                                <CheckBox x:Name="FlagT" Content="T" Foreground="#FFD4D4D4" MinWidth="0" />
-                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
-                </Border>
-            </Grid>
+            </Border>
 
             <!-- Lower pane: Memory Dump -->
-            <Border Grid.Row="1" BorderBrush="#FF3F3F46" BorderThickness="1" Margin="2">
+            <Border Grid.Row="1" Grid.Column="0" BorderBrush="#FF3F3F46" BorderThickness="1" Margin="2">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />

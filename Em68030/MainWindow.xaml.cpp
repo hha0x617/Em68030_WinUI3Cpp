@@ -1855,6 +1855,12 @@ namespace winrt::Em68030::implementation
         setEnabled(BtnApplyReg(), regEdit);
         setEnabled(BtnCancelReg(), regEdit);
 
+        // Flag checkboxes (read-only when not in register edit mode)
+        for (auto flag : { FlagX(), FlagN(), FlagZ(), FlagV(), FlagC(), FlagS(), FlagT() })
+        {
+            if (flag) flag.IsEnabled(regEdit);
+        }
+
         // Memory edit buttons
         setEnabled(BtnMemEdit(), !memEdit);
         setEnabled(BtnMemApply(), memEdit);
