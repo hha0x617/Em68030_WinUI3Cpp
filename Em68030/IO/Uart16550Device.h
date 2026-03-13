@@ -14,9 +14,9 @@
 #pragma once
 
 #include <cstdint>
-#include <array>
 #include <functional>
 #include <mutex>
+#include <queue>
 
 #include "IMemoryMappedDevice.h"
 
@@ -77,12 +77,8 @@ private:
     static constexpr uint8_t IIR_THRI      = 0x02; // Transmitter Holding Register Empty
     static constexpr uint8_t IIR_FIFO_MASK = 0xC0; // FIFO enabled bits
 
-    // RX FIFO
-    static constexpr int RxFifoSize = 64;
-    std::array<uint8_t, RxFifoSize> m_rxFifo{};
-    int m_rxHead = 0;
-    int m_rxTail = 0;
-    int m_rxCount = 0;
+    // RX FIFO (unbounded queue to avoid dropping characters on paste)
+    std::queue<uint8_t> m_rxFifo;
 
     // Registers
     uint8_t m_ier = 0;

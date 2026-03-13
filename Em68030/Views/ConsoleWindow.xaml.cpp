@@ -119,7 +119,7 @@ namespace winrt::Em68030::implementation
 
 namespace winrt::Em68030::implementation
 {
-    // WM_GETMINMAXINFO subclass proc — enforces minimum window size at OS level
+    // Subclass proc — enforces minimum window size + focus-follows-mouse
     LRESULT CALLBACK ConsoleWindow::SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
                                                   UINT_PTR /*subclassId*/, DWORD_PTR refData)
     {
@@ -202,6 +202,29 @@ namespace winrt::Em68030::implementation
             ScrollbackButton().Click({ this, &ConsoleWindow::ScrollbackToggle_Click });
         }
 
+        // Focus-follows-mouse: activate window and focus OutputBox when pointer enters
+        if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::UIElement>())
+        {
+            root.PointerEntered([this](auto&&, auto&&)
+            {
+                if (!m_hwnd)
+                {
+                    auto windowNative = this->try_as<::IWindowNative>();
+                    if (windowNative)
+                        windowNative->get_WindowHandle(&m_hwnd);
+                }
+                if (!m_hwnd || ::GetForegroundWindow() == m_hwnd)
+                    return;
+                // Bypass Windows foreground lock restriction by simulating Alt key
+                ::keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY, 0);
+                ::keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+                ::SetForegroundWindow(m_hwnd);
+                Activate();
+                if (OutputBox())
+                    OutputBox().Focus(FocusState::Programmatic);
+            });
+        }
+
         UpdateTitle();
         AppWindow().Resize({ 700, 510 });
 
@@ -241,6 +264,8 @@ namespace winrt::Em68030::implementation
                     OutputBox().Focus(FocusState::Programmatic);
             }
         });
+
+
 
         // Stop render timer when window is closed (prevents accessing dead UI)
         Closed([this](auto&&, auto&&)
@@ -598,7 +623,7 @@ namespace winrt::Em68030::implementation
             case VirtualKey::Right:    seq = arrow + "C"; break;
             case VirtualKey::Home:     seq = "\x1B[H"; break;
             case VirtualKey::End:      seq = "\x1B[F"; break;
-            case VirtualKey::Back:     seq = "\b"; break;
+            case VirtualKey::Back:     seq = "\x7F"; break;
             case VirtualKey::Delete:   seq = "\x1B[3~"; break;
             case VirtualKey::Tab:      seq = "\t"; break;
             case VirtualKey::Escape:   seq = "\x1B"; break;

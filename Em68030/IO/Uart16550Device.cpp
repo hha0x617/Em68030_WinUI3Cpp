@@ -33,10 +33,9 @@ uint8_t Uart16550Device::ReadByte(uint32_t address)
         } else {
             // Read from RX FIFO
             std::lock_guard lock(m_rxMutex);
-            if (m_rxCount > 0) {
-                uint8_t ch = m_rxFifo[m_rxHead];
-                m_rxHead = (m_rxHead + 1) % RxFifoSize;
-                m_rxCount--;
+            if (!m_rxFifo.empty()) {
+                uint8_t ch = m_rxFifo.front();
+                m_rxFifo.pop();
                 UpdateInterrupt();
                 return ch;
             }
@@ -61,7 +60,7 @@ uint8_t Uart16550Device::ReadByte(uint32_t address)
         uint8_t lsr = LSR_THRE | LSR_TEMT; // TX always ready
         {
             std::lock_guard lock(m_rxMutex);
-            if (m_rxCount > 0)
+            if (!m_rxFifo.empty())
                 lsr |= LSR_DR;
         }
         return lsr;
@@ -106,12 +105,10 @@ void Uart16550Device::WriteByte(uint32_t address, uint8_t value)
             if (m_mcr & 0x10) {
                 // Loopback mode: feed THR data back to RX FIFO
                 // (used by 8250 autoconf FIFO size detection)
+                // Limit to 16 entries to match real 16550A FIFO size.
                 std::lock_guard lock(m_rxMutex);
-                if (m_rxCount < RxFifoSize) {
-                    m_rxFifo[m_rxTail] = value;
-                    m_rxTail = (m_rxTail + 1) % RxFifoSize;
-                    m_rxCount++;
-                }
+                if (m_rxFifo.size() < 16)
+                    m_rxFifo.push(value);
             } else {
                 // Normal transmit
                 if (OnTransmit)
@@ -137,7 +134,7 @@ void Uart16550Device::WriteByte(uint32_t address, uint8_t value)
         if (value & 0x02) {
             // Clear RX FIFO
             std::lock_guard lock(m_rxMutex);
-            m_rxHead = m_rxTail = m_rxCount = 0;
+            std::queue<uint8_t>().swap(m_rxFifo);
         }
         // Bit 2: clear TX FIFO (no-op, we transmit immediately)
         break;
@@ -178,12 +175,7 @@ void Uart16550Device::ReceiveChar(uint8_t ch)
 {
     {
         std::lock_guard lock(m_rxMutex);
-        if (m_rxCount < RxFifoSize) {
-            m_rxFifo[m_rxTail] = ch;
-            m_rxTail = (m_rxTail + 1) % RxFifoSize;
-            m_rxCount++;
-        }
-        // Drop character if FIFO full
+        m_rxFifo.push(ch);
     }
     UpdateInterrupt();
 }
@@ -193,7 +185,7 @@ uint8_t Uart16550Device::ComputeIIR() const
     uint8_t fifoFlag = m_fifoEnabled ? IIR_FIFO_MASK : 0;
 
     // Priority: RX data > TX empty
-    if ((m_ier & IER_RDI) && m_rxCount > 0)
+    if ((m_ier & IER_RDI) && !m_rxFifo.empty())
         return IIR_RDI | fifoFlag; // 0x04 = RX data available
 
     if ((m_ier & IER_THRI) && m_thrEmpty)
