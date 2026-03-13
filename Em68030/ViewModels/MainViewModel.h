@@ -37,6 +37,7 @@
 #include "IO/ScsiDisk.h"
 #include "IO/ScsiCdrom.h"
 #include "IO/FileLoader.h"
+#include "IO/FramebufferDevice.h"
 #include "Config/EmulatorConfig.h"
 
 namespace winrt::Em68030::implementation
@@ -228,6 +229,7 @@ namespace winrt::Em68030::implementation
         // ==================================================================
         ::Em68030::Core::MC68030& Cpu() { return *m_cpu; }
         ::Em68030::Core::Memory& Memory() { return *m_memory; }
+        ::Em68030::IO::FramebufferDevice* FramebufferDevice() const { return m_framebufferDevice.get(); }
         ::Em68030::Config::EmulatorConfig& Config() { return m_config; }
         std::unordered_set<uint32_t>& EnabledBreakpoints() { return m_enabledBreakpoints; }
 
@@ -312,6 +314,7 @@ namespace winrt::Em68030::implementation
         std::unique_ptr<::Em68030::IO::Mvme147IoSpaceDevice> m_ioSpaceDevice;
         std::vector<std::unique_ptr<::Em68030::IO::ScsiDisk>> m_scsiDisks;
         std::unique_ptr<::Em68030::IO::ScsiCdrom> m_scsiCdrom;
+        std::unique_ptr<::Em68030::IO::FramebufferDevice> m_framebufferDevice;
         int m_scsiCdromId = -1; // Current SCSI ID of the CD-ROM (-1 = not attached)
 
         uint32_t m_brdIdAddress = 0;

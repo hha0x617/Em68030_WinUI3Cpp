@@ -146,6 +146,9 @@ namespace winrt::Em68030::implementation
         NetworkModeBox(FindName(L"NetworkModeBox").try_as<Controls::ComboBox>());
         NatGatewayIpBox(FindName(L"NatGatewayIpBox").try_as<Controls::TextBox>());
         NatGatewayMacBox(FindName(L"NatGatewayMacBox").try_as<Controls::TextBox>());
+        FramebufferEnabledBox(FindName(L"FramebufferEnabledBox").try_as<Controls::CheckBox>());
+        FbResolutionBox(FindName(L"FbResolutionBox").try_as<Controls::ComboBox>());
+        FbBppBox(FindName(L"FbBppBox").try_as<Controls::ComboBox>());
 
         // Wire event handlers programmatically (XAML Connect is no-op for C++ native)
         if (BoardTypeBox())
@@ -223,6 +226,8 @@ namespace winrt::Em68030::implementation
             tb.Text(ResourceHelper::GetString(L"Settings_HddImage"));
         if (auto tb = FindName(L"LblPerformance").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_Performance"));
+        if (auto tb = FindName(L"LblFramebuffer").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_Framebuffer"));
         if (auto tb = FindName(L"LblDisplay").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_Display"));
 
@@ -273,6 +278,12 @@ namespace winrt::Em68030::implementation
             tb.Text(ResourceHelper::GetString(L"Settings_FontSize"));
         if (auto tb = FindName(L"LblJitDescription").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_JitDescription"));
+        if (auto tb = FindName(L"LblFramebufferDescription").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_FramebufferDescription"));
+        if (auto tb = FindName(L"LblFbResolution").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_FbResolution"));
+        if (auto tb = FindName(L"LblFbBpp").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_FbBpp"));
 
         // CheckBoxes
         if (ConsoleEnabledBox())
@@ -281,6 +292,8 @@ namespace winrt::Em68030::implementation
             HddEnabledBox().Content(winrt::box_value(ResourceHelper::GetString(L"Settings_HddEnabled")));
         if (JitEnabledBox())
             JitEnabledBox().Content(winrt::box_value(ResourceHelper::GetString(L"Settings_EnableJit")));
+        if (FramebufferEnabledBox())
+            FramebufferEnabledBox().Content(winrt::box_value(ResourceHelper::GetString(L"Settings_EnableFramebuffer")));
 
         // Buttons
         if (AddScsiDiskBtn())
@@ -590,6 +603,29 @@ namespace winrt::Em68030::implementation
         }
         HddPathBox().Text(winrt::to_hstring(config.HddImagePath));
 
+        // Framebuffer
+        if (FramebufferEnabledBox())
+            FramebufferEnabledBox().IsChecked(config.FramebufferEnabled);
+        if (FbResolutionBox())
+        {
+            struct Res { int w, h; };
+            static constexpr Res presets[] = {
+                {320,240},{640,480},{800,600},{1024,768},{1280,720},{1280,1024},{1920,1080}
+            };
+            int idx = 1; // default 640x480
+            for (int i = 0; i < static_cast<int>(std::size(presets)); i++)
+            {
+                if (presets[i].w == config.FramebufferWidth && presets[i].h == config.FramebufferHeight)
+                { idx = i; break; }
+            }
+            FbResolutionBox().SelectedIndex(idx);
+        }
+        if (FbBppBox())
+        {
+            int bppIndex = (config.FramebufferBpp == 8) ? 0 : (config.FramebufferBpp == 32) ? 2 : 1;
+            FbBppBox().SelectedIndex(bppIndex);
+        }
+
         // Performance
         if (JitEnabledBox())
             JitEnabledBox().IsChecked(config.JitEnabled);
@@ -684,6 +720,29 @@ namespace winrt::Em68030::implementation
 
         config.HddImagePath = winrt::to_string(HddPathBox().Text());
 
+        // Framebuffer
+        if (FramebufferEnabledBox())
+            config.FramebufferEnabled = FramebufferEnabledBox().IsChecked().Value();
+        if (FbResolutionBox())
+        {
+            struct Res { int w, h; };
+            static constexpr Res presets[] = {
+                {320,240},{640,480},{800,600},{1024,768},{1280,720},{1280,1024},{1920,1080}
+            };
+            int idx = FbResolutionBox().SelectedIndex();
+            if (idx >= 0 && idx < static_cast<int>(std::size(presets)))
+            {
+                config.FramebufferWidth = presets[idx].w;
+                config.FramebufferHeight = presets[idx].h;
+            }
+        }
+        if (FbBppBox())
+        {
+            auto bppText = GetSelectedItemText(FbBppBox());
+            try { config.FramebufferBpp = std::stoi(bppText); }
+            catch (...) { /* keep previous */ }
+        }
+
         // Performance
         if (JitEnabledBox())
             config.JitEnabled = JitEnabledBox().IsChecked().Value();
@@ -703,6 +762,21 @@ namespace winrt::Em68030::implementation
         auto fontSizeText = winrt::to_string(FontSizeBox().Text());
         try { config.FontSize = std::stod(fontSizeText); }
         catch (...) { /* keep previous */ }
+
+        // Validate: framebuffer enabled requires enough RAM for kernel (min 32MB usable)
+        if (config.FramebufferEnabled)
+        {
+            constexpr uint32_t MIN_KERNEL_RAM = 32u * 1024 * 1024; // 32MB
+            uint32_t vramBase = config.ComputeVramBase();
+            if (vramBase < MIN_KERNEL_RAM)
+            {
+                uint32_t vramSize = static_cast<uint32_t>(config.FramebufferWidth)
+                    * config.FramebufferHeight * config.FramebufferBpp / 8;
+                int requiredMB = static_cast<int>((MIN_KERNEL_RAM + vramSize + 0xFFFFF) / (1024 * 1024));
+                config.MemorySize = requiredMB * 1024 * 1024;
+                MemSizeBox().Text(winrt::to_hstring(std::to_string(requiredMB)));
+            }
+        }
 
         return true;
     }

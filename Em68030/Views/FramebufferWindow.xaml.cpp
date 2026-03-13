@@ -1,0 +1,178 @@
+// Copyright 2026 hha0x617
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "pch.h"
+#include "Views/FramebufferWindow.xaml.h"
+#if __has_include("FramebufferWindow.g.cpp")
+#include "FramebufferWindow.g.cpp"
+#endif
+
+#include <winrt/Microsoft.UI.Xaml.Media.Imaging.h>
+#include <winrt/Microsoft.UI.Dispatching.h>
+#include <winrt/Windows.Storage.Streams.h>
+#include <robuffer.h> // IBufferByteAccess
+
+using namespace winrt;
+using namespace Microsoft::UI::Xaml;
+using namespace Microsoft::UI::Xaml::Controls;
+using namespace Microsoft::UI::Xaml::Media::Imaging;
+
+namespace winrt::Em68030::implementation
+{
+    FramebufferWindow::FramebufferWindow()
+    {
+        InitializeComponent();
+        if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>())
+        {
+            m_displayImage = root.FindName(L"DisplayImage").try_as<Controls::Image>();
+        }
+    }
+
+    void FramebufferWindow::Init(::Em68030::Core::Memory& memory, ::Em68030::IO::FramebufferDevice& device)
+    {
+        m_memory = &memory;
+        m_device = &device;
+        m_width = device.Width();
+        m_height = device.Height();
+        m_bpp = device.Bpp();
+        m_vramOffset = device.VramBase();
+
+        Title(hstring(std::format(L"Em68030 Framebuffer - {}x{}x{}bpp", m_width, m_height, m_bpp)));
+
+        // Create WriteableBitmap (BGRA32 format, 4 bytes per pixel)
+        m_bitmap = WriteableBitmap(m_width, m_height);
+        m_pixelBuffer.resize(static_cast<size_t>(m_width) * m_height * 4);
+
+        if (m_displayImage)
+            m_displayImage.Source(m_bitmap);
+
+        // Resize window to fit framebuffer content (physical pixels)
+        // Add chrome overhead for title bar (~32px) and border (~16px each side)
+        auto appWindow = AppWindow();
+        winrt::Windows::Graphics::SizeInt32 size;
+        size.Width = m_width + 16;
+        size.Height = m_height + 39;
+        appWindow.Resize(size);
+
+        // 30fps render timer
+        auto queue = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+        m_renderTimer = queue.CreateTimer();
+        m_renderTimer.Interval(std::chrono::milliseconds(33));
+        m_renderTimer.Tick({ this, &FramebufferWindow::OnRenderTick });
+        m_renderTimer.Start();
+    }
+
+    void FramebufferWindow::OnRenderTick(
+        [[maybe_unused]] Microsoft::UI::Dispatching::DispatcherQueueTimer const& sender,
+        [[maybe_unused]] Windows::Foundation::IInspectable const& args)
+    {
+        RenderFrame();
+    }
+
+    void FramebufferWindow::RenderFrame()
+    {
+        if (!m_device || !m_memory || !m_device->Enabled()) return;
+
+        auto ram = m_memory->GetFastRamPointer();
+        if (!ram) return;
+
+        uint32_t vramEnd = m_vramOffset + static_cast<uint32_t>(m_device->Stride() * m_height);
+        if (vramEnd > m_memory->GetFastRamSize()) return;
+
+        switch (m_bpp)
+        {
+        case 16: RenderFrame16bpp(ram); break;
+        case 8:  RenderFrame8bpp(ram);  break;
+        case 32: RenderFrame32bpp(ram); break;
+        default: return;
+        }
+
+        // Copy pixel buffer into WriteableBitmap
+        auto buffer = m_bitmap.PixelBuffer();
+        auto byteAccess = buffer.as<::Windows::Storage::Streams::IBufferByteAccess>();
+        uint8_t* pixels = nullptr;
+        byteAccess->Buffer(&pixels);
+        if (pixels)
+        {
+            std::memcpy(pixels, m_pixelBuffer.data(), m_pixelBuffer.size());
+        }
+        m_bitmap.Invalidate();
+    }
+
+    /// 16bpp r5g6b5 big-endian -> BGRA32
+    void FramebufferWindow::RenderFrame16bpp(const uint8_t* ram)
+    {
+        int srcOffset = static_cast<int>(m_vramOffset);
+        int dstOffset = 0;
+
+        for (int y = 0; y < m_height; y++)
+        {
+            for (int x = 0; x < m_width; x++)
+            {
+                int idx = srcOffset + (y * m_width + x) * 2;
+                uint16_t pixel = static_cast<uint16_t>((ram[idx] << 8) | ram[idx + 1]);
+
+                int r = (pixel >> 11) & 0x1F;
+                int g = (pixel >> 5) & 0x3F;
+                int b = pixel & 0x1F;
+
+                m_pixelBuffer[dstOffset]     = static_cast<uint8_t>((b << 3) | (b >> 2)); // B
+                m_pixelBuffer[dstOffset + 1] = static_cast<uint8_t>((g << 2) | (g >> 4)); // G
+                m_pixelBuffer[dstOffset + 2] = static_cast<uint8_t>((r << 3) | (r >> 2)); // R
+                m_pixelBuffer[dstOffset + 3] = 0xFF;                                      // A
+                dstOffset += 4;
+            }
+        }
+    }
+
+    /// 8bpp palette index -> BGRA32
+    void FramebufferWindow::RenderFrame8bpp(const uint8_t* ram)
+    {
+        int srcOffset = static_cast<int>(m_vramOffset);
+        int dstOffset = 0;
+
+        for (int i = 0; i < m_width * m_height; i++)
+        {
+            uint8_t index = ram[srcOffset + i];
+            auto [r, g, b] = m_device->GetPaletteEntry(index);
+
+            m_pixelBuffer[dstOffset]     = b;    // B
+            m_pixelBuffer[dstOffset + 1] = g;    // G
+            m_pixelBuffer[dstOffset + 2] = r;    // R
+            m_pixelBuffer[dstOffset + 3] = 0xFF; // A
+            dstOffset += 4;
+        }
+    }
+
+    /// 32bpp ARGB big-endian -> BGRA32
+    void FramebufferWindow::RenderFrame32bpp(const uint8_t* ram)
+    {
+        int srcOffset = static_cast<int>(m_vramOffset);
+        int dstOffset = 0;
+
+        for (int i = 0; i < m_width * m_height; i++)
+        {
+            int idx = srcOffset + i * 4;
+            uint8_t a = ram[idx];
+            uint8_t r = ram[idx + 1];
+            uint8_t g = ram[idx + 2];
+            uint8_t b = ram[idx + 3];
+
+            m_pixelBuffer[dstOffset]     = b; // B
+            m_pixelBuffer[dstOffset + 1] = g; // G
+            m_pixelBuffer[dstOffset + 2] = r; // R
+            m_pixelBuffer[dstOffset + 3] = a; // A
+            dstOffset += 4;
+        }
+    }
+}

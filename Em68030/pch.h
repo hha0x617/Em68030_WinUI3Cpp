@@ -63,6 +63,7 @@
 // (winrt::make<T>() requires complete implementation types)
 #include "MainWindow.xaml.h"
 #include "Views/ConsoleWindow.xaml.h"
+#include "Views/FramebufferWindow.xaml.h"
 #include "Views/BreakpointsWindow.xaml.h"
 #include "Views/SettingsWindow.xaml.h"
 #include "Views/InputDialog.xaml.h"

@@ -94,6 +94,10 @@ void to_json(nlohmann::json& j, const EmulatorConfig& c)
         {"ConsoleScrollbackLines",  c.ConsoleScrollbackLines},
         {"ConsoleColumns",          c.ConsoleColumns},
         {"ConsoleRows",             c.ConsoleRows},
+        {"FramebufferEnabled",      c.FramebufferEnabled},
+        {"FramebufferWidth",        c.FramebufferWidth},
+        {"FramebufferHeight",       c.FramebufferHeight},
+        {"FramebufferBpp",          c.FramebufferBpp},
         {"JitEnabled",              c.JitEnabled},
         {"JitMinBlockLength",       c.JitMinBlockLength},
         {"JitCompileThreshold",     c.JitCompileThreshold}
@@ -130,6 +134,10 @@ void from_json(const nlohmann::json& j, EmulatorConfig& c)
     if (j.contains("ConsoleScrollbackLines")) j.at("ConsoleScrollbackLines").get_to(c.ConsoleScrollbackLines);
     if (j.contains("ConsoleColumns"))        { j.at("ConsoleColumns").get_to(c.ConsoleColumns); c.ConsoleColumns = std::max(c.ConsoleColumns, 80); }
     if (j.contains("ConsoleRows"))           { j.at("ConsoleRows").get_to(c.ConsoleRows); c.ConsoleRows = std::max(c.ConsoleRows, 24); }
+    if (j.contains("FramebufferEnabled"))      j.at("FramebufferEnabled").get_to(c.FramebufferEnabled);
+    if (j.contains("FramebufferWidth"))       j.at("FramebufferWidth").get_to(c.FramebufferWidth);
+    if (j.contains("FramebufferHeight"))      j.at("FramebufferHeight").get_to(c.FramebufferHeight);
+    if (j.contains("FramebufferBpp"))         j.at("FramebufferBpp").get_to(c.FramebufferBpp);
     if (j.contains("JitEnabled"))             j.at("JitEnabled").get_to(c.JitEnabled);
     if (j.contains("JitMinBlockLength"))     j.at("JitMinBlockLength").get_to(c.JitMinBlockLength);
     if (j.contains("JitCompileThreshold"))   j.at("JitCompileThreshold").get_to(c.JitCompileThreshold);

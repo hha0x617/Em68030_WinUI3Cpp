@@ -28,6 +28,7 @@
 #include "Views/SettingsWindow.xaml.h"
 #include "Views/AboutDialog.xaml.h"
 #include "Views/ConsoleWindow.xaml.h"
+#include "Views/FramebufferWindow.xaml.h"
 #include "GitVersion.h"
 #include "Views/BreakpointsWindow.xaml.h"
 #include "ViewModels/MainViewModel.h"
@@ -230,6 +231,8 @@ namespace winrt::Em68030::implementation
                 mi.Click({ this, &MainWindow::FullReset_Click });
             if (auto mi = root.FindName(L"MenuShowConsole").try_as<Controls::MenuFlyoutItem>())
                 mi.Click({ this, &MainWindow::ShowConsole_Click });
+            if (auto mi = root.FindName(L"MenuShowFramebuffer").try_as<Controls::MenuFlyoutItem>())
+                mi.Click({ this, &MainWindow::ShowFramebuffer_Click });
             if (auto mi = root.FindName(L"MenuShowBreakpoints").try_as<Controls::MenuFlyoutItem>())
                 mi.Click({ this, &MainWindow::ShowBreakpoints_Click });
             if (auto mi = root.FindName(L"MenuToggleLst").try_as<Controls::MenuFlyoutItem>())
@@ -276,6 +279,8 @@ namespace winrt::Em68030::implementation
                 mi.Text(ResourceHelper::GetString(L"Menu_FullReset"));
             if (auto mi = root.FindName(L"MenuShowConsole").try_as<Controls::MenuFlyoutItem>())
                 mi.Text(ResourceHelper::GetString(L"Menu_ConsoleWindow"));
+            if (auto mi = root.FindName(L"MenuShowFramebuffer").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_FramebufferWindow"));
             if (auto mi = root.FindName(L"MenuShowBreakpoints").try_as<Controls::MenuFlyoutItem>())
                 mi.Text(ResourceHelper::GetString(L"Menu_BreakpointsWindow"));
             if (auto mi = root.FindName(L"MenuToggleLst").try_as<Controls::MenuFlyoutItem>())
@@ -591,6 +596,16 @@ namespace winrt::Em68030::implementation
                 m_consoleWindow.Close();
                 m_consoleWindow = nullptr;
             }
+            if (m_framebufferWindow)
+            {
+                m_framebufferWindow.Close();
+                m_framebufferWindow = nullptr;
+            }
+            if (m_breakpointsWindow)
+            {
+                m_breakpointsWindow.Close();
+                m_breakpointsWindow = nullptr;
+            }
         });
 
         // Set window title and default size
@@ -851,6 +866,12 @@ namespace winrt::Em68030::implementation
         EnsureConsoleWindow();
     }
 
+    void MainWindow::ShowFramebuffer_Click([[maybe_unused]] IInspectable const& sender,
+                                            [[maybe_unused]] RoutedEventArgs const& e)
+    {
+        EnsureFramebufferWindow();
+    }
+
     void MainWindow::ShowBreakpoints_Click([[maybe_unused]] IInspectable const& sender,
                                            [[maybe_unused]] RoutedEventArgs const& e)
     {
@@ -896,6 +917,7 @@ namespace winrt::Em68030::implementation
             {
                 vmImpl->ApplyConfig(config);
                 UpdateStatusBar();
+                UpdateToolbarInfo();
                 if (m_consoleWindow)
                 {
                     auto consoleImpl = m_consoleWindow.as<implementation::ConsoleWindow>();
@@ -1929,6 +1951,15 @@ namespace winrt::Em68030::implementation
             StopReasonText().Text(vmImpl->StopReason());
         }
 
+        // Enable/disable framebuffer menu item based on config setting
+        if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>())
+        {
+            if (auto mi = root.FindName(L"MenuShowFramebuffer").try_as<Controls::MenuFlyoutItem>())
+            {
+                mi.IsEnabled(vmImpl->FramebufferDevice() != nullptr);
+            }
+        }
+
     }
 
     // ========================================================================
@@ -2223,6 +2254,31 @@ namespace winrt::Em68030::implementation
         }
         m_consoleWindow.Activate();
         SetOwnerWindow(m_consoleWindow, *this);
+    }
+
+    // ========================================================================
+    // Framebuffer window
+    // ========================================================================
+
+    void MainWindow::EnsureFramebufferWindow()
+    {
+        auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
+        auto* fbDevice = vmImpl->FramebufferDevice();
+        if (!fbDevice) return;
+
+        if (!m_framebufferWindow)
+        {
+            m_framebufferWindow = winrt::make<implementation::FramebufferWindow>();
+            auto fbImpl = m_framebufferWindow.as<implementation::FramebufferWindow>();
+            fbImpl->Init(vmImpl->Memory(), *fbDevice);
+
+            m_framebufferWindow.Closed([this](auto&&, auto&&)
+            {
+                m_framebufferWindow = nullptr;
+            });
+        }
+        m_framebufferWindow.Activate();
+        SetOwnerWindow(m_framebufferWindow, *this);
     }
 
     // ========================================================================

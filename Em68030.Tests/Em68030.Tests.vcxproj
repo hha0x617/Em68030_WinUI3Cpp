@@ -132,6 +132,7 @@
     <ClCompile Include="NetworkTests\VirtualNetworkHandlerTests.cpp" />
     <ClCompile Include="NetworkTests\LanceDeviceTests.cpp" />
     <ClCompile Include="NetworkTests\SlirpNetworkHandlerTests.cpp" />
+    <ClCompile Include="NetworkTests\TcpFlowControlTests.cpp" />
     <ClCompile Include="CpuTests\JitCompilerTests.cpp" />
     <ClCompile Include="CpuTests\CycleTableTests.cpp" />
     <ClCompile Include="IoTests\Z8530DeviceTests.cpp" />
@@ -139,6 +140,7 @@
     <ClCompile Include="IoTests\PccDeviceTests.cpp" />
     <ClCompile Include="IoTests\Uart16550DeviceTests.cpp" />
     <ClCompile Include="IoTests\Mk48t02DeviceTests.cpp" />
+    <ClCompile Include="IoTests\FramebufferDeviceTests.cpp" />
     <ClCompile Include="Helpers\ResourceHelperTests.cpp" />
   </ItemGroup>
   <!-- ================================================================ -->
@@ -220,6 +222,9 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="$(SolutionDir)Em68030\IO\Uart16550Device.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(SolutionDir)Em68030\IO\FramebufferDevice.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>

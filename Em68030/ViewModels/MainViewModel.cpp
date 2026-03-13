@@ -241,13 +241,14 @@ namespace winrt::Em68030::implementation
             m_rtcDevice->SetYearOffset(68);
 
         uint8_t ethAddr[] = { 0x21, 0x00, 0x00 }; // 08:00:3E:21:00:00
-        m_rtcDevice->SetMvme147Config(
-            static_cast<uint32_t>(m_config.MemorySize),
-            ethAddr, sizeof(ethAddr));
+        uint32_t kernelRamEnd = m_config.FramebufferEnabled
+            ? m_config.ComputeVramBase()
+            : static_cast<uint32_t>(m_config.MemorySize);
+        m_rtcDevice->SetMvme147Config(kernelRamEnd, ethAddr, sizeof(ethAddr));
 
         m_lanceDevice = std::make_unique<::Em68030::IO::LanceDevice>();
         m_lanceDevice->AttachMemory(m_memory.get());
-        if (m_config.NetworkMode == "NAT")
+        if (m_config.NetworkMode.find("NAT") != std::string::npos)
         {
             auto gwIp = ::Em68030::IO::SlirpNetworkHandler::ParseIpAddress(m_config.NatGatewayIp);
             auto gwMac = ::Em68030::IO::SlirpNetworkHandler::ParseMacAddress(m_config.NatGatewayMac);
@@ -268,6 +269,16 @@ namespace winrt::Em68030::implementation
         m_memory->RegisterDevice(0xFFFE4000, 4, m_scsiDevice.get());
         m_memory->RegisterDevice(0xFFFE0000, 2048, m_rtcDevice.get());
         m_memory->RegisterDevice(0xFFFE1800, 4, m_lanceDevice.get());
+
+        // Framebuffer control registers (VRAM is in RAM fast path)
+        if (m_config.FramebufferEnabled)
+        {
+            m_framebufferDevice = std::make_unique<::Em68030::IO::FramebufferDevice>(
+                m_config.FramebufferWidth, m_config.FramebufferHeight,
+                m_config.FramebufferBpp, m_config.ComputeVramBase());
+            m_memory->RegisterDevice(::Em68030::IO::FramebufferDevice::BASE_ADDRESS,
+                ::Em68030::IO::FramebufferDevice::DEVICE_SIZE, m_framebufferDevice.get());
+        }
 
         // Wire LANCE interrupt through PCC
         m_lanceDevice->InterruptOutput = [this](bool active) {
@@ -357,7 +368,9 @@ namespace winrt::Em68030::implementation
 
                 if (m_config.BoardType == "MVME147")
                 {
-                    uint32_t topOfRam = static_cast<uint32_t>(m_config.MemorySize);
+                    uint32_t topOfRam = m_config.FramebufferEnabled
+                            ? m_config.ComputeVramBase()
+                            : static_cast<uint32_t>(m_config.MemorySize);
                     if (m_config.TargetOS == "Linux")
                         SetupMvme147LinuxBootStub(topOfRam, m_programEndAddress);
                     else
@@ -538,7 +551,9 @@ namespace winrt::Em68030::implementation
 
                         if (m_config.BoardType == "MVME147")
                         {
-                            uint32_t topOfRam = static_cast<uint32_t>(m_config.MemorySize);
+                            uint32_t topOfRam = m_config.FramebufferEnabled
+                            ? m_config.ComputeVramBase()
+                            : static_cast<uint32_t>(m_config.MemorySize);
                             if (m_config.TargetOS == "Linux")
                                 SetupMvme147LinuxBootStub(topOfRam, m_programEndAddress);
                             else
@@ -866,7 +881,9 @@ namespace winrt::Em68030::implementation
 
         if (m_config.BoardType == "MVME147")
         {
-            uint32_t topOfRam = static_cast<uint32_t>(m_config.MemorySize);
+            uint32_t topOfRam = m_config.FramebufferEnabled
+                            ? m_config.ComputeVramBase()
+                            : static_cast<uint32_t>(m_config.MemorySize);
             if (m_config.TargetOS == "Linux")
                 SetupMvme147LinuxBootStub(topOfRam, m_programEndAddress);
             else
@@ -1425,6 +1442,11 @@ namespace winrt::Em68030::implementation
             }
         }
 
+        // Framebuffer device is NOT hot-swappable: VRAM is placed at the top of RAM
+        // and the kernel's memory map (BI_MEMCHUNK / RTC onboardRamEnd) is fixed at boot.
+        // Enabling/disabling framebuffer or changing resolution requires a reboot.
+        // Config values are saved and will take effect on next boot.
+
         // TargetOS change: update UART 16550, RTC year offset, and boot stub
         if (m_config.BoardType == "MVME147")
         {
@@ -1454,7 +1476,9 @@ namespace winrt::Em68030::implementation
             // Re-setup boot stub if a kernel is already loaded
             if (m_programEndAddress > m_programStartAddress)
             {
-                uint32_t topOfRam = static_cast<uint32_t>(m_config.MemorySize);
+                uint32_t topOfRam = m_config.FramebufferEnabled
+                            ? m_config.ComputeVramBase()
+                            : static_cast<uint32_t>(m_config.MemorySize);
                 if (m_config.TargetOS == "Linux")
                     SetupMvme147LinuxBootStub(topOfRam, m_programEndAddress);
                 else

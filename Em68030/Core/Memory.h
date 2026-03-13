@@ -120,6 +120,12 @@ private:
 
     // Last-hit region cache for non-fastRAM accesses (e.g., ROM at $FF800000)
     MemoryRegion* m_lastRegion = nullptr;
+
+public:
+    /// Direct access to the base-0 RAM array for the framebuffer renderer.
+    /// The renderer reads VRAM data on the UI thread — no locking needed.
+    const uint8_t* GetFastRamPointer() const { return m_fastRam; }
+    uint32_t GetFastRamSize() const { return m_fastRamSize; }
 };
 
 } // namespace Em68030::Core

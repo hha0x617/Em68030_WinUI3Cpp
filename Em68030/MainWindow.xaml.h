@@ -53,6 +53,8 @@ namespace winrt::Em68030::implementation
         // --- View menu ---
         void ShowConsole_Click(winrt::Windows::Foundation::IInspectable const& sender,
                                winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
+        void ShowFramebuffer_Click(winrt::Windows::Foundation::IInspectable const& sender,
+                                   winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
         void ShowBreakpoints_Click(winrt::Windows::Foundation::IInspectable const& sender,
                                    winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
         void ToggleLst_Click(winrt::Windows::Foundation::IInspectable const& sender,
@@ -139,6 +141,7 @@ namespace winrt::Em68030::implementation
         void UpdateToolbarInfo();
         void UpdateButtonStates();
         void EnsureConsoleWindow();
+        void EnsureFramebufferWindow();
         void EnsureBreakpointsWindow();
         void RefreshBreakpointsWindow();
         uint32_t GetSelectedDisasmAddress();
@@ -155,6 +158,8 @@ namespace winrt::Em68030::implementation
 
         // Console window (separate native window)
         winrt::Em68030::ConsoleWindow m_consoleWindow{ nullptr };
+        // Framebuffer window
+        winrt::Em68030::FramebufferWindow m_framebufferWindow{ nullptr };
         // Breakpoints window
         winrt::Em68030::BreakpointsWindow m_breakpointsWindow{ nullptr };
         Microsoft::UI::Dispatching::DispatcherQueue m_dispatcherQueue{ nullptr };

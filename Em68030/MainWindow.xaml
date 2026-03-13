@@ -183,6 +183,7 @@
             </MenuBarItem>
             <MenuBarItem x:Name="MenuBarView" Title="View">
                 <MenuFlyoutItem x:Name="MenuShowConsole" Text="Console Window" />
+                <MenuFlyoutItem x:Name="MenuShowFramebuffer" Text="Framebuffer Window" IsEnabled="False" />
                 <MenuFlyoutItem x:Name="MenuShowBreakpoints" Text="Breakpoints Window" />
                 <MenuFlyoutItem x:Name="MenuToggleLst" Text="Toggle LST View" IsEnabled="False" />
             </MenuBarItem>

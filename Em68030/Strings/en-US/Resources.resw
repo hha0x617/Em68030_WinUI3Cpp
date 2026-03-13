@@ -114,6 +114,9 @@
   <data name="Menu_ConsoleWindow" xml:space="preserve">
     <value>Console Window</value>
   </data>
+  <data name="Menu_FramebufferWindow" xml:space="preserve">
+    <value>Framebuffer Window</value>
+  </data>
   <data name="Menu_BreakpointsWindow" xml:space="preserve">
     <value>Breakpoints Window</value>
   </data>
@@ -272,10 +275,10 @@
     <value>Cycles: {0}</value>
   </data>
   <data name="Status_MhzFormat" xml:space="preserve">
-    <value>{0:.2f} MHz ({1:.2f} MIPS)</value>
+    <value>{0} MHz ({1} MIPS)</value>
   </data>
   <data name="Status_AvgMhzFormat" xml:space="preserve">
-    <value>Avg {0:.2f} MHz ({1:.2f} MIPS)</value>
+    <value>Avg {0} MHz ({1} MIPS)</value>
   </data>
 
   <!-- About Dialog -->
@@ -505,6 +508,24 @@
   </data>
   <data name="Settings_CompileThreshold" xml:space="preserve">
     <value>Compile Threshold:</value>
+  </data>
+  <data name="Settings_Framebuffer" xml:space="preserve">
+    <value>Framebuffer</value>
+  </data>
+  <data name="Settings_EnableFramebuffer" xml:space="preserve">
+    <value>Enable Framebuffer</value>
+  </data>
+  <data name="Settings_FramebufferDescription" xml:space="preserve">
+    <value>Provides a virtual framebuffer for X Window System. VRAM is placed at the top of RAM automatically. Changes take effect after rebooting the guest OS.</value>
+  </data>
+  <data name="Settings_FbResolution" xml:space="preserve">
+    <value>Resolution:</value>
+  </data>
+  <data name="Settings_FbBpp" xml:space="preserve">
+    <value>Bits per Pixel:</value>
+  </data>
+  <data name="Settings_FbVramBase" xml:space="preserve">
+    <value>VRAM Base:</value>
   </data>
   <data name="Settings_Display" xml:space="preserve">
     <value>Display</value>

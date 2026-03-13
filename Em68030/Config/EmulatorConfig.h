@@ -96,6 +96,20 @@ public:
     int ConsoleColumns = 80;
     int ConsoleRows = 24;
 
+    // Framebuffer (for X Window System)
+    // VRAM is placed at the top of RAM (auto-calculated: MemorySize - VramSize, 1MB aligned).
+    // The kernel is told RAM ends at the VRAM base, so it never touches VRAM.
+    bool FramebufferEnabled = false;
+    int FramebufferWidth = 640;
+    int FramebufferHeight = 480;
+    int FramebufferBpp = 16; // 8, 16, or 32
+
+    /// Compute VRAM base address (top of RAM, 1MB aligned).
+    uint32_t ComputeVramBase() const {
+        uint32_t vramSize = static_cast<uint32_t>(FramebufferWidth) * FramebufferHeight * FramebufferBpp / 8;
+        return (static_cast<uint32_t>(MemorySize) - vramSize) & ~0xFFFFFu;
+    }
+
     // JIT compiler (experimental)
     bool JitEnabled = false;
     int JitMinBlockLength = 3;

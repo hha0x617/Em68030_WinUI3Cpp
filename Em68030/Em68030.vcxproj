@@ -162,6 +162,7 @@
     <ClInclude Include="IO\ScsiDisk.h" />
     <ClInclude Include="IO\ScsiCdrom.h" />
     <ClInclude Include="IO\FileLoader.h" />
+    <ClInclude Include="IO\FramebufferDevice.h" />
     <ClCompile Include="IO\ConsoleDevice.cpp" />
     <ClCompile Include="IO\HddDevice.cpp" />
     <ClCompile Include="IO\Mk48t02Device.cpp" />
@@ -176,6 +177,7 @@
     <ClCompile Include="IO\ScsiDisk.cpp" />
     <ClCompile Include="IO\ScsiCdrom.cpp" />
     <ClCompile Include="IO\FileLoader.cpp" />
+    <ClCompile Include="IO\FramebufferDevice.cpp" />
   </ItemGroup>
   <!-- Config -->
   <ItemGroup>
@@ -205,6 +207,7 @@
     <Midl Include="ViewModels\MemoryDumpRow.idl" />
     <Midl Include="ViewModels\MainViewModel.idl" />
     <Midl Include="Views\ConsoleWindow.idl" />
+    <Midl Include="Views\FramebufferWindow.idl" />
     <Midl Include="Views\BreakpointsWindow.idl" />
     <Midl Include="Views\SettingsWindow.idl" />
     <Midl Include="Views\InputDialog.idl" />
@@ -219,6 +222,9 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\ConsoleWindow.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\FramebufferWindow.xaml">
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\BreakpointsWindow.xaml">
@@ -242,6 +248,8 @@
     <ClCompile Include="MainWindow.xaml.cpp" />
     <ClInclude Include="Views\ConsoleWindow.xaml.h" />
     <ClCompile Include="Views\ConsoleWindow.xaml.cpp" />
+    <ClInclude Include="Views\FramebufferWindow.xaml.h" />
+    <ClCompile Include="Views\FramebufferWindow.xaml.cpp" />
     <ClInclude Include="Views\BreakpointsWindow.xaml.h" />
     <ClCompile Include="Views\BreakpointsWindow.xaml.cpp" />
     <ClInclude Include="Views\SettingsWindow.xaml.h" />
