@@ -18,6 +18,7 @@
 #include <vector>
 #include <queue>
 #include <unordered_map>
+#include <condition_variable>
 #include <mutex>
 #include <thread>
 #include <atomic>
@@ -80,6 +81,11 @@ private:
         std::chrono::steady_clock::time_point LastActivity;
         std::atomic<bool> ReceiveLoopRunning{ false };
         std::atomic<bool> Cancelled{ false };
+        // Flow control: track guest's ACK and advertised window
+        std::atomic<uint32_t> TheirAck{0};
+        std::atomic<uint16_t> TheirWindow{65535};
+        std::mutex WindowMutex;
+        std::condition_variable WindowCV;
     };
 
     // TCP session key

@@ -187,15 +187,17 @@ void LanceDevice::DoInit()
     m_mode = m_memory->PeekWord(iadr + 0x00);
 
     // +0x02: padr[0..2] (3 x 16-bit) -> MAC address 6 bytes
+    // AM7990 LANCE is little-endian: kernel writes MAC byte-swapped within each 16-bit word.
+    // PeekWord returns big-endian, so we reverse the byte order within each word.
     uint16_t padr0 = m_memory->PeekWord(iadr + 0x02);
     uint16_t padr1 = m_memory->PeekWord(iadr + 0x04);
     uint16_t padr2 = m_memory->PeekWord(iadr + 0x06);
-    m_macAddress[0] = static_cast<uint8_t>(padr0 >> 8);
-    m_macAddress[1] = static_cast<uint8_t>(padr0 & 0xFF);
-    m_macAddress[2] = static_cast<uint8_t>(padr1 >> 8);
-    m_macAddress[3] = static_cast<uint8_t>(padr1 & 0xFF);
-    m_macAddress[4] = static_cast<uint8_t>(padr2 >> 8);
-    m_macAddress[5] = static_cast<uint8_t>(padr2 & 0xFF);
+    m_macAddress[0] = static_cast<uint8_t>(padr0 & 0xFF);
+    m_macAddress[1] = static_cast<uint8_t>(padr0 >> 8);
+    m_macAddress[2] = static_cast<uint8_t>(padr1 & 0xFF);
+    m_macAddress[3] = static_cast<uint8_t>(padr1 >> 8);
+    m_macAddress[4] = static_cast<uint8_t>(padr2 & 0xFF);
+    m_macAddress[5] = static_cast<uint8_t>(padr2 >> 8);
 
     // +0x08: ladrf[0..3] (4 x 16-bit) -> multicast filter (not used in Phase 1)
 

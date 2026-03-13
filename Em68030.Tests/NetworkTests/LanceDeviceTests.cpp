@@ -46,8 +46,11 @@ protected:
 
     void WriteInitBlock() {
         memory.PokeWord(InitBlockAddr, 0x0000); // Mode
-        memory.PokeWord(InitBlockAddr + 0x02, 0x0800);
-        memory.PokeWord(InitBlockAddr + 0x04, 0x3E21);
+        // PADR (MAC): 08:00:3E:21:00:00
+        // AM7990 LANCE is little-endian: bytes are swapped within each 16-bit word.
+        // 08:00 → word 0x0008, 3E:21 → word 0x213E, 00:00 → word 0x0000
+        memory.PokeWord(InitBlockAddr + 0x02, 0x0008);
+        memory.PokeWord(InitBlockAddr + 0x04, 0x213E);
         memory.PokeWord(InitBlockAddr + 0x06, 0x0000);
         for (uint32_t i = 0x08; i < 0x10; i += 2)
             memory.PokeWord(InitBlockAddr + i, 0x0000);
@@ -158,6 +161,21 @@ TEST_F(LanceDeviceTest, Init_ThenStart_SetsRunning)
     uint16_t csr0 = lance.ReadWord(BaseAddr);
     EXPECT_NE(0, csr0 & 0x0020); // RXON
     EXPECT_NE(0, csr0 & 0x0010); // TXON
+}
+
+TEST_F(LanceDeviceTest, Init_ParsesMacAddress_LittleEndianWordOrder)
+{
+    // AM7990 init block stores MAC byte-swapped within 16-bit words.
+    // MAC 08:00:3E:21:00:00 → words 0x0008, 0x213E, 0x0000
+    SetupAndStartLance();
+
+    auto mac = lance.GetMacAddress();
+    EXPECT_EQ(0x08, mac[0]);
+    EXPECT_EQ(0x00, mac[1]);
+    EXPECT_EQ(0x3E, mac[2]);
+    EXPECT_EQ(0x21, mac[3]);
+    EXPECT_EQ(0x00, mac[4]);
+    EXPECT_EQ(0x00, mac[5]);
 }
 
 // ============================================================================
@@ -298,6 +316,14 @@ TEST_F(LanceDeviceTest, RxRing_ReceivesPacketFromHandler)
     // Verify ARP reply ethertype
     EXPECT_EQ(0x08, memory.PeekByte(bufAddr + 12));
     EXPECT_EQ(0x06, memory.PeekByte(bufAddr + 13));
+
+    // Verify ARP reply destination MAC matches guest MAC (08:00:3E:21:00:00)
+    EXPECT_EQ(0x08, memory.PeekByte(bufAddr + 0));
+    EXPECT_EQ(0x00, memory.PeekByte(bufAddr + 1));
+    EXPECT_EQ(0x3E, memory.PeekByte(bufAddr + 2));
+    EXPECT_EQ(0x21, memory.PeekByte(bufAddr + 3));
+    EXPECT_EQ(0x00, memory.PeekByte(bufAddr + 4));
+    EXPECT_EQ(0x00, memory.PeekByte(bufAddr + 5));
 }
 
 // ============================================================================

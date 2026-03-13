@@ -53,6 +53,8 @@ public:
 
     std::function<void(bool)> InterruptOutput;
 
+    const std::array<uint8_t, 6>& GetMacAddress() const { return m_macAddress; }
+
 private:
     static constexpr uint32_t BaseAddress = 0xFFFE1800;
 

@@ -607,6 +607,7 @@ void SlirpNetworkHandler::HandleTcp(const uint8_t* frame, int length, int ipHead
                 session->OurSeq, session->TheirSeq, TCP_SYN | TCP_ACK, nullptr, 0);
             EnqueuePacket(std::move(synAck));
             session->OurSeq++; // SYN consumes 1 seq
+            session->TheirAck = session->OurSeq; // Guest will ACK this value
 
             // Start receive loop
             StartTcpReceiveLoop(session, key);
@@ -625,6 +626,18 @@ void SlirpNetworkHandler::HandleTcp(const uint8_t* frame, int length, int ipHead
     }
 
     sess->LastActivity = std::chrono::steady_clock::now();
+
+    // Update flow control from guest ACK
+    if ((flags & TCP_ACK) != 0)
+    {
+        uint16_t guestWindow = NetworkUtils::ReadBE16(frame, tcpOffset + 14);
+        {
+            std::lock_guard<std::mutex> lock(sess->WindowMutex);
+            sess->TheirAck.store(ackNum);
+            sess->TheirWindow.store(guestWindow);
+        }
+        sess->WindowCV.notify_one();
+    }
 
     // ACK of our SYN+ACK
     if (sess->State == TcpState::SynAckSent && (flags & TCP_ACK) != 0)
@@ -652,7 +665,11 @@ void SlirpNetworkHandler::HandleTcp(const uint8_t* frame, int length, int ipHead
     // Data from guest
     if ((flags & TCP_ACK) != 0 && sess->State == TcpState::Established)
     {
-        int dataLen = length - tcpOffset - tcpDataOffset;
+        // Use IP Total Length instead of Ethernet frame length to exclude padding.
+        // Short frames (e.g. pure ACK = 54 bytes) are padded to 60 bytes by the
+        // Ethernet driver; using frame length would send padding as TCP data.
+        uint16_t ipTotalLen = NetworkUtils::ReadBE16(frame, 16);
+        int dataLen = static_cast<int>(ipTotalLen) - ipHeaderLen - tcpDataOffset;
         if (dataLen > 0 && sess->Socket != static_cast<uintptr_t>(INVALID_SOCKET))
         {
             sess->TheirSeq = seq + static_cast<uint32_t>(dataLen);
@@ -714,6 +731,17 @@ void SlirpNetworkHandler::StartTcpReceiveLoop(std::shared_ptr<TcpSession> sessio
 
             session->LastActivity = std::chrono::steady_clock::now();
 
+            // Wait for guest TCP window to have room for this segment
+            {
+                std::unique_lock<std::mutex> lock(session->WindowMutex);
+                session->WindowCV.wait_for(lock, std::chrono::seconds(30), [&] {
+                    uint32_t inFlight = session->OurSeq - session->TheirAck.load();
+                    return inFlight + static_cast<uint32_t>(bytesRead) <= session->TheirWindow.load()
+                           || m_disposed.load() || session->Cancelled.load();
+                });
+                if (m_disposed || session->Cancelled) break;
+            }
+
             auto dataPkt = BuildTcpPacket(session->DestIp.data(),
                 session->GuestDstPort, session->GuestSrcPort,
                 session->OurSeq, session->TheirSeq,
@@ -766,6 +794,7 @@ void SlirpNetworkHandler::CloseTcpSession(TcpSession& session)
 {
     session.State = TcpState::Closed;
     session.Cancelled = true;
+    session.WindowCV.notify_all(); // Wake up receive loop if waiting
     SOCKET sock = static_cast<SOCKET>(session.Socket);
     if (sock != INVALID_SOCKET)
     {
