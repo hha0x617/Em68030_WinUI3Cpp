@@ -61,8 +61,6 @@ namespace winrt::Em68030::implementation
                                winrt::Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const& e);
         void OutputBox_CharacterReceived(winrt::Microsoft::UI::Xaml::UIElement const& sender,
                                          winrt::Microsoft::UI::Xaml::Input::CharacterReceivedRoutedEventArgs const& e);
-        void ScrollbackToggle_Click(winrt::Windows::Foundation::IInspectable const& sender,
-                                    winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
 
     private:
         // VT100 terminal emulator (character cell buffer)
@@ -84,8 +82,7 @@ namespace winrt::Em68030::implementation
         Microsoft::UI::Dispatching::DispatcherQueueTimer m_renderTimer{ nullptr };
         winrt::event_token m_renderTimerToken;
 
-        // Scrollback / live toggle
-        bool m_showScrollback = false;
+        // Auto-scroll: true when user is at (or near) the bottom of the text
         bool m_autoScroll = true;
 
         // Cursor blink

@@ -161,7 +161,6 @@ namespace winrt::Em68030::implementation
         if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>())
         {
             OutputBox(root.FindName(L"OutputBox").try_as<Microsoft::UI::Xaml::Controls::TextBox>());
-            ScrollbackButton(root.FindName(L"ScrollbackButton").try_as<Microsoft::UI::Xaml::Controls::Button>());
         }
 
         // Wire event handlers programmatically (XAML Connect is no-op for C++ native)
@@ -194,14 +193,6 @@ namespace winrt::Em68030::implementation
 
             OutputBox().ContextFlyout(menuFlyout);
         }
-        if (ScrollbackButton())
-        {
-            ScrollbackButton().Content(winrt::box_value(ResourceHelper::GetString(L"Console_Log")));
-            Controls::ToolTipService::SetToolTip(ScrollbackButton(),
-                winrt::box_value(ResourceHelper::GetString(L"Console_ToggleTooltip")));
-            ScrollbackButton().Click({ this, &ConsoleWindow::ScrollbackToggle_Click });
-        }
-
         // Focus-follows-mouse: activate window and focus OutputBox when pointer enters
         if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::UIElement>())
         {
@@ -529,28 +520,29 @@ namespace winrt::Em68030::implementation
 
         m_terminal.ClearDirty();
 
-        std::string rendered;
-        if (m_showScrollback)
+        std::string rendered = m_cursorVisible
+            ? m_terminal.RenderFullWithCursor()
+            : m_terminal.RenderFull();
+
+        // Detect auto-scroll: if the user has scrolled up, preserve their position.
+        // If at (or near) the bottom, auto-scroll to follow new output.
+        if (m_contentScrollViewer)
         {
-            rendered = m_terminal.RenderFull();
-        }
-        else
-        {
-            rendered = m_cursorVisible
-                ? m_terminal.RenderWithCursor()
-                : m_terminal.Render();
+            double offset = m_contentScrollViewer.VerticalOffset();
+            double viewportHeight = m_contentScrollViewer.ViewportHeight();
+            double extentHeight = m_contentScrollViewer.ExtentHeight();
+            m_autoScroll = (offset + viewportHeight >= extentHeight - 2);
         }
 
-        // In scrollback mode without auto-scroll, preserve the user's scroll
-        // position — setting Text() resets the TextBox's internal scroll offset.
-        bool preserveScroll = m_showScrollback && !m_autoScroll && m_contentScrollViewer;
+        // Save scroll position before updating text (Text() resets scroll offset)
         double savedOffset = 0;
-        if (preserveScroll)
+        bool needRestore = !m_autoScroll && m_contentScrollViewer;
+        if (needRestore)
             savedOffset = m_contentScrollViewer.VerticalOffset();
 
         OutputBox().Text(winrt::to_hstring(rendered));
 
-        if (preserveScroll)
+        if (needRestore)
         {
             OutputBox().UpdateLayout();
             m_contentScrollViewer.ChangeView(
@@ -560,41 +552,8 @@ namespace winrt::Em68030::implementation
         }
         else if (m_autoScroll)
         {
-            // In WinUI 3, TextBox doesn't have ScrollToEnd().
-            // We select the end of text to force scroll.
             auto textLength = OutputBox().Text().size();
             OutputBox().Select(static_cast<int32_t>(textLength), 0);
-        }
-    }
-
-    // ========================================================================
-    // Scrollback toggle
-    // ========================================================================
-
-    void ConsoleWindow::ScrollbackToggle_Click([[maybe_unused]] IInspectable const& sender,
-                                               [[maybe_unused]] RoutedEventArgs const& e)
-    {
-        m_showScrollback = !m_showScrollback;
-        ScrollbackButton().Content(winrt::box_value(
-            m_showScrollback ? ResourceHelper::GetString(L"Console_Live")
-                             : ResourceHelper::GetString(L"Console_Log")));
-
-        // Force re-render with the new mode
-        m_terminal.SetDirty();
-
-        if (m_showScrollback)
-        {
-            // Entering scrollback: render, scroll to bottom once, then disable auto-scroll
-            // so the user can freely browse history without the view jumping.
-            m_autoScroll = true;
-            RenderScreen();
-            m_autoScroll = false;
-        }
-        else
-        {
-            // Returning to live mode: re-enable auto-scroll
-            m_autoScroll = true;
-            RenderScreen();
         }
     }
 

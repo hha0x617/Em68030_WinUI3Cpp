@@ -341,6 +341,35 @@ std::string Vt100Terminal::RenderFull() const
 }
 
 // ============================================================================
+// RenderFullWithCursor
+// ============================================================================
+
+std::string Vt100Terminal::RenderFullWithCursor() const
+{
+    std::string result;
+    result.reserve(m_scrollbackCount * (m_cols + 1) + m_rows * (m_cols * 3 + 1));
+
+    for (int i = 0; i < m_scrollbackCount; i++)
+    {
+        result.append(m_scrollback[(m_scrollbackHead + i) % m_maxScrollback]);
+        result.push_back('\n');
+    }
+
+    for (int r = 0; r < m_rows; r++)
+    {
+        if (r > 0) result.push_back('\n');
+        for (int c = 0; c < m_cols; c++)
+        {
+            if (r == m_cursorRow && c == m_cursorCol)
+                AppendUtf8(result, U'\u2588');
+            else
+                result.push_back(ScreenAt(r, c));
+        }
+    }
+    return result;
+}
+
+// ============================================================================
 // Normal character processing
 // ============================================================================
 

@@ -51,6 +51,9 @@ public:
     /// Render the full terminal output: scrollback history followed by the live screen.
     std::string RenderFull() const;
 
+    /// Render the full terminal output with a block cursor at the current position.
+    std::string RenderFullWithCursor() const;
+
     /// Resize the scrollback ring buffer, preserving the most recent lines.
     void ResizeScrollback(int newMax);
 

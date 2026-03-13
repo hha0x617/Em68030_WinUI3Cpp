@@ -18,13 +18,8 @@
     Title="Console">
 
     <Grid Background="#FF0C0C0C">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-
         <!-- Terminal output area -->
-        <TextBox x:Name="OutputBox" Grid.Row="0"
+        <TextBox x:Name="OutputBox"
                  TextWrapping="NoWrap"
                  AcceptsReturn="True"
                  IsReadOnly="True"
@@ -41,13 +36,5 @@
                 <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FF0C0C0C" />
             </TextBox.Resources>
         </TextBox>
-
-        <!-- Bottom toolbar -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#FF2D2D30" Padding="0,2">
-            <Button x:Name="ScrollbackButton" Content="Log"
-                    Background="#FF3E3E42" Foreground="#FFD4D4D4"
-                    BorderBrush="#FF555555" Padding="8,3" Margin="4"
-                    ToolTipService.ToolTip="Toggle between live screen and full scrollback log" />
-        </StackPanel>
     </Grid>
 </Window>
