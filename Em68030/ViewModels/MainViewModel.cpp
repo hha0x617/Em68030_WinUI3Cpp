@@ -278,6 +278,13 @@ namespace winrt::Em68030::implementation
                 m_config.FramebufferBpp, m_config.ComputeVramBase());
             m_memory->RegisterDevice(::Em68030::IO::FramebufferDevice::BASE_ADDRESS,
                 ::Em68030::IO::FramebufferDevice::DEVICE_SIZE, m_framebufferDevice.get());
+
+            // Virtual keyboard/mouse input device (requires framebuffer for display)
+            m_inputDevice = std::make_unique<::Em68030::IO::InputDevice>(
+                static_cast<uint16_t>(m_config.FramebufferWidth),
+                static_cast<uint16_t>(m_config.FramebufferHeight));
+            m_memory->RegisterDevice(::Em68030::IO::InputDevice::BASE_ADDRESS,
+                ::Em68030::IO::InputDevice::DEVICE_SIZE, m_inputDevice.get());
         }
 
         // Wire LANCE interrupt through PCC

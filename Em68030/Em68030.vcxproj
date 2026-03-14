@@ -163,6 +163,7 @@
     <ClInclude Include="IO\ScsiCdrom.h" />
     <ClInclude Include="IO\FileLoader.h" />
     <ClInclude Include="IO\FramebufferDevice.h" />
+    <ClInclude Include="IO\InputDevice.h" />
     <ClCompile Include="IO\ConsoleDevice.cpp" />
     <ClCompile Include="IO\HddDevice.cpp" />
     <ClCompile Include="IO\Mk48t02Device.cpp" />
@@ -178,6 +179,7 @@
     <ClCompile Include="IO\ScsiCdrom.cpp" />
     <ClCompile Include="IO\FileLoader.cpp" />
     <ClCompile Include="IO\FramebufferDevice.cpp" />
+    <ClCompile Include="IO\InputDevice.cpp" />
   </ItemGroup>
   <!-- Config -->
   <ItemGroup>
