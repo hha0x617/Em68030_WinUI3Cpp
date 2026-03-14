@@ -142,6 +142,7 @@ namespace winrt::Em68030::implementation
         void UpdateButtonStates();
         void EnsureConsoleWindow();
         void EnsureFramebufferWindow();
+        void ReopenFramebufferWindow();
         void EnsureBreakpointsWindow();
         void RefreshBreakpointsWindow();
         uint32_t GetSelectedDisasmAddress();

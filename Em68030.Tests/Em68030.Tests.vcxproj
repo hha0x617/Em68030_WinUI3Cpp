@@ -142,6 +142,7 @@
     <ClCompile Include="IoTests\Mk48t02DeviceTests.cpp" />
     <ClCompile Include="IoTests\FramebufferDeviceTests.cpp" />
     <ClCompile Include="IoTests\InputDeviceTests.cpp" />
+    <ClCompile Include="IoTests\KeyMappingTests.cpp" />
     <ClCompile Include="Helpers\ResourceHelperTests.cpp" />
   </ItemGroup>
   <!-- ================================================================ -->

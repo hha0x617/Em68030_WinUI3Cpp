@@ -232,6 +232,10 @@ namespace winrt::Em68030::implementation
         ::Em68030::Core::Memory& Memory() { return *m_memory; }
         ::Em68030::IO::FramebufferDevice* FramebufferDevice() const { return m_framebufferDevice.get(); }
         ::Em68030::IO::InputDevice* InputDevice() const { return m_inputDevice.get(); }
+
+        /// Called from emulation thread when framebuffer device is recreated (warm reboot).
+        /// The UI must close and reopen the framebuffer window to pick up new device pointers.
+        std::function<void()> OnFramebufferDeviceReset;
         ::Em68030::Config::EmulatorConfig& Config() { return m_config; }
         std::unordered_set<uint32_t>& EnabledBreakpoints() { return m_enabledBreakpoints; }
 
@@ -270,6 +274,8 @@ namespace winrt::Em68030::implementation
         void Handle147BugCall();
         void SetupMvme147BootStub(uint32_t topOfRam);
         void SetupMvme147LinuxBootStub(uint32_t topOfRam, uint32_t endOfKernel);
+        void RecreateFramebufferDeviceIfNeeded();
+        void ClearVram();
         void WriteBoardIdPacket(uint32_t addr);
         void InitStackPointer();
         void CheckForLstFile(const std::string& filePath);

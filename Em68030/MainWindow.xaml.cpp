@@ -555,6 +555,13 @@ namespace winrt::Em68030::implementation
             return "";
         });
 
+        // Framebuffer device reset callback (called from emulation thread on warm reboot)
+        vmImpl->OnFramebufferDeviceReset = [this]() {
+            DispatcherQueue().TryEnqueue([this]() {
+                ReopenFramebufferWindow();
+            });
+        };
+
         // Create keyboard accelerators programmatically
         {
             auto rootGrid = Content().try_as<Controls::Grid>();
@@ -743,6 +750,9 @@ namespace winrt::Em68030::implementation
         {
             auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
             auto result = vmImpl->LoadElfFileNative(winrt::to_string(file.Path()));
+
+            // Reopen framebuffer window — SetupMvme147() recreated the device
+            ReopenFramebufferWindow();
             RebuildDisasmList();
             UpdateRegisterDisplay();
             UpdateMemoryDumpDisplay();
@@ -2260,6 +2270,24 @@ namespace winrt::Em68030::implementation
     // Framebuffer window
     // ========================================================================
 
+    void MainWindow::ReopenFramebufferWindow()
+    {
+        if (!m_framebufferWindow) return;
+
+        // Save position before closing
+        auto appWindow = m_framebufferWindow.AppWindow();
+        auto pos = appWindow.Position();
+
+        m_framebufferWindow.Close();
+        m_framebufferWindow = nullptr;
+
+        EnsureFramebufferWindow();
+
+        // Restore position
+        if (m_framebufferWindow)
+            m_framebufferWindow.AppWindow().Move(pos);
+    }
+
     void MainWindow::EnsureFramebufferWindow()
     {
         auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
@@ -2270,7 +2298,7 @@ namespace winrt::Em68030::implementation
         {
             m_framebufferWindow = winrt::make<implementation::FramebufferWindow>();
             auto fbImpl = m_framebufferWindow.as<implementation::FramebufferWindow>();
-            fbImpl->Init(vmImpl->Memory(), *fbDevice);
+            fbImpl->Init(vmImpl->Memory(), *fbDevice, vmImpl->InputDevice());
 
             m_framebufferWindow.Closed([this](auto&&, auto&&)
             {

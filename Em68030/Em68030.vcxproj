@@ -164,6 +164,7 @@
     <ClInclude Include="IO\FileLoader.h" />
     <ClInclude Include="IO\FramebufferDevice.h" />
     <ClInclude Include="IO\InputDevice.h" />
+    <ClInclude Include="IO\KeyMapping.h" />
     <ClCompile Include="IO\ConsoleDevice.cpp" />
     <ClCompile Include="IO\HddDevice.cpp" />
     <ClCompile Include="IO\Mk48t02Device.cpp" />

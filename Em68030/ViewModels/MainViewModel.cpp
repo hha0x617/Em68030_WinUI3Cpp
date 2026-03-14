@@ -285,6 +285,8 @@ namespace winrt::Em68030::implementation
                 static_cast<uint16_t>(m_config.FramebufferHeight));
             m_memory->RegisterDevice(::Em68030::IO::InputDevice::BASE_ADDRESS,
                 ::Em68030::IO::InputDevice::DEVICE_SIZE, m_inputDevice.get());
+
+            ClearVram();
         }
 
         // Wire LANCE interrupt through PCC
@@ -365,6 +367,12 @@ namespace winrt::Em68030::implementation
             // FlushAll triggers OnFlush which invalidates fetch/data caches and JIT.
             m_cpu->GetMmu().Reset();
             m_cpu->GetMmu().FlushAll();
+
+            // Recreate framebuffer/input devices if settings changed since last boot
+            RecreateFramebufferDeviceIfNeeded();
+
+            // Clear VRAM so the framebuffer shows black until the guest draws
+            ClearVram();
 
             if (!m_config.LastOpenedFile.empty() && std::filesystem::exists(m_config.LastOpenedFile))
             {
@@ -547,7 +555,15 @@ namespace winrt::Em68030::implementation
                         m_cpu->DiagnosticOutput("\n[EMU] Warm reboot detected — reloading kernel and resetting\n");
                     if (m_pccDevice)
                         m_pccDevice->HardwareReset();
+                    if (m_scsiDevice) m_scsiDevice->ResetBusState();
                     m_systemBooted = false;
+
+                    m_cpu->GetMmu().Reset();
+                    m_cpu->GetMmu().FlushAll();
+
+                    // Recreate framebuffer/input devices if settings changed since last boot
+                    RecreateFramebufferDeviceIfNeeded();
+                    ClearVram();
 
                     if (!m_config.LastOpenedFile.empty() && std::filesystem::exists(m_config.LastOpenedFile))
                     {
@@ -631,6 +647,58 @@ namespace winrt::Em68030::implementation
         for (int i = 0; i < 4; i++)
             m_memory->PokeByte(addr + 80 + static_cast<uint32_t>(i),
                 static_cast<uint8_t>(speed[i]));
+    }
+
+    void MainViewModel::ClearVram()
+    {
+        if (!m_framebufferDevice || !m_memory) return;
+        auto* ram = const_cast<uint8_t*>(m_memory->GetFastRamPointer());
+        if (ram)
+            std::memset(ram + m_framebufferDevice->VramBase(), 0, m_framebufferDevice->VramSize());
+    }
+
+    void MainViewModel::RecreateFramebufferDeviceIfNeeded()
+    {
+        bool changed = false;
+
+        if (m_framebufferDevice)
+        {
+            if (m_framebufferDevice->Width() != m_config.FramebufferWidth ||
+                m_framebufferDevice->Height() != m_config.FramebufferHeight ||
+                m_framebufferDevice->Bpp() != m_config.FramebufferBpp ||
+                !m_config.FramebufferEnabled)
+            {
+                m_memory->UnregisterDevice(::Em68030::IO::FramebufferDevice::BASE_ADDRESS,
+                    ::Em68030::IO::FramebufferDevice::DEVICE_SIZE);
+                m_framebufferDevice.reset();
+                if (m_inputDevice)
+                {
+                    m_memory->UnregisterDevice(::Em68030::IO::InputDevice::BASE_ADDRESS,
+                        ::Em68030::IO::InputDevice::DEVICE_SIZE);
+                    m_inputDevice.reset();
+                }
+                changed = true;
+            }
+        }
+
+        if (!m_framebufferDevice && m_config.FramebufferEnabled)
+        {
+            m_framebufferDevice = std::make_unique<::Em68030::IO::FramebufferDevice>(
+                m_config.FramebufferWidth, m_config.FramebufferHeight,
+                m_config.FramebufferBpp, m_config.ComputeVramBase());
+            m_memory->RegisterDevice(::Em68030::IO::FramebufferDevice::BASE_ADDRESS,
+                ::Em68030::IO::FramebufferDevice::DEVICE_SIZE, m_framebufferDevice.get());
+
+            m_inputDevice = std::make_unique<::Em68030::IO::InputDevice>(
+                static_cast<uint16_t>(m_config.FramebufferWidth),
+                static_cast<uint16_t>(m_config.FramebufferHeight));
+            m_memory->RegisterDevice(::Em68030::IO::InputDevice::BASE_ADDRESS,
+                ::Em68030::IO::InputDevice::DEVICE_SIZE, m_inputDevice.get());
+            changed = true;
+        }
+
+        if (changed && OnFramebufferDeviceReset)
+            OnFramebufferDeviceReset();
     }
 
     void MainViewModel::SetupMvme147BootStub(uint32_t topOfRam)
@@ -1484,10 +1552,35 @@ namespace winrt::Em68030::implementation
             }
         }
 
-        // Framebuffer device is NOT hot-swappable: VRAM is placed at the top of RAM
-        // and the kernel's memory map (BI_MEMCHUNK / RTC onboardRamEnd) is fixed at boot.
-        // Enabling/disabling framebuffer or changing resolution requires a reboot.
-        // Config values are saved and will take effect on next boot.
+        // Recreate framebuffer and input devices with new settings.
+        // VRAM location is recomputed from the new resolution/BPP, and the boot stub
+        // below will update topOfRam accordingly.
+        if (m_framebufferDevice)
+        {
+            m_memory->UnregisterDevice(::Em68030::IO::FramebufferDevice::BASE_ADDRESS,
+                ::Em68030::IO::FramebufferDevice::DEVICE_SIZE);
+            m_framebufferDevice.reset();
+        }
+        if (m_inputDevice)
+        {
+            m_memory->UnregisterDevice(::Em68030::IO::InputDevice::BASE_ADDRESS,
+                ::Em68030::IO::InputDevice::DEVICE_SIZE);
+            m_inputDevice.reset();
+        }
+        if (m_config.FramebufferEnabled)
+        {
+            m_framebufferDevice = std::make_unique<::Em68030::IO::FramebufferDevice>(
+                m_config.FramebufferWidth, m_config.FramebufferHeight,
+                m_config.FramebufferBpp, m_config.ComputeVramBase());
+            m_memory->RegisterDevice(::Em68030::IO::FramebufferDevice::BASE_ADDRESS,
+                ::Em68030::IO::FramebufferDevice::DEVICE_SIZE, m_framebufferDevice.get());
+
+            m_inputDevice = std::make_unique<::Em68030::IO::InputDevice>(
+                static_cast<uint16_t>(m_config.FramebufferWidth),
+                static_cast<uint16_t>(m_config.FramebufferHeight));
+            m_memory->RegisterDevice(::Em68030::IO::InputDevice::BASE_ADDRESS,
+                ::Em68030::IO::InputDevice::DEVICE_SIZE, m_inputDevice.get());
+        }
 
         // TargetOS change: update UART 16550, RTC year offset, and boot stub
         if (m_config.BoardType == "MVME147")

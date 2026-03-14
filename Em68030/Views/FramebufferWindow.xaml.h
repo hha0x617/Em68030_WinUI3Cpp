@@ -16,6 +16,7 @@
 #include "FramebufferWindow.g.h"
 #include "Core/Memory.h"
 #include "IO/FramebufferDevice.h"
+#include "IO/InputDevice.h"
 
 namespace winrt::Em68030::implementation
 {
@@ -45,7 +46,8 @@ namespace winrt::Em68030::implementation
     {
         FramebufferWindow();
 
-        void Init(::Em68030::Core::Memory& memory, ::Em68030::IO::FramebufferDevice& device);
+        void Init(::Em68030::Core::Memory& memory, ::Em68030::IO::FramebufferDevice& device,
+                  ::Em68030::IO::InputDevice* inputDevice);
 
     private:
         void OnRenderTick(Microsoft::UI::Dispatching::DispatcherQueueTimer const& sender,
@@ -55,8 +57,20 @@ namespace winrt::Em68030::implementation
         void RenderFrame8bpp(const uint8_t* ram);
         void RenderFrame32bpp(const uint8_t* ram);
 
+        void OnKeyDown(Windows::Foundation::IInspectable const& sender,
+                       Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const& e);
+        void OnKeyUp(Windows::Foundation::IInspectable const& sender,
+                     Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const& e);
+        void OnPointerMoved(Windows::Foundation::IInspectable const& sender,
+                            Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& e);
+        void OnPointerPressed(Windows::Foundation::IInspectable const& sender,
+                              Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& e);
+        void OnPointerReleased(Windows::Foundation::IInspectable const& sender,
+                               Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& e);
+
         ::Em68030::Core::Memory* m_memory = nullptr;
         ::Em68030::IO::FramebufferDevice* m_device = nullptr;
+        ::Em68030::IO::InputDevice* m_inputDevice = nullptr;
 
         Microsoft::UI::Xaml::Controls::Image m_displayImage{ nullptr };
         Microsoft::UI::Xaml::Media::Imaging::WriteableBitmap m_bitmap{ nullptr };

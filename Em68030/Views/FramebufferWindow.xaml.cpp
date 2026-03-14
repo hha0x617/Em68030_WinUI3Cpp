@@ -18,9 +18,13 @@
 #endif
 
 #include <winrt/Microsoft.UI.Xaml.Media.Imaging.h>
+#include <winrt/Microsoft.UI.Xaml.Input.h>
+#include <winrt/Microsoft.UI.Input.h>
 #include <winrt/Microsoft.UI.Dispatching.h>
 #include <winrt/Windows.Storage.Streams.h>
+#include <winrt/Windows.System.h>
 #include <robuffer.h> // IBufferByteAccess
+#include "IO/KeyMapping.h"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -38,10 +42,12 @@ namespace winrt::Em68030::implementation
         }
     }
 
-    void FramebufferWindow::Init(::Em68030::Core::Memory& memory, ::Em68030::IO::FramebufferDevice& device)
+    void FramebufferWindow::Init(::Em68030::Core::Memory& memory, ::Em68030::IO::FramebufferDevice& device,
+                                 ::Em68030::IO::InputDevice* inputDevice)
     {
         m_memory = &memory;
         m_device = &device;
+        m_inputDevice = inputDevice;
         m_width = device.Width();
         m_height = device.Height();
         m_bpp = device.Bpp();
@@ -70,6 +76,21 @@ namespace winrt::Em68030::implementation
         m_renderTimer.Interval(std::chrono::milliseconds(33));
         m_renderTimer.Tick({ this, &FramebufferWindow::OnRenderTick });
         m_renderTimer.Start();
+
+        // Input event handlers (keyboard on root content, pointer on image)
+        if (m_inputDevice)
+        {
+            auto content = Content();
+            content.KeyDown({ this, &FramebufferWindow::OnKeyDown });
+            content.KeyUp({ this, &FramebufferWindow::OnKeyUp });
+
+            if (m_displayImage)
+            {
+                m_displayImage.PointerMoved({ this, &FramebufferWindow::OnPointerMoved });
+                m_displayImage.PointerPressed({ this, &FramebufferWindow::OnPointerPressed });
+                m_displayImage.PointerReleased({ this, &FramebufferWindow::OnPointerReleased });
+            }
+        }
     }
 
     void FramebufferWindow::OnRenderTick(
@@ -175,4 +196,96 @@ namespace winrt::Em68030::implementation
             dstOffset += 4;
         }
     }
+
+    // ========================================================================
+    // Input event handlers
+    // ========================================================================
+
+    void FramebufferWindow::OnKeyDown(
+        [[maybe_unused]] Windows::Foundation::IInspectable const& sender,
+        Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const& e)
+    {
+        if (!m_inputDevice) return;
+        auto code = ::Em68030::IO::WindowsVkToLinuxKey(static_cast<int>(e.Key()));
+        if (code != 0)
+        {
+            m_inputDevice->PushKeyEvent(code, 1);
+            e.Handled(true);
+        }
+    }
+
+    void FramebufferWindow::OnKeyUp(
+        [[maybe_unused]] Windows::Foundation::IInspectable const& sender,
+        Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const& e)
+    {
+        if (!m_inputDevice) return;
+        auto code = ::Em68030::IO::WindowsVkToLinuxKey(static_cast<int>(e.Key()));
+        if (code != 0)
+        {
+            m_inputDevice->PushKeyEvent(code, 0);
+            e.Handled(true);
+        }
+    }
+
+    void FramebufferWindow::OnPointerMoved(
+        [[maybe_unused]] Windows::Foundation::IInspectable const& sender,
+        Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& e)
+    {
+        if (!m_inputDevice || !m_displayImage) return;
+
+        auto point = e.GetCurrentPoint(m_displayImage);
+        auto pos = point.Position();
+
+        // Scale pointer position from image element coordinates to framebuffer coordinates
+        auto actualW = m_displayImage.ActualWidth();
+        auto actualH = m_displayImage.ActualHeight();
+        if (actualW <= 0 || actualH <= 0) return;
+
+        auto x = static_cast<uint16_t>(std::clamp(pos.X * m_width / actualW, 0.0, static_cast<double>(m_width - 1)));
+        auto y = static_cast<uint16_t>(std::clamp(pos.Y * m_height / actualH, 0.0, static_cast<double>(m_height - 1)));
+
+        m_inputDevice->PushMouseAbsEvent(x, y);
+    }
+
+    void FramebufferWindow::OnPointerPressed(
+        [[maybe_unused]] Windows::Foundation::IInspectable const& sender,
+        Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& e)
+    {
+        if (!m_inputDevice || !m_displayImage) return;
+
+        // Capture pointer for drag tracking
+        m_displayImage.CapturePointer(e.Pointer());
+
+        auto point = e.GetCurrentPoint(m_displayImage);
+        auto props = point.Properties();
+
+        // Linux BTN_LEFT=0x110, BTN_RIGHT=0x111, BTN_MIDDLE=0x112
+        if (props.IsLeftButtonPressed())
+            m_inputDevice->PushMouseButtonEvent(0x110, 1);
+        if (props.IsRightButtonPressed())
+            m_inputDevice->PushMouseButtonEvent(0x111, 1);
+        if (props.IsMiddleButtonPressed())
+            m_inputDevice->PushMouseButtonEvent(0x112, 1);
+    }
+
+    void FramebufferWindow::OnPointerReleased(
+        [[maybe_unused]] Windows::Foundation::IInspectable const& sender,
+        Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& e)
+    {
+        if (!m_inputDevice || !m_displayImage) return;
+
+        m_displayImage.ReleasePointerCapture(e.Pointer());
+
+        auto point = e.GetCurrentPoint(m_displayImage);
+        auto props = point.Properties();
+
+        // Report release for buttons that are no longer pressed
+        if (!props.IsLeftButtonPressed())
+            m_inputDevice->PushMouseButtonEvent(0x110, 0);
+        if (!props.IsRightButtonPressed())
+            m_inputDevice->PushMouseButtonEvent(0x111, 0);
+        if (!props.IsMiddleButtonPressed())
+            m_inputDevice->PushMouseButtonEvent(0x112, 0);
+    }
+
 }
