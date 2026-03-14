@@ -164,6 +164,7 @@
     <ClInclude Include="IO\FileLoader.h" />
     <ClInclude Include="IO\FramebufferDevice.h" />
     <ClInclude Include="IO\InputDevice.h" />
+    <ClInclude Include="IO\TapNetworkHandler.h" />
     <ClInclude Include="IO\KeyMapping.h" />
     <ClCompile Include="IO\ConsoleDevice.cpp" />
     <ClCompile Include="IO\HddDevice.cpp" />
@@ -181,6 +182,7 @@
     <ClCompile Include="IO\FileLoader.cpp" />
     <ClCompile Include="IO\FramebufferDevice.cpp" />
     <ClCompile Include="IO\InputDevice.cpp" />
+    <ClCompile Include="IO\TapNetworkHandler.cpp" />
   </ItemGroup>
   <!-- Config -->
   <ItemGroup>

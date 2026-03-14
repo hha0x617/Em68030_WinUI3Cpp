@@ -89,6 +89,9 @@ public:
     std::string NatGatewayIp = "10.0.2.2";
     std::string NatGatewayMac = "52:54:00:12:34:56";
 
+    // TAP adapter GUID for bridge mode (e.g. "{A1B2C3D4-E5F6-...}")
+    std::string TapAdapterGuid;
+
     // Console scrollback buffer size (lines). Range: 0..100000
     int ConsoleScrollbackLines = 2000;
 

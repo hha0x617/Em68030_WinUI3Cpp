@@ -248,7 +248,15 @@ namespace winrt::Em68030::implementation
 
         m_lanceDevice = std::make_unique<::Em68030::IO::LanceDevice>();
         m_lanceDevice->AttachMemory(m_memory.get());
-        if (m_config.NetworkMode.find("NAT") != std::string::npos)
+        if (m_config.NetworkMode.find("TAP") != std::string::npos)
+        {
+            auto tapHandler = std::make_unique<::Em68030::IO::TapNetworkHandler>(m_config.TapAdapterGuid);
+            tapHandler->DiagnosticOutput = [this](const std::string& msg) {
+                if (m_traceWriter) *m_traceWriter << msg;
+            };
+            m_lanceDevice->SetNetworkHandler(std::move(tapHandler));
+        }
+        else if (m_config.NetworkMode.find("NAT") != std::string::npos)
         {
             auto gwIp = ::Em68030::IO::SlirpNetworkHandler::ParseIpAddress(m_config.NatGatewayIp);
             auto gwMac = ::Em68030::IO::SlirpNetworkHandler::ParseMacAddress(m_config.NatGatewayMac);

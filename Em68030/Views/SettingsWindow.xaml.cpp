@@ -146,6 +146,24 @@ namespace winrt::Em68030::implementation
         NetworkModeBox(FindName(L"NetworkModeBox").try_as<Controls::ComboBox>());
         NatGatewayIpBox(FindName(L"NatGatewayIpBox").try_as<Controls::TextBox>());
         NatGatewayMacBox(FindName(L"NatGatewayMacBox").try_as<Controls::TextBox>());
+        TapAdapterBox(FindName(L"TapAdapterBox").try_as<Controls::ComboBox>());
+
+        // Disable TAP mode item if no TAP adapters are installed
+        m_tapAdapters = ::Em68030::IO::TapNetworkHandler::EnumerateAdapters();
+        if (auto tapItem = FindName(L"TapModeItem").try_as<Controls::ComboBoxItem>())
+            tapItem.IsEnabled(!m_tapAdapters.empty());
+        // Populate TAP adapter list
+        if (TapAdapterBox())
+        {
+            for (const auto& adapter : m_tapAdapters)
+            {
+                Controls::ComboBoxItem item;
+                auto label = adapter.Name.empty() ? adapter.Description : adapter.Name;
+                item.Content(winrt::box_value(winrt::to_hstring(label)));
+                item.Tag(winrt::box_value(winrt::to_hstring(adapter.Guid)));
+                TapAdapterBox().Items().Append(item);
+            }
+        }
         FramebufferEnabledBox(FindName(L"FramebufferEnabledBox").try_as<Controls::CheckBox>());
         FbResolutionBox(FindName(L"FbResolutionBox").try_as<Controls::ComboBox>());
         FbBppBox(FindName(L"FbBppBox").try_as<Controls::ComboBox>());
@@ -579,6 +597,22 @@ namespace winrt::Em68030::implementation
             NatGatewayIpBox().Text(winrt::to_hstring(config.NatGatewayIp));
         if (NatGatewayMacBox())
             NatGatewayMacBox().Text(winrt::to_hstring(config.NatGatewayMac));
+        // Select the saved TAP adapter by GUID
+        if (TapAdapterBox() && !config.TapAdapterGuid.empty())
+        {
+            for (int i = 0; i < static_cast<int>(TapAdapterBox().Items().Size()); i++)
+            {
+                if (auto item = TapAdapterBox().Items().GetAt(i).try_as<Controls::ComboBoxItem>())
+                {
+                    auto tag = winrt::unbox_value_or<winrt::hstring>(item.Tag(), L"");
+                    if (winrt::to_string(tag) == config.TapAdapterGuid)
+                    {
+                        TapAdapterBox().SelectedIndex(i);
+                        break;
+                    }
+                }
+            }
+        }
         UpdateNatGatewayEnabled();
         UpdateMvme147Visibility();
         RefreshScsiIdOptions();
@@ -685,6 +719,14 @@ namespace winrt::Em68030::implementation
             snprintf(buf, sizeof(buf), "%02x:%02x:%02x:%02x:%02x:%02x",
                      parsed[0], parsed[1], parsed[2], parsed[3], parsed[4], parsed[5]);
             config.NatGatewayMac = buf;
+        }
+        if (TapAdapterBox() && TapAdapterBox().SelectedItem())
+        {
+            if (auto item = TapAdapterBox().SelectedItem().try_as<Controls::ComboBoxItem>())
+            {
+                auto tag = winrt::unbox_value_or<winrt::hstring>(item.Tag(), L"");
+                config.TapAdapterGuid = winrt::to_string(tag);
+            }
         }
 
         // Memory size
@@ -868,7 +910,9 @@ namespace winrt::Em68030::implementation
 
     void SettingsWindow::UpdateNatGatewayEnabled()
     {
-        bool isNat = GetSelectedItemText(NetworkModeBox()).find("NAT") != std::string::npos;
+        auto mode = GetSelectedItemText(NetworkModeBox());
+        bool isNat = mode.find("NAT") != std::string::npos;
+        bool isTap = mode.find("TAP") != std::string::npos;
         if (NatGatewayIpBox())
         {
             NatGatewayIpBox().IsEnabled(isNat);
@@ -878,6 +922,11 @@ namespace winrt::Em68030::implementation
         {
             NatGatewayMacBox().IsEnabled(isNat);
             NatGatewayMacBox().Opacity(isNat ? 1.0 : 0.35);
+        }
+        if (TapAdapterBox())
+        {
+            TapAdapterBox().IsEnabled(isTap);
+            TapAdapterBox().Opacity(isTap ? 1.0 : 0.35);
         }
     }
 

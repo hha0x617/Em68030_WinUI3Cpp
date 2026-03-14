@@ -185,7 +185,16 @@
                     <ComboBox x:Name="NetworkModeBox" Grid.Column="1">
                         <ComboBoxItem Content="Virtual (Echo Server)" />
                         <ComboBoxItem Content="NAT (Host Network)" />
+                        <ComboBoxItem x:Name="TapModeItem" Content="TAP (Bridge)" />
                     </ComboBox>
+                </Grid>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="LblTapAdapter" Text="TAP Adapter:" Style="{StaticResource SettingLabelStyle}" />
+                    <ComboBox x:Name="TapAdapterBox" Grid.Column="1" />
                 </Grid>
                 <Grid>
                     <Grid.ColumnDefinitions>

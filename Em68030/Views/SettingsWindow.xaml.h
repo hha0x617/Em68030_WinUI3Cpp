@@ -15,6 +15,7 @@
 
 #include "SettingsWindow.g.h"
 #include "Config/EmulatorConfig.h"
+#include "IO/TapNetworkHandler.h"
 #include <functional>
 
 namespace winrt::Em68030::implementation
@@ -85,6 +86,7 @@ namespace winrt::Em68030::implementation
         int GetSelectedScsiId(const Microsoft::UI::Xaml::Controls::ComboBox& box) const;
 
         std::vector<DiskRowState> m_diskRows;
+        std::vector<::Em68030::IO::TapAdapterInfo> m_tapAdapters;
         int m_desiredCdromId = 3; // desired CD-ROM SCSI ID (used during refresh)
         bool m_refreshingIds = false; // guard against re-entrant refresh
         std::function<void()> m_unmountScsiDisks; // callback to unmount disks before creating new images

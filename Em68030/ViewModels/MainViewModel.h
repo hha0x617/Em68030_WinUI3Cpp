@@ -39,6 +39,7 @@
 #include "IO/FileLoader.h"
 #include "IO/FramebufferDevice.h"
 #include "IO/InputDevice.h"
+#include "IO/TapNetworkHandler.h"
 #include "Config/EmulatorConfig.h"
 
 namespace winrt::Em68030::implementation

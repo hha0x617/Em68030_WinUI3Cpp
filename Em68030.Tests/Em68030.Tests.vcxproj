@@ -143,6 +143,7 @@
     <ClCompile Include="IoTests\FramebufferDeviceTests.cpp" />
     <ClCompile Include="IoTests\InputDeviceTests.cpp" />
     <ClCompile Include="IoTests\KeyMappingTests.cpp" />
+    <ClCompile Include="IoTests\TapNetworkHandlerTests.cpp" />
     <ClCompile Include="Helpers\ResourceHelperTests.cpp" />
   </ItemGroup>
   <!-- ================================================================ -->
@@ -230,6 +231,9 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="$(SolutionDir)Em68030\IO\InputDevice.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(SolutionDir)Em68030\IO\TapNetworkHandler.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>
