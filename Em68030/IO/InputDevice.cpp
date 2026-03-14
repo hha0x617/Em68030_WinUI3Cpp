@@ -13,6 +13,7 @@
 
 #include "pch.h"
 #include "InputDevice.h"
+#include "KeyMapping.h"
 
 namespace Em68030::IO {
 
@@ -160,6 +161,29 @@ void InputDevice::SetScreenSize(uint16_t width, uint16_t height) {
     std::lock_guard lock(m_mutex);
     m_screenWidth = width;
     m_screenHeight = height;
+}
+
+void InputDevice::SetMouseAbsPosition(uint16_t x, uint16_t y) {
+    std::lock_guard lock(m_mutex);
+    m_mouseAbsX = x;
+    m_mouseAbsY = y;
+}
+
+void InputDevice::PushTextInput(const std::string& text) {
+    constexpr uint16_t KEY_LEFTSHIFT = 42;
+
+    for (char ch : text) {
+        if (ch == '\r') continue; // Skip CR in CRLF — LF alone produces KEY_ENTER
+        auto [keyCode, needShift] = CharToLinuxKey(ch);
+        if (keyCode == 0) continue;
+
+        if (needShift)
+            PushKeyEvent(KEY_LEFTSHIFT, 1);
+        PushKeyEvent(keyCode, 1);
+        PushKeyEvent(keyCode, 0);
+        if (needShift)
+            PushKeyEvent(KEY_LEFTSHIFT, 0);
+    }
 }
 
 } // namespace Em68030::IO

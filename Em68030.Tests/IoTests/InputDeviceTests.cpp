@@ -211,6 +211,37 @@ TEST_F(InputDeviceTest, PushMouseAbsEvent_AlsoPushesEvent) {
 }
 
 // ============================================================================
+// SetMouseAbsPosition (register-only, no FIFO event)
+// ============================================================================
+
+TEST_F(InputDeviceTest, SetMouseAbsPosition_UpdatesRegisters) {
+    device.SetMouseAbsPosition(400, 300);
+    EXPECT_EQ(400, device.ReadWord(Base + 0x14));
+    EXPECT_EQ(300, device.ReadWord(Base + 0x16));
+}
+
+TEST_F(InputDeviceTest, SetMouseAbsPosition_DoesNotPushEvent) {
+    device.SetMouseAbsPosition(100, 200);
+    EXPECT_EQ(0, device.ReadByte(Base + 0x04)); // no event in FIFO
+}
+
+TEST_F(InputDeviceTest, SetMouseAbsPosition_UpdatesIndependently) {
+    device.SetMouseAbsPosition(100, 200);
+    device.SetMouseAbsPosition(500, 400);
+    EXPECT_EQ(500, device.ReadWord(Base + 0x14));
+    EXPECT_EQ(400, device.ReadWord(Base + 0x16));
+    EXPECT_EQ(0, device.ReadByte(Base + 0x04)); // still no events
+}
+
+TEST_F(InputDeviceTest, SetMouseAbsPosition_CoexistsWithFifoEvents) {
+    device.PushKeyEvent(30, 1); // key event in FIFO
+    device.SetMouseAbsPosition(200, 150);
+    EXPECT_EQ(1, device.ReadByte(Base + 0x04)); // only the key event
+    EXPECT_EQ(200, device.ReadWord(Base + 0x14));
+    EXPECT_EQ(150, device.ReadWord(Base + 0x16));
+}
+
+// ============================================================================
 // Mouse mode register
 // ============================================================================
 
@@ -292,6 +323,138 @@ TEST_F(InputDeviceTest, ReadUnknownOffset_ReturnsZero) {
 
 TEST_F(InputDeviceTest, WriteUnknownOffset_DoesNotCrash) {
     device.WriteByte(Base + 0x1F, 0xFF);
+}
+
+// ============================================================================
+// PushTextInput tests
+// ============================================================================
+
+TEST_F(InputDeviceTest, PushTextInput_SingleChar_GeneratesKeyPressAndRelease) {
+    device.PushTextInput("a");
+    // Should generate: KEY_A press, KEY_A release = 2 events
+    EXPECT_EQ(2, device.ReadByte(Base + 0x04));
+
+    // Event 0: key press
+    EXPECT_EQ(IO::InputDevice::EVENT_KEY, device.ReadByte(Base + 0x05));
+    EXPECT_EQ(30, device.ReadWord(Base + 0x06)); // KEY_A
+    EXPECT_EQ(1, device.ReadWord(Base + 0x08));   // press
+    device.WriteByte(Base + 0x0C, 0); // ACK
+
+    // Event 1: key release
+    EXPECT_EQ(30, device.ReadWord(Base + 0x06)); // KEY_A
+    EXPECT_EQ(0, device.ReadWord(Base + 0x08));   // release
+    device.WriteByte(Base + 0x0C, 0); // ACK
+
+    EXPECT_EQ(0, device.ReadByte(Base + 0x04));
+}
+
+TEST_F(InputDeviceTest, PushTextInput_UpperCase_GeneratesShiftSequence) {
+    device.PushTextInput("A");
+    // Should generate: LSHIFT press, KEY_A press, KEY_A release, LSHIFT release = 4 events
+    EXPECT_EQ(4, device.ReadByte(Base + 0x04));
+
+    // LSHIFT press
+    EXPECT_EQ(42, device.ReadWord(Base + 0x06)); // KEY_LEFTSHIFT
+    EXPECT_EQ(1, device.ReadWord(Base + 0x08));
+    device.WriteByte(Base + 0x0C, 0);
+
+    // KEY_A press
+    EXPECT_EQ(30, device.ReadWord(Base + 0x06));
+    EXPECT_EQ(1, device.ReadWord(Base + 0x08));
+    device.WriteByte(Base + 0x0C, 0);
+
+    // KEY_A release
+    EXPECT_EQ(30, device.ReadWord(Base + 0x06));
+    EXPECT_EQ(0, device.ReadWord(Base + 0x08));
+    device.WriteByte(Base + 0x0C, 0);
+
+    // LSHIFT release
+    EXPECT_EQ(42, device.ReadWord(Base + 0x06));
+    EXPECT_EQ(0, device.ReadWord(Base + 0x08));
+    device.WriteByte(Base + 0x0C, 0);
+
+    EXPECT_EQ(0, device.ReadByte(Base + 0x04));
+}
+
+TEST_F(InputDeviceTest, PushTextInput_MultipleChars_GeneratesCorrectSequence) {
+    device.PushTextInput("ls");
+    // 'l' = 2 events + 's' = 2 events = 4 total
+    EXPECT_EQ(4, device.ReadByte(Base + 0x04));
+
+    // 'l' press
+    EXPECT_EQ(38, device.ReadWord(Base + 0x06)); // KEY_L
+    device.WriteByte(Base + 0x0C, 0);
+    // 'l' release
+    EXPECT_EQ(38, device.ReadWord(Base + 0x06));
+    device.WriteByte(Base + 0x0C, 0);
+    // 's' press
+    EXPECT_EQ(31, device.ReadWord(Base + 0x06)); // KEY_S
+    device.WriteByte(Base + 0x0C, 0);
+    // 's' release
+    EXPECT_EQ(31, device.ReadWord(Base + 0x06));
+    device.WriteByte(Base + 0x0C, 0);
+
+    EXPECT_EQ(0, device.ReadByte(Base + 0x04));
+}
+
+TEST_F(InputDeviceTest, PushTextInput_WithNewline_EndsWithEnter) {
+    device.PushTextInput("x\n");
+    // 'x' = 2 events + '\n' = 2 events = 4 total
+    EXPECT_EQ(4, device.ReadByte(Base + 0x04));
+
+    // Skip 'x' events
+    device.WriteByte(Base + 0x0C, 0);
+    device.WriteByte(Base + 0x0C, 0);
+
+    // '\n' press -> KEY_ENTER
+    EXPECT_EQ(28, device.ReadWord(Base + 0x06));
+    EXPECT_EQ(1, device.ReadWord(Base + 0x08));
+    device.WriteByte(Base + 0x0C, 0);
+
+    // '\n' release
+    EXPECT_EQ(28, device.ReadWord(Base + 0x06));
+    EXPECT_EQ(0, device.ReadWord(Base + 0x08));
+}
+
+TEST_F(InputDeviceTest, PushTextInput_UnmappedCharsSkipped) {
+    device.PushTextInput("\x01\x02");
+    EXPECT_EQ(0, device.ReadByte(Base + 0x04)); // no events
+}
+
+TEST_F(InputDeviceTest, PushTextInput_EmptyString_NoEvents) {
+    device.PushTextInput("");
+    EXPECT_EQ(0, device.ReadByte(Base + 0x04));
+}
+
+TEST_F(InputDeviceTest, PushTextInput_LongString_AllEventsQueued) {
+    // 100 lowercase chars = 200 events, well within FIFO capacity
+    std::string text(100, 'a');
+    device.PushTextInput(text);
+    EXPECT_EQ(200, device.ReadByte(Base + 0x04)); // clamped display at 255? no, 200 < 255
+}
+
+TEST_F(InputDeviceTest, PushTextInput_ShiftedPunctuation) {
+    device.PushTextInput("!");
+    // '!' = Shift+1: 4 events (LSHIFT down, KEY_1 down, KEY_1 up, LSHIFT up)
+    EXPECT_EQ(4, device.ReadByte(Base + 0x04));
+
+    // LSHIFT press
+    EXPECT_EQ(42, device.ReadWord(Base + 0x06));
+    device.WriteByte(Base + 0x0C, 0);
+
+    // KEY_1 press
+    EXPECT_EQ(2, device.ReadWord(Base + 0x06));
+    device.WriteByte(Base + 0x0C, 0);
+
+    // KEY_1 release
+    EXPECT_EQ(2, device.ReadWord(Base + 0x06));
+    device.WriteByte(Base + 0x0C, 0);
+
+    // LSHIFT release
+    EXPECT_EQ(42, device.ReadWord(Base + 0x06));
+    device.WriteByte(Base + 0x0C, 0);
+
+    EXPECT_EQ(0, device.ReadByte(Base + 0x04));
 }
 
 } // namespace Em68030::Tests

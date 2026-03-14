@@ -77,6 +77,14 @@ public:
 
     void SetScreenSize(uint16_t width, uint16_t height);
 
+    /// Update absolute mouse position registers without pushing a FIFO event.
+    /// Used alongside PushMouseMoveEvent so absolute-mode guest drivers can
+    /// read the position directly from registers.
+    void SetMouseAbsPosition(uint16_t x, uint16_t y);
+
+    /// Push a string as a sequence of key press/release events (for paste).
+    void PushTextInput(const std::string& text);
+
 private:
     struct InputEvent {
         uint8_t  type;       // EVENT_KEY, EVENT_MOUSE_MOVE, EVENT_MOUSE_BTN

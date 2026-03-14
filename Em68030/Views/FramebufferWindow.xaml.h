@@ -68,6 +68,8 @@ namespace winrt::Em68030::implementation
         void OnPointerReleased(Windows::Foundation::IInspectable const& sender,
                                Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& e);
 
+        winrt::fire_and_forget PasteFromClipboard();
+
         ::Em68030::Core::Memory* m_memory = nullptr;
         ::Em68030::IO::FramebufferDevice* m_device = nullptr;
         ::Em68030::IO::InputDevice* m_inputDevice = nullptr;
@@ -81,6 +83,7 @@ namespace winrt::Em68030::implementation
         int m_height = 0;
         int m_bpp = 0;
         uint32_t m_vramOffset = 0;
+
     };
 }
 

@@ -148,4 +148,94 @@ inline uint16_t WindowsVkToLinuxKey(int vk)
     }
 }
 
+/// Maps an ASCII/UTF-8 character to a Linux KEY_* code and whether Shift is needed.
+/// Returns {keyCode, needShift}. keyCode==0 means unmapped.
+inline std::pair<uint16_t, bool> CharToLinuxKey(char ch)
+{
+    // US keyboard layout assumed
+    switch (ch)
+    {
+        case 'a': case 'b': case 'c': case 'd': case 'e':
+        case 'f': case 'g': case 'h': case 'i': case 'j':
+        case 'k': case 'l': case 'm': case 'n': case 'o':
+        case 'p': case 'q': case 'r': case 's': case 't':
+        case 'u': case 'v': case 'w': case 'x': case 'y':
+        case 'z':
+        {
+            // 'a'=KEY_A(30), but keyboard layout: q=16,w=17,...
+            static constexpr uint16_t map[] = {
+                30,48,46,32,18,33,34,35,23,36,37,38,50,49,24,25,16,19,31,20,22,47,17,45,21,44
+            };
+            return { map[ch - 'a'], false };
+        }
+        case 'A': case 'B': case 'C': case 'D': case 'E':
+        case 'F': case 'G': case 'H': case 'I': case 'J':
+        case 'K': case 'L': case 'M': case 'N': case 'O':
+        case 'P': case 'Q': case 'R': case 'S': case 'T':
+        case 'U': case 'V': case 'W': case 'X': case 'Y':
+        case 'Z':
+        {
+            static constexpr uint16_t map[] = {
+                30,48,46,32,18,33,34,35,23,36,37,38,50,49,24,25,16,19,31,20,22,47,17,45,21,44
+            };
+            return { map[ch - 'A'], true };
+        }
+
+        case '0': return { 11, false };  // KEY_0
+        case '1': return { 2, false };   // KEY_1
+        case '2': return { 3, false };
+        case '3': return { 4, false };
+        case '4': return { 5, false };
+        case '5': return { 6, false };
+        case '6': return { 7, false };
+        case '7': return { 8, false };
+        case '8': return { 9, false };
+        case '9': return { 10, false };  // KEY_9
+
+        // Unshifted punctuation
+        case '-':  return { 12, false };  // KEY_MINUS
+        case '=':  return { 13, false };  // KEY_EQUAL
+        case '[':  return { 26, false };  // KEY_LEFTBRACE
+        case ']':  return { 27, false };  // KEY_RIGHTBRACE
+        case '\\': return { 43, false };  // KEY_BACKSLASH
+        case ';':  return { 39, false };  // KEY_SEMICOLON
+        case '\'': return { 40, false };  // KEY_APOSTROPHE
+        case '`':  return { 41, false };  // KEY_GRAVE
+        case ',':  return { 51, false };  // KEY_COMMA
+        case '.':  return { 52, false };  // KEY_DOT
+        case '/':  return { 53, false };  // KEY_SLASH
+
+        // Shifted punctuation
+        case '!':  return { 2, true };    // Shift+1
+        case '@':  return { 3, true };    // Shift+2
+        case '#':  return { 4, true };    // Shift+3
+        case '$':  return { 5, true };    // Shift+4
+        case '%':  return { 6, true };    // Shift+5
+        case '^':  return { 7, true };    // Shift+6
+        case '&':  return { 8, true };    // Shift+7
+        case '*':  return { 9, true };    // Shift+8
+        case '(':  return { 10, true };   // Shift+9
+        case ')':  return { 11, true };   // Shift+0
+        case '_':  return { 12, true };   // Shift+-
+        case '+':  return { 13, true };   // Shift+=
+        case '{':  return { 26, true };   // Shift+[
+        case '}':  return { 27, true };   // Shift+]
+        case '|':  return { 43, true };   // Shift+backslash
+        case ':':  return { 39, true };   // Shift+;
+        case '"':  return { 40, true };   // Shift+'
+        case '~':  return { 41, true };   // Shift+`
+        case '<':  return { 51, true };   // Shift+,
+        case '>':  return { 52, true };   // Shift+.
+        case '?':  return { 53, true };   // Shift+/
+
+        // Whitespace / control
+        case ' ':  return { 57, false };  // KEY_SPACE
+        case '\n': return { 28, false };  // KEY_ENTER
+        case '\r': return { 28, false };  // KEY_ENTER
+        case '\t': return { 15, false };  // KEY_TAB
+
+        default: return { 0, false };
+    }
+}
+
 } // namespace Em68030::IO

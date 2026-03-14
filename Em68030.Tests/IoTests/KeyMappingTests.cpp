@@ -321,4 +321,113 @@ TEST(KeyMappingTest, UnmappedKey_ReturnsZero) {
     EXPECT_EQ(0, WindowsVkToLinuxKey(0x5B));   // VK_LWIN
 }
 
+// ============================================================================
+// CharToLinuxKey tests
+// ============================================================================
+
+TEST(CharToLinuxKeyTest, LowercaseA_MapsToKeyA_NoShift) {
+    auto [code, shift] = IO::CharToLinuxKey('a');
+    EXPECT_EQ(30, code);
+    EXPECT_FALSE(shift);
+}
+
+TEST(CharToLinuxKeyTest, UppercaseA_MapsToKeyA_WithShift) {
+    auto [code, shift] = IO::CharToLinuxKey('A');
+    EXPECT_EQ(30, code);
+    EXPECT_TRUE(shift);
+}
+
+TEST(CharToLinuxKeyTest, LowercaseZ_MapsToKeyZ) {
+    auto [code, shift] = IO::CharToLinuxKey('z');
+    EXPECT_EQ(44, code);
+    EXPECT_FALSE(shift);
+}
+
+TEST(CharToLinuxKeyTest, Digit0_MapsToKey0) {
+    auto [code, shift] = IO::CharToLinuxKey('0');
+    EXPECT_EQ(11, code);
+    EXPECT_FALSE(shift);
+}
+
+TEST(CharToLinuxKeyTest, Digit9_MapsToKey9) {
+    auto [code, shift] = IO::CharToLinuxKey('9');
+    EXPECT_EQ(10, code);
+    EXPECT_FALSE(shift);
+}
+
+TEST(CharToLinuxKeyTest, Space_MapsToKeySpace) {
+    auto [code, shift] = IO::CharToLinuxKey(' ');
+    EXPECT_EQ(57, code);
+    EXPECT_FALSE(shift);
+}
+
+TEST(CharToLinuxKeyTest, Enter_MapsToKeyEnter) {
+    auto [code, shift] = IO::CharToLinuxKey('\n');
+    EXPECT_EQ(28, code);
+    EXPECT_FALSE(shift);
+}
+
+TEST(CharToLinuxKeyTest, Tab_MapsToKeyTab) {
+    auto [code, shift] = IO::CharToLinuxKey('\t');
+    EXPECT_EQ(15, code);
+    EXPECT_FALSE(shift);
+}
+
+TEST(CharToLinuxKeyTest, Slash_NoShift) {
+    auto [code, shift] = IO::CharToLinuxKey('/');
+    EXPECT_EQ(53, code);
+    EXPECT_FALSE(shift);
+}
+
+TEST(CharToLinuxKeyTest, QuestionMark_WithShift) {
+    auto [code, shift] = IO::CharToLinuxKey('?');
+    EXPECT_EQ(53, code);
+    EXPECT_TRUE(shift);
+}
+
+TEST(CharToLinuxKeyTest, ExclamationMark_Shift1) {
+    auto [code, shift] = IO::CharToLinuxKey('!');
+    EXPECT_EQ(2, code);  // KEY_1
+    EXPECT_TRUE(shift);
+}
+
+TEST(CharToLinuxKeyTest, AtSign_Shift2) {
+    auto [code, shift] = IO::CharToLinuxKey('@');
+    EXPECT_EQ(3, code);  // KEY_2
+    EXPECT_TRUE(shift);
+}
+
+TEST(CharToLinuxKeyTest, Tilde_ShiftGrave) {
+    auto [code, shift] = IO::CharToLinuxKey('~');
+    EXPECT_EQ(41, code);
+    EXPECT_TRUE(shift);
+}
+
+TEST(CharToLinuxKeyTest, Pipe_ShiftBackslash) {
+    auto [code, shift] = IO::CharToLinuxKey('|');
+    EXPECT_EQ(43, code);
+    EXPECT_TRUE(shift);
+}
+
+TEST(CharToLinuxKeyTest, UnmappedChar_ReturnsZero) {
+    auto [code, shift] = IO::CharToLinuxKey('\x01');
+    EXPECT_EQ(0, code);
+}
+
+TEST(CharToLinuxKeyTest, AllLowercase_AreMapped) {
+    for (char ch = 'a'; ch <= 'z'; ch++) {
+        auto [code, shift] = IO::CharToLinuxKey(ch);
+        EXPECT_NE(0, code) << "'" << ch << "' not mapped";
+        EXPECT_FALSE(shift);
+    }
+}
+
+TEST(CharToLinuxKeyTest, AllDigits_AreMapped) {
+    for (char ch = '0'; ch <= '9'; ch++) {
+        auto [code, shift] = IO::CharToLinuxKey(ch);
+        EXPECT_NE(0, code) << "'" << ch << "' not mapped";
+        EXPECT_FALSE(shift);
+    }
+}
+
 } // namespace Em68030::Tests

@@ -24,7 +24,10 @@
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.System.h>
 #include <robuffer.h> // IBufferByteAccess
+#include <winrt/Windows.ApplicationModel.DataTransfer.h>
 #include "IO/KeyMapping.h"
+
+using namespace winrt::Windows::System;
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -206,6 +209,21 @@ namespace winrt::Em68030::implementation
         Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const& e)
     {
         if (!m_inputDevice) return;
+
+        // Ctrl+Shift+V: paste clipboard text as key events
+        if (e.Key() == winrt::Windows::System::VirtualKey::V &&
+            (::GetKeyState(VK_CONTROL) & 0x8000) &&
+            (::GetKeyState(VK_SHIFT) & 0x8000))
+        {
+            // Release Ctrl and Shift first — they were already sent to the guest as key presses,
+            // so the guest would interpret pasted keys as modified keys without this.
+            m_inputDevice->PushKeyEvent(42, 0); // KEY_LEFTSHIFT release
+            m_inputDevice->PushKeyEvent(29, 0); // KEY_LEFTCTRL release
+            PasteFromClipboard();
+            e.Handled(true);
+            return;
+        }
+
         auto code = ::Em68030::IO::WindowsVkToLinuxKey(static_cast<int>(e.Key()));
         if (code != 0)
         {
@@ -236,15 +254,16 @@ namespace winrt::Em68030::implementation
         auto point = e.GetCurrentPoint(m_displayImage);
         auto pos = point.Position();
 
-        // Scale pointer position from image element coordinates to framebuffer coordinates
+        // Scale pointer position to framebuffer coordinates and update absolute registers.
+        // The guest driver polls these registers directly for mouse position.
         auto actualW = m_displayImage.ActualWidth();
         auto actualH = m_displayImage.ActualHeight();
-        if (actualW <= 0 || actualH <= 0) return;
-
-        auto x = static_cast<uint16_t>(std::clamp(pos.X * m_width / actualW, 0.0, static_cast<double>(m_width - 1)));
-        auto y = static_cast<uint16_t>(std::clamp(pos.Y * m_height / actualH, 0.0, static_cast<double>(m_height - 1)));
-
-        m_inputDevice->PushMouseAbsEvent(x, y);
+        if (actualW > 0 && actualH > 0)
+        {
+            auto absX = static_cast<uint16_t>(std::clamp(pos.X * m_width / actualW, 0.0, static_cast<double>(m_width - 1)));
+            auto absY = static_cast<uint16_t>(std::clamp(pos.Y * m_height / actualH, 0.0, static_cast<double>(m_height - 1)));
+            m_inputDevice->SetMouseAbsPosition(absX, absY);
+        }
     }
 
     void FramebufferWindow::OnPointerPressed(
@@ -286,6 +305,20 @@ namespace winrt::Em68030::implementation
             m_inputDevice->PushMouseButtonEvent(0x111, 0);
         if (!props.IsMiddleButtonPressed())
             m_inputDevice->PushMouseButtonEvent(0x112, 0);
+    }
+
+    winrt::fire_and_forget FramebufferWindow::PasteFromClipboard()
+    {
+        if (!m_inputDevice) co_return;
+
+        auto dataPackage = Windows::ApplicationModel::DataTransfer::Clipboard::GetContent();
+        if (!dataPackage.Contains(Windows::ApplicationModel::DataTransfer::StandardDataFormats::Text()))
+            co_return;
+
+        auto text = co_await dataPackage.GetTextAsync();
+        if (text.empty()) co_return;
+
+        m_inputDevice->PushTextInput(winrt::to_string(text));
     }
 
 }
