@@ -358,6 +358,35 @@ namespace winrt::Em68030::implementation
         auto contentObj = FindChildByName(OutputBox(), L"ContentElement");
         m_contentScrollViewer = contentObj.try_as<Controls::ScrollViewer>();
 
+        // Subscribe to ViewChanged for sticky auto-scroll tracking
+        if (m_contentScrollViewer)
+        {
+            m_contentScrollViewer.ViewChanged([this](auto&&, Controls::ScrollViewerViewChangedEventArgs const&)
+            {
+                if (m_suppressScrollEvent) return;
+                double offset = m_contentScrollViewer.VerticalOffset();
+                double viewportHeight = m_contentScrollViewer.ViewportHeight();
+                double extentHeight = m_contentScrollViewer.ExtentHeight();
+                bool atBottom = (offset + viewportHeight >= extentHeight - 2);
+
+                if (m_autoScroll)
+                {
+                    // Only turn off auto-scroll when user explicitly scrolls away from bottom
+                    if (!atBottom)
+                        m_autoScroll = false;
+                }
+                else
+                {
+                    // Turn auto-scroll back on when user scrolls to the bottom
+                    if (atBottom)
+                    {
+                        m_autoScroll = true;
+                        m_terminal.SetDirty();
+                    }
+                }
+            });
+        }
+
         // The overhead is the constant vertical space inside the TextBox content
         // area that isn't text lines (padding, borders, etc.).
         // TextBox Padding="4" → 4 top + 4 bottom = 8 DIPs.
@@ -520,41 +549,30 @@ namespace winrt::Em68030::implementation
 
         m_terminal.ClearDirty();
 
+        // Skip text updates while scrolled back — the terminal continues
+        // processing output internally, and will render when user scrolls
+        // back to bottom (m_autoScroll becomes true via ViewChanged event).
+        if (!m_autoScroll)
+            return;
+
+        m_suppressScrollEvent = true;
+
         std::string rendered = m_cursorVisible
             ? m_terminal.RenderFullWithCursor()
             : m_terminal.RenderFull();
 
-        // Detect auto-scroll: if the user has scrolled up, preserve their position.
-        // If at (or near) the bottom, auto-scroll to follow new output.
-        if (m_contentScrollViewer)
-        {
-            double offset = m_contentScrollViewer.VerticalOffset();
-            double viewportHeight = m_contentScrollViewer.ViewportHeight();
-            double extentHeight = m_contentScrollViewer.ExtentHeight();
-            m_autoScroll = (offset + viewportHeight >= extentHeight - 2);
-        }
-
-        // Save scroll position before updating text (Text() resets scroll offset)
-        double savedOffset = 0;
-        bool needRestore = !m_autoScroll && m_contentScrollViewer;
-        if (needRestore)
-            savedOffset = m_contentScrollViewer.VerticalOffset();
-
         OutputBox().Text(winrt::to_hstring(rendered));
 
-        if (needRestore)
-        {
-            OutputBox().UpdateLayout();
-            m_contentScrollViewer.ChangeView(
-                nullptr,
-                Windows::Foundation::IReference<double>(savedOffset),
-                nullptr, true /* disableAnimation */);
-        }
-        else if (m_autoScroll)
-        {
-            auto textLength = OutputBox().Text().size();
-            OutputBox().Select(static_cast<int32_t>(textLength), 0);
-        }
+        // Use Select(end, 0) to move caret to end — this works WITH the
+        // TextBox's internal "scroll to caret" mechanism to auto-scroll.
+        auto textLength = OutputBox().Text().size();
+        OutputBox().Select(static_cast<int32_t>(textLength), 0);
+
+        // Clear suppress flag after layout settles (deferred to avoid
+        // catching internal scroll events triggered by the text update)
+        DispatcherQueue().TryEnqueue(
+            Microsoft::UI::Dispatching::DispatcherQueuePriority::Low,
+            [this]() { m_suppressScrollEvent = false; });
     }
 
     // ========================================================================

@@ -82,8 +82,12 @@ namespace winrt::Em68030::implementation
         Microsoft::UI::Dispatching::DispatcherQueueTimer m_renderTimer{ nullptr };
         winrt::event_token m_renderTimerToken;
 
-        // Auto-scroll: true when user is at (or near) the bottom of the text
+        // Auto-scroll: true when user is at (or near) the bottom of the text.
+        // Only set to false on explicit user scroll-up; set back to true when
+        // user scrolls to bottom. This "sticky" approach prevents internal
+        // scroll events from Text() updates from breaking auto-scroll state.
         bool m_autoScroll = true;
+        bool m_suppressScrollEvent = false;
 
         // Cursor blink
         int m_blinkCounter = 0;
