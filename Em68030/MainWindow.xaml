@@ -205,8 +205,6 @@
             <Button x:Name="BtnFullReset" Content="Full Reset" Style="{StaticResource ToolBarButtonStyle}" />
             <Button x:Name="BtnTrace" Content="Trace" Style="{StaticResource ToolBarButtonStyle}" />
             <Border Width="1" Background="#FF555555" Margin="4,2" />
-            <TextBlock x:Name="FileNameText" Text="File: (none)" VerticalAlignment="Center"
-                       FontFamily="Consolas" FontSize="13" Foreground="#FFD4D4D4" Margin="8,0" />
             <TextBlock x:Name="CycleCountText" Text="Cycles: 0" VerticalAlignment="Center"
                        FontFamily="Consolas" FontSize="13" Foreground="#FFD4D4D4" Margin="8,0" />
             <TextBlock x:Name="MhzText" Text="" VerticalAlignment="Center"
@@ -257,6 +255,8 @@
                             <Button x:Name="LstButton" Content="LST"
                                     Style="{StaticResource ToolBarButtonStyle}" Margin="8,2"
                                     Visibility="Collapsed" IsEnabled="False" />
+                            <TextBlock x:Name="FileNameText" Text="File: (none)" VerticalAlignment="Center"
+                                       FontFamily="Consolas" FontSize="13" Foreground="#FF9B9B9B" Margin="12,0" />
                         </StackPanel>
 
                         <!-- Disassembly list (items populated programmatically) -->
