@@ -179,6 +179,7 @@ namespace winrt::Em68030::implementation
                 }
                 AddDiskRow("", freeId);
                 RefreshScsiIdOptions();
+                UpdateTargetOSVisibility();
             });
         }
         if (TargetOSBox())
@@ -214,6 +215,8 @@ namespace winrt::Em68030::implementation
             tb.Text(ResourceHelper::GetString(L"Settings_TargetOS"));
         if (auto tb = FindName(L"LblScsiDisks").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_ScsiDisks"));
+        if (auto tb = FindName(L"LblScsiDescription").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_ScsiDescription"));
         if (auto tb = FindName(L"LblScsiCdRom").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_ScsiCdRom"));
         if (auto tb = FindName(L"LblNetwork").try_as<Controls::TextBlock>())

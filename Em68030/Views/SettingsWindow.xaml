@@ -132,6 +132,8 @@
 
                 <!-- SCSI Disk Settings -->
                 <TextBlock x:Name="LblScsiDisks" Text="SCSI Disks" Style="{StaticResource SectionHeaderStyle}" />
+                <TextBlock x:Name="LblScsiDescription" Text="SCSI disk changes take effect after rebooting the guest OS. CD-ROM image can be swapped at any time."
+                           Foreground="#FF808080" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,4" />
                 <StackPanel x:Name="ScsiDiskListPanel" />
                 <Button x:Name="AddScsiDiskBtn" Content="+ Add Disk"
                         Margin="0,4" Padding="8,2" HorizontalAlignment="Left"
