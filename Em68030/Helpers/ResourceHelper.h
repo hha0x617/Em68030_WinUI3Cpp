@@ -11,6 +11,12 @@ namespace Em68030
     class ResourceHelper
     {
     public:
+        /// Set UI language override (must be called before any GetString calls).
+        static void SetLanguageOverride(const std::wstring& lang)
+        {
+            GetLanguageOverride() = lang;
+        }
+
         /// Load a localized string by resource key.
         static winrt::hstring GetString(const wchar_t* key)
         {
@@ -50,21 +56,36 @@ namespace Em68030
             winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceContext ctx{ nullptr };
         };
 
+        static std::wstring& GetLanguageOverride()
+        {
+            static std::wstring lang;
+            return lang;
+        }
+
         static ManagerAndContext& GetManagerAndContext()
         {
             static ManagerAndContext mc = []() {
                 ManagerAndContext result;
                 result.mgr = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceManager();
                 result.ctx = result.mgr.CreateResourceContext();
-                // Set language from OS display language (not regional format)
-                ULONG numLangs = 0;
-                ULONG bufSize = 0;
-                if (GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &numLangs, nullptr, &bufSize) && bufSize > 0)
+
+                // Use command-line override if set, otherwise OS display language
+                auto& override = GetLanguageOverride();
+                if (!override.empty())
                 {
-                    std::vector<wchar_t> buf(bufSize);
-                    if (GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &numLangs, buf.data(), &bufSize) && numLangs > 0)
+                    result.ctx.QualifierValues().Insert(L"Language", override);
+                }
+                else
+                {
+                    ULONG numLangs = 0;
+                    ULONG bufSize = 0;
+                    if (GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &numLangs, nullptr, &bufSize) && bufSize > 0)
                     {
-                        result.ctx.QualifierValues().Insert(L"Language", buf.data());
+                        std::vector<wchar_t> buf(bufSize);
+                        if (GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &numLangs, buf.data(), &bufSize) && numLangs > 0)
+                        {
+                            result.ctx.QualifierValues().Insert(L"Language", buf.data());
+                        }
                     }
                 }
                 return result;

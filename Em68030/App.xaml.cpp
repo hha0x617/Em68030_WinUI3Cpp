@@ -17,6 +17,8 @@
 // (App::App() : App(make<impl::App>())) doesn't compile for composable
 // Application types. We provide winrt_make ourselves.
 #include "MainWindow.xaml.h"
+#include <winnls.h>
+#include "Helpers/ResourceHelper.h"
 
 // Activation entry point required by the WinUI runtime
 void* winrt_make_Em68030_App()
@@ -29,9 +31,21 @@ using namespace Microsoft::UI::Xaml;
 
 // Application entry point (DISABLE_XAML_GENERATED_MAIN is defined)
 int WINAPI wWinMain(_In_ HINSTANCE /*hInstance*/, _In_opt_ HINSTANCE /*hPrevInstance*/,
-                    _In_ LPWSTR /*lpCmdLine*/, _In_ int /*nShowCmd*/)
+                    _In_ LPWSTR lpCmdLine, _In_ int /*nShowCmd*/)
 {
     winrt::init_apartment(winrt::apartment_type::single_threaded);
+
+    // --lang=xx-XX command line argument to override UI language
+    std::wstring cmdLine(lpCmdLine);
+    auto langPos = cmdLine.find(L"--lang=");
+    if (langPos != std::wstring::npos)
+    {
+        auto lang = cmdLine.substr(langPos + 7);
+        auto spacePos = lang.find(L' ');
+        if (spacePos != std::wstring::npos) lang = lang.substr(0, spacePos);
+        if (!lang.empty())
+            ::Em68030::ResourceHelper::SetLanguageOverride(lang);
+    }
 
     ::winrt::Microsoft::UI::Xaml::Application::Start(
         [](auto&&) {
