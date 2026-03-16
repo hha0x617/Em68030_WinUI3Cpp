@@ -154,6 +154,9 @@ Em68030_WinUI3Cpp/
 - **NVRAM**: In-memory only; not persisted to file
 - **PCC**: Printer port and watchdog timer are not implemented
 
+### UI
+- **Serial Console width**: WinUI3 uses an overlay scrollbar that does not consume layout space. As a result, the serial console window may display approximately 2 extra characters beyond the configured column count (e.g., 82 visible characters at 80-column setting). Terminal output wraps correctly at the configured column count; the extra space is cosmetic only
+
 ### Board
 - VMEbus is not implemented
 - NetBSD kernel can be loaded and run directly without a ROM image (built-in boot stub)

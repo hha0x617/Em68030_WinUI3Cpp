@@ -304,7 +304,8 @@ namespace winrt::Em68030::implementation
                 textAreaHeight = static_cast<float>(m_contentScrollViewer.ActualHeight()) - m_textAreaOverhead;
             else
                 textAreaHeight = static_cast<float>(OutputBox().ActualHeight()) - 8;
-            float chromeW = windowWidthDip - (static_cast<float>(OutputBox().ActualWidth()) - 8);
+            float textW = static_cast<float>(OutputBox().ActualWidth()) - 8; // Padding="4" x2
+            float chromeW = windowWidthDip - textW;
             float chromeH = windowHeightDip - textAreaHeight;
 
             int newWidth = static_cast<int>((cols * m_charWidth + chromeW) * scale + 0.5f);
@@ -406,7 +407,8 @@ namespace winrt::Em68030::implementation
             textAreaHeight = static_cast<float>(m_contentScrollViewer.ActualHeight()) - m_textAreaOverhead;
         else
             textAreaHeight = static_cast<float>(OutputBox().ActualHeight()) - 8;
-        float textAreaWidth = static_cast<float>(OutputBox().ActualWidth()) - 8;
+        float textAreaWidth;
+        textAreaWidth = static_cast<float>(OutputBox().ActualWidth()) - 8; // Padding="4" x2
         float chromeW = windowWidthDip - textAreaWidth;
         float chromeH = windowHeightDip - textAreaHeight;
 
@@ -456,12 +458,19 @@ namespace winrt::Em68030::implementation
         // text area measurement — OutputBox().ActualHeight() includes WinUI3
         // TextBox template chrome (border, header row, etc.) that adds ~3 rows
         // of phantom height. m_textAreaOverhead is measured empirically.
-        float availableWidth = static_cast<float>(OutputBox().ActualWidth()) - 8; // Padding="4" x2
+        float availableWidth;
         float availableHeight;
         if (m_contentScrollViewer)
+        {
+            // Use ScrollViewer viewport for accurate text area (excludes scrollbar)
+            availableWidth = static_cast<float>(OutputBox().ActualWidth()) - 8; // Padding="4" x2
             availableHeight = static_cast<float>(m_contentScrollViewer.ActualHeight()) - m_textAreaOverhead;
+        }
         else
+        {
+            availableWidth = static_cast<float>(OutputBox().ActualWidth()) - 8;
             availableHeight = static_cast<float>(OutputBox().ActualHeight()) - 8;
+        }
 
         if (availableWidth <= 0 || availableHeight <= 0) return;
 
