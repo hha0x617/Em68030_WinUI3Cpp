@@ -121,12 +121,8 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="LblCommandLine" Text="Command Line:" Style="{StaticResource SettingLabelStyle}" />
-                        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
-                                      VerticalScrollBarVisibility="Disabled" HorizontalScrollMode="Auto"
-                                      Background="Transparent" Padding="0">
-                            <TextBox x:Name="LinuxCommandLineBox" Style="{StaticResource SettingTextBoxStyle}"
-                                     MinWidth="400" />
-                        </ScrollViewer>
+                        <TextBox x:Name="LinuxCommandLineBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}"
+                                 MaxWidth="400" HorizontalAlignment="Left" />
                     </Grid>
                 </StackPanel>
 
@@ -259,6 +255,8 @@
                 <TextBox x:Name="MemSizeBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}"
                          ToolTipService.ToolTip="4-4096" />
             </Grid>
+            <TextBlock x:Name="LblMemoryDescription" Text="Memory size changes take effect after reloading the kernel image."
+                       Foreground="#FF808080" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,4" />
 
             <!-- I/O Device Settings -->
             <TextBlock x:Name="LblIoDevices" Text="I/O Devices" Style="{StaticResource SectionHeaderStyle}" />

@@ -277,6 +277,8 @@ namespace winrt::Em68030::implementation
             tb.Text(ResourceHelper::GetString(L"Settings_GatewayMAC"));
         if (auto tb = FindName(L"LblMemorySizeMB").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_MemorySizeMB"));
+        if (auto tb = FindName(L"LblMemoryDescription").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_MemoryDescription"));
         if (auto tb = FindName(L"LblConsoleBaseAddr").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_ConsoleBaseAddr"));
         if (auto tb = FindName(L"LblScrollbackLines").try_as<Controls::TextBlock>())
