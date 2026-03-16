@@ -367,7 +367,9 @@ namespace winrt::Em68030::implementation
                 double offset = m_contentScrollViewer.VerticalOffset();
                 double viewportHeight = m_contentScrollViewer.ViewportHeight();
                 double extentHeight = m_contentScrollViewer.ExtentHeight();
-                bool atBottom = (offset + viewportHeight >= extentHeight - 2);
+                // Threshold: one line height to account for TextWrapping layout changes
+                double threshold = m_charHeight > 0 ? m_charHeight : 20;
+                bool atBottom = (offset + viewportHeight >= extentHeight - threshold);
 
                 if (m_autoScroll)
                 {

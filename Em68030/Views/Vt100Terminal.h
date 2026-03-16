@@ -78,6 +78,10 @@ private:
     // Screen buffer: row-major, index = row * m_cols + col
     std::vector<char> m_screen;
 
+    // Soft-wrap flags: true if this row is a continuation of the previous row
+    // (auto-wrap at column limit, not a real newline from the guest).
+    std::vector<bool> m_softWrap;
+
     // Cursor position
     int m_cursorRow = 0;
     int m_cursorCol = 0;
@@ -86,6 +90,7 @@ private:
 
     // Scrollback ring buffer
     std::vector<std::string> m_scrollback;
+    std::vector<bool> m_scrollbackSoftWrap; // true if line is a soft-wrap continuation
     int m_scrollbackHead = 0;  // Index of oldest line
     int m_scrollbackCount = 0; // Number of lines stored
     int m_maxScrollback;

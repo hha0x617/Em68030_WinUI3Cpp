@@ -85,7 +85,9 @@ Vt100Terminal::Vt100Terminal(int cols, int rows, int maxScrollback)
     , m_scrollBottom(rows - 1)
 {
     m_scrollback.resize(m_maxScrollback > 0 ? m_maxScrollback : 1);
+    m_scrollbackSoftWrap.resize(m_scrollback.size(), false);
     m_screen.resize(rows * cols, ' ');
+    m_softWrap.resize(rows, false);
 }
 
 // ============================================================================
@@ -98,12 +100,17 @@ void Vt100Terminal::ResizeScrollback(int newMax)
     if (newMax == m_maxScrollback) return;
 
     std::vector<std::string> newBuf(newMax > 0 ? newMax : 1);
+    std::vector<bool> newWrap(newBuf.size(), false);
     if (newMax > 0 && m_scrollbackCount > 0)
     {
         int copyCount = std::min(m_scrollbackCount, newMax);
         int srcStart = (m_scrollbackHead + m_scrollbackCount - copyCount) % m_maxScrollback;
         for (int i = 0; i < copyCount; i++)
-            newBuf[i] = std::move(m_scrollback[(srcStart + i) % m_maxScrollback]);
+        {
+            int srcIdx = (srcStart + i) % m_maxScrollback;
+            newBuf[i] = std::move(m_scrollback[srcIdx]);
+            newWrap[i] = m_scrollbackSoftWrap[srcIdx];
+        }
         m_scrollbackHead = 0;
         m_scrollbackCount = copyCount;
     }
@@ -114,6 +121,7 @@ void Vt100Terminal::ResizeScrollback(int newMax)
     }
 
     m_scrollback = std::move(newBuf);
+    m_scrollbackSoftWrap = std::move(newWrap);
     m_maxScrollback = newMax;
     m_dirty = true;
 }
@@ -276,15 +284,15 @@ std::string Vt100Terminal::Render() const
     result.reserve(m_rows * (m_cols * 3 + 1)); // Up to 3 bytes per char (UTF-8) + newlines
     for (int r = 0; r < m_rows; r++)
     {
-        if (r > 0) result.push_back('\n');
-        for (int c = 0; c < m_cols; c++)
-        {
-            char ch = ScreenAt(r, c);
-            // Screen cells are stored as plain chars; line-drawing characters
-            // are already resolved in PutChar, but since we store them as char
-            // (which can only hold ASCII), we just output the char directly.
-            result.push_back(ch);
-        }
+        // Insert newline before this row, unless it's a soft-wrap continuation
+        if (r > 0 && !m_softWrap[r]) result.push_back('\n');
+
+        // Trim trailing spaces, but keep cursor row consistent with RenderWithCursor
+        int lastCol = m_cols - 1;
+        while (lastCol >= 0 && ScreenAt(r, lastCol) == ' ') lastCol--;
+        if (r == m_cursorRow && m_cursorCol > lastCol) lastCol = m_cursorCol;
+        for (int c = 0; c <= lastCol; c++)
+            result.push_back(ScreenAt(r, c));
     }
     return result;
 }
@@ -299,12 +307,17 @@ std::string Vt100Terminal::RenderWithCursor() const
     result.reserve(m_rows * (m_cols * 3 + 1));
     for (int r = 0; r < m_rows; r++)
     {
-        if (r > 0) result.push_back('\n');
-        for (int c = 0; c < m_cols; c++)
+        if (r > 0 && !m_softWrap[r]) result.push_back('\n');
+
+        // Trim trailing spaces, but ensure cursor column is included
+        int lastCol = m_cols - 1;
+        while (lastCol >= 0 && ScreenAt(r, lastCol) == ' ') lastCol--;
+        if (r == m_cursorRow && m_cursorCol > lastCol) lastCol = m_cursorCol;
+
+        for (int c = 0; c <= lastCol; c++)
         {
             if (r == m_cursorRow && c == m_cursorCol)
             {
-                // Full block cursor U+2588 (UTF-8: E2 96 88)
                 AppendUtf8(result, U'\u2588');
             }
             else
@@ -327,14 +340,23 @@ std::string Vt100Terminal::RenderFull() const
 
     for (int i = 0; i < m_scrollbackCount; i++)
     {
-        result.append(m_scrollback[(m_scrollbackHead + i) % m_maxScrollback]);
-        result.push_back('\n');
+        int idx = (m_scrollbackHead + i) % m_maxScrollback;
+        if (i > 0 && !m_scrollbackSoftWrap[idx])
+            result.push_back('\n');
+        result.append(m_scrollback[idx]);
     }
 
     for (int r = 0; r < m_rows; r++)
     {
-        if (r > 0) result.push_back('\n');
-        for (int c = 0; c < m_cols; c++)
+        if (m_scrollbackCount > 0 || r > 0)
+        {
+            if (!m_softWrap[r])
+                result.push_back('\n');
+        }
+        int lastCol = m_cols - 1;
+        while (lastCol >= 0 && ScreenAt(r, lastCol) == ' ') lastCol--;
+        if (r == m_cursorRow && m_cursorCol > lastCol) lastCol = m_cursorCol;
+        for (int c = 0; c <= lastCol; c++)
             result.push_back(ScreenAt(r, c));
     }
     return result;
@@ -351,14 +373,23 @@ std::string Vt100Terminal::RenderFullWithCursor() const
 
     for (int i = 0; i < m_scrollbackCount; i++)
     {
-        result.append(m_scrollback[(m_scrollbackHead + i) % m_maxScrollback]);
-        result.push_back('\n');
+        int idx = (m_scrollbackHead + i) % m_maxScrollback;
+        if (i > 0 && !m_scrollbackSoftWrap[idx])
+            result.push_back('\n');
+        result.append(m_scrollback[idx]);
     }
 
     for (int r = 0; r < m_rows; r++)
     {
-        if (r > 0) result.push_back('\n');
-        for (int c = 0; c < m_cols; c++)
+        if (m_scrollbackCount > 0 || r > 0)
+        {
+            if (!m_softWrap[r])
+                result.push_back('\n');
+        }
+        int lastCol = m_cols - 1;
+        while (lastCol >= 0 && ScreenAt(r, lastCol) == ' ') lastCol--;
+        if (r == m_cursorRow && m_cursorCol > lastCol) lastCol = m_cursorCol;
+        for (int c = 0; c <= lastCol; c++)
         {
             if (r == m_cursorRow && c == m_cursorCol)
                 AppendUtf8(result, U'\u2588');
@@ -387,6 +418,7 @@ void Vt100Terminal::ProcessNormal(char ch)
         case '\n': // LF -- also do CR (the write bypass skips tty ONLCR processing)
             m_cursorCol = 0;
             LineFeed();
+            m_softWrap[m_cursorRow] = false; // Real newline, not a continuation
             break;
         case '\b': // BS
             if (m_cursorCol > 0) m_cursorCol--;
@@ -453,9 +485,10 @@ void Vt100Terminal::PutChar(char ch)
 
     if (m_cursorCol >= m_cols)
     {
-        // Auto-wrap
+        // Auto-wrap: mark the next line as a soft-wrap continuation
         m_cursorCol = 0;
         LineFeed();
+        m_softWrap[m_cursorRow] = true;
     }
 
     ScreenAt(m_cursorRow, m_cursorCol) = ch;
@@ -594,8 +627,11 @@ void Vt100Terminal::ProcessCsi(char ch)
         return;
     }
 
-    if (ch == ';')
+    if (ch == ';' || ch == ':')
     {
+        // Semicolon separates parameters; colon separates sub-parameters
+        // (e.g., SGR 38:5:185 for 256-color). Treat colon like semicolon
+        // since we don't use sub-parameter semantics.
         m_csiParams.push_back(m_hasCurrentParam ? m_currentParam : 0);
         m_currentParam = 0;
         m_hasCurrentParam = false;
@@ -871,17 +907,23 @@ void Vt100Terminal::ScrollUp(int n)
 
             int writeIdx = (m_scrollbackHead + m_scrollbackCount) % m_maxScrollback;
             m_scrollback[writeIdx] = std::move(line);
+            m_scrollbackSoftWrap[writeIdx] = m_softWrap[m_scrollTop];
             if (m_scrollbackCount < m_maxScrollback)
                 m_scrollbackCount++;
             else
                 m_scrollbackHead = (m_scrollbackHead + 1) % m_maxScrollback; // Overwrite oldest
         }
 
+        // Shift soft-wrap flags along with screen rows
         for (int r = m_scrollTop; r < m_scrollBottom; r++)
+        {
             for (int c = 0; c < m_cols; c++)
                 ScreenAt(r, c) = ScreenAt(r + 1, c);
+            m_softWrap[r] = m_softWrap[r + 1];
+        }
         for (int c = 0; c < m_cols; c++)
             ScreenAt(m_scrollBottom, c) = ' ';
+        m_softWrap[m_scrollBottom] = false;
     }
     m_dirty = true;
 }
@@ -891,10 +933,14 @@ void Vt100Terminal::ScrollDown(int n)
     for (int i = 0; i < n; i++)
     {
         for (int r = m_scrollBottom; r > m_scrollTop; r--)
+        {
             for (int c = 0; c < m_cols; c++)
                 ScreenAt(r, c) = ScreenAt(r - 1, c);
+            m_softWrap[r] = m_softWrap[r - 1];
+        }
         for (int c = 0; c < m_cols; c++)
             ScreenAt(m_scrollTop, c) = ' ';
+        m_softWrap[m_scrollTop] = false;
     }
     m_dirty = true;
 }
@@ -906,6 +952,7 @@ void Vt100Terminal::ScrollDown(int n)
 void Vt100Terminal::ClearScreen()
 {
     std::fill(m_screen.begin(), m_screen.end(), ' ');
+    std::fill(m_softWrap.begin(), m_softWrap.end(), false);
     m_dirty = true;
 }
 

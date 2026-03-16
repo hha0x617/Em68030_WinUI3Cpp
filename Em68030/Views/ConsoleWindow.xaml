@@ -20,7 +20,7 @@
     <Grid Background="#FF0C0C0C">
         <!-- Terminal output area -->
         <TextBox x:Name="OutputBox"
-                 TextWrapping="NoWrap"
+                 TextWrapping="Wrap"
                  AcceptsReturn="True"
                  IsReadOnly="True"
                  FontFamily="Consolas" FontSize="14"
