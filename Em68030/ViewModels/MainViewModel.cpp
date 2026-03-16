@@ -691,9 +691,15 @@ namespace winrt::Em68030::implementation
 
         if (!m_framebufferDevice && m_config.FramebufferEnabled)
         {
+            // Use actual memory size for VRAM base — config MemorySize may differ
+            // from the Memory object if the user changed it without reloading the ELF.
+            uint32_t actualMemSize = m_memory->GetFastRamSize();
+            uint32_t vramSize = static_cast<uint32_t>(m_config.FramebufferWidth) *
+                                m_config.FramebufferHeight * m_config.FramebufferBpp / 8;
+            uint32_t vramBase = (actualMemSize - vramSize) & ~0xFFFFFu;
             m_framebufferDevice = std::make_unique<::Em68030::IO::FramebufferDevice>(
                 m_config.FramebufferWidth, m_config.FramebufferHeight,
-                m_config.FramebufferBpp, m_config.ComputeVramBase());
+                m_config.FramebufferBpp, vramBase);
             m_memory->RegisterDevice(::Em68030::IO::FramebufferDevice::BASE_ADDRESS,
                 ::Em68030::IO::FramebufferDevice::DEVICE_SIZE, m_framebufferDevice.get());
 
@@ -1561,34 +1567,8 @@ namespace winrt::Em68030::implementation
         }
 
         // Recreate framebuffer and input devices with new settings.
-        // VRAM location is recomputed from the new resolution/BPP, and the boot stub
-        // below will update topOfRam accordingly.
-        if (m_framebufferDevice)
-        {
-            m_memory->UnregisterDevice(::Em68030::IO::FramebufferDevice::BASE_ADDRESS,
-                ::Em68030::IO::FramebufferDevice::DEVICE_SIZE);
-            m_framebufferDevice.reset();
-        }
-        if (m_inputDevice)
-        {
-            m_memory->UnregisterDevice(::Em68030::IO::InputDevice::BASE_ADDRESS,
-                ::Em68030::IO::InputDevice::DEVICE_SIZE);
-            m_inputDevice.reset();
-        }
-        if (m_config.FramebufferEnabled)
-        {
-            m_framebufferDevice = std::make_unique<::Em68030::IO::FramebufferDevice>(
-                m_config.FramebufferWidth, m_config.FramebufferHeight,
-                m_config.FramebufferBpp, m_config.ComputeVramBase());
-            m_memory->RegisterDevice(::Em68030::IO::FramebufferDevice::BASE_ADDRESS,
-                ::Em68030::IO::FramebufferDevice::DEVICE_SIZE, m_framebufferDevice.get());
-
-            m_inputDevice = std::make_unique<::Em68030::IO::InputDevice>(
-                static_cast<uint16_t>(m_config.FramebufferWidth),
-                static_cast<uint16_t>(m_config.FramebufferHeight));
-            m_memory->RegisterDevice(::Em68030::IO::InputDevice::BASE_ADDRESS,
-                ::Em68030::IO::InputDevice::DEVICE_SIZE, m_inputDevice.get());
-        }
+        // Uses actual memory size for VRAM base (via RecreateFramebufferDeviceIfNeeded).
+        RecreateFramebufferDeviceIfNeeded();
 
         // TargetOS change: update UART 16550, RTC year offset, and boot stub
         if (m_config.BoardType == "MVME147")
@@ -1616,12 +1596,14 @@ namespace winrt::Em68030::implementation
             if (m_rtcDevice)
                 m_rtcDevice->SetYearOffset(m_config.TargetOS == "Linux" ? 0 : 68);
 
-            // Re-setup boot stub if a kernel is already loaded
+            // Re-setup boot stub if a kernel is already loaded.
+            // Use actual Memory size (not config) — memory is not resized until ELF reload.
             if (m_programEndAddress > m_programStartAddress)
             {
+                uint32_t actualMemSize = m_memory->GetFastRamSize();
                 uint32_t topOfRam = m_config.FramebufferEnabled
-                            ? m_config.ComputeVramBase()
-                            : static_cast<uint32_t>(m_config.MemorySize);
+                            ? std::min(m_config.ComputeVramBase(), actualMemSize)
+                            : actualMemSize;
                 if (m_config.TargetOS == "Linux")
                     SetupMvme147LinuxBootStub(topOfRam, m_programEndAddress);
                 else
