@@ -271,6 +271,8 @@ namespace winrt::Em68030::implementation
             tb.Text(ResourceHelper::GetString(L"Settings_ScsiId"));
         if (auto tb = FindName(L"LblNetworkMode").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_NetworkMode"));
+        if (auto tb = FindName(L"LblNetworkDescription").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_NetworkDescription"));
         if (auto tb = FindName(L"LblGatewayIP").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_GatewayIP"));
         if (auto tb = FindName(L"LblGatewayMAC").try_as<Controls::TextBlock>())
