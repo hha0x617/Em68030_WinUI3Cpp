@@ -216,6 +216,41 @@ namespace winrt::Em68030::implementation
             });
         }
 
+        // Wire search bar buttons
+        if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>())
+        {
+            if (auto btn = root.FindName(L"SearchNextBtn").try_as<Controls::Button>())
+                btn.Click([this](auto&&, auto&&) { FindNext(); });
+            if (auto btn = root.FindName(L"SearchPrevBtn").try_as<Controls::Button>())
+                btn.Click([this](auto&&, auto&&) { FindPrev(); });
+            if (auto btn = root.FindName(L"SearchCloseBtn").try_as<Controls::Button>())
+                btn.Click([this](auto&&, auto&&) { CloseSearch(); });
+            if (auto box = root.FindName(L"SearchBox").try_as<Controls::TextBox>())
+            {
+                box.KeyDown([this](auto&&, KeyRoutedEventArgs const& e)
+                {
+                    if (e.Key() == VirtualKey::Enter)
+                    {
+                        FindNext();
+                        e.Handled(true);
+                    }
+                    else if (e.Key() == VirtualKey::Escape)
+                    {
+                        CloseSearch();
+                        e.Handled(true);
+                    }
+                    else if (e.Key() == VirtualKey::F3)
+                    {
+                        auto shiftState = InputKeyboardSource::GetKeyStateForCurrentThread(VirtualKey::Shift);
+                        bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) ==
+                                         Windows::UI::Core::CoreVirtualKeyStates::Down;
+                        if (shiftDown) FindPrev(); else FindNext();
+                        e.Handled(true);
+                    }
+                });
+            }
+        }
+
         UpdateTitle();
         AppWindow().Resize({ 700, 510 });
 
@@ -595,6 +630,42 @@ namespace winrt::Em68030::implementation
     {
         auto key = e.Key();
 
+        // Ctrl+Shift+F: open search bar (works in all modes)
+        {
+            auto ctrlState = InputKeyboardSource::GetKeyStateForCurrentThread(VirtualKey::Control);
+            auto shiftState = InputKeyboardSource::GetKeyStateForCurrentThread(VirtualKey::Shift);
+            bool ctrlDown = (ctrlState & Windows::UI::Core::CoreVirtualKeyStates::Down) ==
+                            Windows::UI::Core::CoreVirtualKeyStates::Down;
+            bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) ==
+                             Windows::UI::Core::CoreVirtualKeyStates::Down;
+            if (ctrlDown && shiftDown && key == VirtualKey::F)
+            {
+                OpenSearch();
+                e.Handled(true);
+                return;
+            }
+        }
+
+        // Search mode: intercept F3/Shift+F3 and Escape
+        if (m_searchMode)
+        {
+            if (key == VirtualKey::F3)
+            {
+                auto shiftState = InputKeyboardSource::GetKeyStateForCurrentThread(VirtualKey::Shift);
+                bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) ==
+                                 Windows::UI::Core::CoreVirtualKeyStates::Down;
+                if (shiftDown) FindPrev(); else FindNext();
+                e.Handled(true);
+                return;
+            }
+            if (key == VirtualKey::Escape)
+            {
+                CloseSearch();
+                e.Handled(true);
+                return;
+            }
+        }
+
         if (OnCharInput)
         {
             // MVME147 mode: send VT100 sequences for special keys
@@ -857,5 +928,200 @@ namespace winrt::Em68030::implementation
             return;
         for (char c : data)
             OnCharInput(static_cast<uint8_t>(c));
+    }
+
+    // ========================================================================
+    // Search
+    // ========================================================================
+
+    void ConsoleWindow::OpenSearch()
+    {
+        m_searchMode = true;
+        if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>())
+        {
+            if (auto bar = root.FindName(L"SearchBar").try_as<::winrt::Microsoft::UI::Xaml::UIElement>())
+                bar.Visibility(Microsoft::UI::Xaml::Visibility::Visible);
+            if (auto box = root.FindName(L"SearchBox").try_as<Controls::TextBox>())
+            {
+                // Pre-fill with selected text if any
+                if (OutputBox() && OutputBox().SelectionLength() > 0)
+                    box.Text(OutputBox().SelectedText());
+                box.Focus(FocusState::Programmatic);
+                box.SelectAll();
+            }
+        }
+    }
+
+    void ConsoleWindow::CloseSearch()
+    {
+        m_searchMode = false;
+        m_searchIndex = -1;
+        m_lastSearchText.clear();
+        if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>())
+        {
+            if (auto bar = root.FindName(L"SearchBar").try_as<::winrt::Microsoft::UI::Xaml::UIElement>())
+                bar.Visibility(Microsoft::UI::Xaml::Visibility::Collapsed);
+            if (auto status = root.FindName(L"SearchStatus").try_as<Controls::TextBlock>())
+                status.Text(L"");
+        }
+        // Return focus to OutputBox
+        if (OutputBox())
+            OutputBox().Focus(FocusState::Programmatic);
+    }
+
+    bool ConsoleWindow::IsRegexMode()
+    {
+        if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>())
+        {
+            if (auto toggle = root.FindName(L"RegexToggle").try_as<Controls::Primitives::ToggleButton>())
+                return toggle.IsChecked().Value();
+        }
+        return false;
+    }
+
+    // Collect all matches (pos, length) for the current search text
+    std::vector<std::pair<int, int>> ConsoleWindow::CollectMatches(
+        const std::string& text, const std::string& searchText, bool regexMode)
+    {
+        std::vector<std::pair<int, int>> matches;
+        if (searchText.empty() || text.empty()) return matches;
+
+        if (regexMode)
+        {
+            try {
+                std::regex re(searchText, std::regex::icase);
+                auto begin = std::sregex_iterator(text.begin(), text.end(), re);
+                auto end = std::sregex_iterator();
+                for (auto it = begin; it != end; ++it)
+                    matches.emplace_back(static_cast<int>(it->position()),
+                                         static_cast<int>(it->length()));
+            } catch (const std::regex_error&) {
+                // Invalid regex — return empty
+            }
+        }
+        else
+        {
+            auto textLower = text;
+            auto searchLower = searchText;
+            for (auto& c : textLower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto& c : searchLower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+            size_t pos = 0;
+            while ((pos = textLower.find(searchLower, pos)) != std::string::npos)
+            {
+                matches.emplace_back(static_cast<int>(pos), static_cast<int>(searchLower.size()));
+                pos += searchLower.size();
+            }
+        }
+        return matches;
+    }
+
+    void ConsoleWindow::FindNext()
+    {
+        if (!OutputBox()) return;
+        auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>();
+        if (!root) return;
+        auto searchBox = root.FindName(L"SearchBox").try_as<Controls::TextBox>();
+        if (!searchBox) return;
+
+        auto searchText = winrt::to_string(searchBox.Text());
+        if (searchText.empty()) return;
+
+        auto text = winrt::to_string(OutputBox().Text());
+        if (text.empty()) return;
+
+        bool regexMode = IsRegexMode();
+
+        if (searchText != m_lastSearchText)
+        {
+            m_searchIndex = -1;
+            m_lastSearchText = searchText;
+        }
+
+        auto matches = CollectMatches(text, searchText, regexMode);
+        if (matches.empty())
+        {
+            m_searchIndex = -1;
+            if (auto status = root.FindName(L"SearchStatus").try_as<Controls::TextBlock>())
+                status.Text(regexMode ? L"No match" : L"Not found");
+            return;
+        }
+
+        // Find next match after current position
+        int nextIdx = -1;
+        for (int i = 0; i < static_cast<int>(matches.size()); i++)
+        {
+            if (matches[i].first > m_searchIndex) { nextIdx = i; break; }
+        }
+        if (nextIdx < 0) nextIdx = 0; // wrap around
+
+        m_searchIndex = matches[nextIdx].first;
+        HighlightMatch(matches[nextIdx].first, matches[nextIdx].second,
+                        nextIdx + 1, static_cast<int>(matches.size()));
+    }
+
+    void ConsoleWindow::FindPrev()
+    {
+        if (!OutputBox()) return;
+        auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>();
+        if (!root) return;
+        auto searchBox = root.FindName(L"SearchBox").try_as<Controls::TextBox>();
+        if (!searchBox) return;
+
+        auto searchText = winrt::to_string(searchBox.Text());
+        if (searchText.empty()) return;
+
+        auto text = winrt::to_string(OutputBox().Text());
+        if (text.empty()) return;
+
+        bool regexMode = IsRegexMode();
+
+        if (searchText != m_lastSearchText)
+        {
+            m_searchIndex = static_cast<int>(text.size());
+            m_lastSearchText = searchText;
+        }
+
+        auto matches = CollectMatches(text, searchText, regexMode);
+        if (matches.empty())
+        {
+            m_searchIndex = -1;
+            if (auto status = root.FindName(L"SearchStatus").try_as<Controls::TextBlock>())
+                status.Text(regexMode ? L"No match" : L"Not found");
+            return;
+        }
+
+        // Find previous match before current position
+        int prevIdx = -1;
+        for (int i = static_cast<int>(matches.size()) - 1; i >= 0; i--)
+        {
+            if (matches[i].first < m_searchIndex) { prevIdx = i; break; }
+        }
+        if (prevIdx < 0) prevIdx = static_cast<int>(matches.size()) - 1; // wrap
+
+        m_searchIndex = matches[prevIdx].first;
+        HighlightMatch(matches[prevIdx].first, matches[prevIdx].second,
+                        prevIdx + 1, static_cast<int>(matches.size()));
+    }
+
+    void ConsoleWindow::HighlightMatch(int pos, int length, int current, int total)
+    {
+        if (!OutputBox()) return;
+
+        OutputBox().Focus(FocusState::Programmatic);
+
+        m_suppressScrollEvent = true;
+        OutputBox().Select(pos, length);
+        m_autoScroll = false;
+
+        DispatcherQueue().TryEnqueue(
+            Microsoft::UI::Dispatching::DispatcherQueuePriority::Low,
+            [this]() { m_suppressScrollEvent = false; });
+
+        if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>())
+        {
+            if (auto status = root.FindName(L"SearchStatus").try_as<Controls::TextBlock>())
+                status.Text(winrt::to_hstring(std::format("{}/{}", current, total)));
+        }
     }
 }

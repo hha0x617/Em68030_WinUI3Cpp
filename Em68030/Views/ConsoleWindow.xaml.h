@@ -21,6 +21,7 @@
 #include <functional>
 #include <string>
 #include <atomic>
+#include <regex>
 #include <windows.h>
 
 namespace winrt::Em68030::implementation
@@ -126,6 +127,20 @@ namespace winrt::Em68030::implementation
         int m_minWindowHeight = 0;
         static LRESULT CALLBACK SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
                                               UINT_PTR subclassId, DWORD_PTR refData);
+
+        // Search mode
+        bool m_searchMode = false;
+        int m_searchIndex = -1; // current match position in OutputBox text
+        std::string m_lastSearchText;
+
+        void OpenSearch();
+        void CloseSearch();
+        void FindNext();
+        void FindPrev();
+        bool IsRegexMode();
+        std::vector<std::pair<int, int>> CollectMatches(
+            const std::string& text, const std::string& searchText, bool regexMode);
+        void HighlightMatch(int pos, int length, int current, int total);
 
         void MeasureCharCell();
         void UpdateTitle();

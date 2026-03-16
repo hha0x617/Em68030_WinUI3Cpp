@@ -18,8 +18,13 @@
     Title="Console">
 
     <Grid Background="#FF0C0C0C">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
         <!-- Terminal output area -->
-        <TextBox x:Name="OutputBox"
+        <TextBox x:Name="OutputBox" Grid.Row="0"
                  TextWrapping="Wrap"
                  AcceptsReturn="True"
                  IsReadOnly="True"
@@ -36,5 +41,46 @@
                 <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FF0C0C0C" />
             </TextBox.Resources>
         </TextBox>
+
+        <!-- Search bar (hidden by default, shown at bottom) -->
+        <Grid x:Name="SearchBar" Grid.Row="1" Background="#FF2D2D30"
+              Padding="4" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="SearchBox" Grid.Column="0"
+                     FontFamily="Consolas" FontSize="13"
+                     Background="#FF1E1E1E" Foreground="#FFD4D4D4"
+                     BorderBrush="#FF3F3F46" Padding="4,2"
+                     PlaceholderText="Search..." />
+            <TextBlock x:Name="SearchStatus" Grid.Column="1"
+                       Foreground="#FF808080" FontSize="12"
+                       VerticalAlignment="Center" Margin="8,0" />
+            <ToggleButton x:Name="RegexToggle" Grid.Column="2" Content=".*"
+                    FontFamily="Consolas" FontSize="12"
+                    Background="Transparent" BorderThickness="0"
+                    Padding="6,4" Margin="2,0"
+                    ToolTipService.ToolTip="Regular Expression" />
+            <Button x:Name="SearchPrevBtn" Grid.Column="3" Content="&#xE010;"
+                    FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="12"
+                    Background="Transparent" BorderThickness="0"
+                    Padding="6,4" Margin="2,0"
+                    ToolTipService.ToolTip="Previous (Shift+F3)" />
+            <Button x:Name="SearchNextBtn" Grid.Column="4" Content="&#xE011;"
+                    FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="12"
+                    Background="Transparent" BorderThickness="0"
+                    Padding="6,4" Margin="2,0"
+                    ToolTipService.ToolTip="Next (F3)" />
+            <Button x:Name="SearchCloseBtn" Grid.Column="5" Content="&#xE10A;"
+                    FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="12"
+                    Background="Transparent" BorderThickness="0"
+                    Padding="6,4" Margin="2,0"
+                    ToolTipService.ToolTip="Close (Esc)" />
+        </Grid>
     </Grid>
 </Window>
