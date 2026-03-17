@@ -8,7 +8,7 @@ This is the high-performance C++/WinRT + WinUI 3 port of the [C# WPF version](ht
 
 <a href="docs/screenshot_jit_off.png"><img src="docs/screenshot_jit_off.png" alt="NetBSD booting on Em68030" width="50%"></a>
 
-**Documentation**: [Getting Started](docs/getting_started.md) | [Instruction Set](docs/instruction_set.md) | [Hardware Platform](docs/hardware_platform.md)
+**Documentation**: [User Guide](docs/user_guide.md) | [Getting Started](docs/getting_started.md) | [Instruction Set](docs/instruction_set.md) | [Hardware Platform](docs/hardware_platform.md)
 
 ## Features
 
