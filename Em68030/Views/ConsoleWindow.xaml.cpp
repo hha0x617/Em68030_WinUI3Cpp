@@ -979,9 +979,20 @@ namespace winrt::Em68030::implementation
         return false;
     }
 
+    bool ConsoleWindow::IsCaseSensitive()
+    {
+        if (auto root = Content().try_as<::winrt::Microsoft::UI::Xaml::FrameworkElement>())
+        {
+            if (auto toggle = root.FindName(L"CaseSensitiveToggle").try_as<Controls::Primitives::ToggleButton>())
+                return toggle.IsChecked().Value();
+        }
+        return false;
+    }
+
     // Collect all matches (pos, length) for the current search text
     std::vector<std::pair<int, int>> ConsoleWindow::CollectMatches(
-        const std::string& text, const std::string& searchText, bool regexMode)
+        const std::string& text, const std::string& searchText,
+        bool regexMode, bool caseSensitive)
     {
         std::vector<std::pair<int, int>> matches;
         if (searchText.empty() || text.empty()) return matches;
@@ -989,7 +1000,8 @@ namespace winrt::Em68030::implementation
         if (regexMode)
         {
             try {
-                std::regex re(searchText, std::regex::icase);
+                auto flags = caseSensitive ? std::regex::ECMAScript : std::regex::icase;
+                std::regex re(searchText, flags);
                 auto begin = std::sregex_iterator(text.begin(), text.end(), re);
                 auto end = std::sregex_iterator();
                 for (auto it = begin; it != end; ++it)
@@ -997,6 +1009,15 @@ namespace winrt::Em68030::implementation
                                          static_cast<int>(it->length()));
             } catch (const std::regex_error&) {
                 // Invalid regex — return empty
+            }
+        }
+        else if (caseSensitive)
+        {
+            size_t pos = 0;
+            while ((pos = text.find(searchText, pos)) != std::string::npos)
+            {
+                matches.emplace_back(static_cast<int>(pos), static_cast<int>(searchText.size()));
+                pos += searchText.size();
             }
         }
         else
@@ -1031,6 +1052,7 @@ namespace winrt::Em68030::implementation
         if (text.empty()) return;
 
         bool regexMode = IsRegexMode();
+        bool caseSensitive = IsCaseSensitive();
 
         if (searchText != m_lastSearchText)
         {
@@ -1038,7 +1060,7 @@ namespace winrt::Em68030::implementation
             m_lastSearchText = searchText;
         }
 
-        auto matches = CollectMatches(text, searchText, regexMode);
+        auto matches = CollectMatches(text, searchText, regexMode, caseSensitive);
         if (matches.empty())
         {
             m_searchIndex = -1;
@@ -1075,6 +1097,7 @@ namespace winrt::Em68030::implementation
         if (text.empty()) return;
 
         bool regexMode = IsRegexMode();
+        bool caseSensitive = IsCaseSensitive();
 
         if (searchText != m_lastSearchText)
         {
@@ -1082,7 +1105,7 @@ namespace winrt::Em68030::implementation
             m_lastSearchText = searchText;
         }
 
-        auto matches = CollectMatches(text, searchText, regexMode);
+        auto matches = CollectMatches(text, searchText, regexMode, caseSensitive);
         if (matches.empty())
         {
             m_searchIndex = -1;

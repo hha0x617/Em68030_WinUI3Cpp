@@ -138,8 +138,10 @@ namespace winrt::Em68030::implementation
         void FindNext();
         void FindPrev();
         bool IsRegexMode();
+        bool IsCaseSensitive();
         std::vector<std::pair<int, int>> CollectMatches(
-            const std::string& text, const std::string& searchText, bool regexMode);
+            const std::string& text, const std::string& searchText,
+            bool regexMode, bool caseSensitive);
         void HighlightMatch(int pos, int length, int current, int total);
 
         void MeasureCharCell();
