@@ -21,6 +21,8 @@
 #include <winrt/Microsoft.UI.Xaml.Input.h>
 #include <winrt/Microsoft.UI.Input.h>
 #include <winrt/Microsoft.UI.Dispatching.h>
+#include <microsoft.ui.xaml.window.h> // IWindowNative
+#include <format>
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.System.h>
 #include <robuffer.h> // IBufferByteAccess
@@ -94,6 +96,19 @@ namespace winrt::Em68030::implementation
                 m_displayImage.PointerReleased({ this, &FramebufferWindow::OnPointerReleased });
             }
         }
+
+        // Update grab rect when window moves or resizes
+        SizeChanged([this](auto&&, auto&&) { UpdateGrabRect(); });
+        AppWindow().Changed([this](auto&&, auto&&) { UpdateGrabRect(); });
+
+        // Release grab when window loses focus
+        Activated([this](auto&&, Microsoft::UI::Xaml::WindowActivatedEventArgs const& args) {
+            if (args.WindowActivationState() == Microsoft::UI::Xaml::WindowActivationState::Deactivated)
+                UngrabMouse();
+        });
+
+        // Release grab when window closes
+        Closed([this](auto&&, auto&&) { UngrabMouse(); });
     }
 
     void FramebufferWindow::OnRenderTick(
@@ -210,6 +225,19 @@ namespace winrt::Em68030::implementation
     {
         if (!m_inputDevice) return;
 
+        // Ctrl+Shift+G: toggle mouse grab
+        if (e.Key() == winrt::Windows::System::VirtualKey::G &&
+            (::GetKeyState(VK_CONTROL) & 0x8000) &&
+            (::GetKeyState(VK_SHIFT) & 0x8000))
+        {
+            if (m_mouseGrabbed)
+                UngrabMouse();
+            else
+                GrabMouse();
+            e.Handled(true);
+            return;
+        }
+
         // Ctrl+Shift+V: paste clipboard text as key events
         if (e.Key() == winrt::Windows::System::VirtualKey::V &&
             (::GetKeyState(VK_CONTROL) & 0x8000) &&
@@ -319,6 +347,72 @@ namespace winrt::Em68030::implementation
         if (text.empty()) co_return;
 
         m_inputDevice->PushTextInput(winrt::to_string(text));
+    }
+
+    // ========================================================================
+    // Mouse grab (pointer confinement)
+    // ========================================================================
+
+    void FramebufferWindow::GrabMouse()
+    {
+        if (m_mouseGrabbed) return;
+
+        if (!m_hwnd)
+        {
+            auto windowNative = this->try_as<::IWindowNative>();
+            if (windowNative)
+                windowNative->get_WindowHandle(&m_hwnd);
+        }
+        if (!m_hwnd) return;
+
+        m_mouseGrabbed = true;
+        UpdateGrabRect();
+
+
+        UpdateTitleGrabStatus();
+    }
+
+    void FramebufferWindow::UngrabMouse()
+    {
+        if (!m_mouseGrabbed) return;
+
+        m_mouseGrabbed = false;
+        ::ClipCursor(nullptr);
+
+
+        UpdateTitleGrabStatus();
+    }
+
+    void FramebufferWindow::UpdateGrabRect()
+    {
+        if (!m_mouseGrabbed || !m_hwnd) return;
+
+        RECT windowRect;
+        if (::GetClientRect(m_hwnd, &windowRect))
+        {
+            // Convert client rect to screen coordinates
+            POINT topLeft = { windowRect.left, windowRect.top };
+            POINT bottomRight = { windowRect.right, windowRect.bottom };
+            ::ClientToScreen(m_hwnd, &topLeft);
+            ::ClientToScreen(m_hwnd, &bottomRight);
+
+            RECT clipRect = { topLeft.x, topLeft.y, bottomRight.x, bottomRight.y };
+            ::ClipCursor(&clipRect);
+        }
+    }
+
+    void FramebufferWindow::UpdateTitleGrabStatus()
+    {
+        auto baseTitle = std::wstring(L"Em68030 Framebuffer");
+        if (m_device)
+        {
+            baseTitle += std::format(L" - {}x{}x{}bpp", m_width, m_height, m_bpp);
+        }
+        if (m_mouseGrabbed)
+        {
+            baseTitle += L" [Mouse Grabbed - Ctrl+Shift+G to release]";
+        }
+        Title(winrt::hstring(baseTitle));
     }
 
 }

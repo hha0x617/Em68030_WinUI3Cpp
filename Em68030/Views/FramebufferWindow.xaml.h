@@ -84,6 +84,14 @@ namespace winrt::Em68030::implementation
         int m_bpp = 0;
         uint32_t m_vramOffset = 0;
 
+        // Mouse grab (pointer confinement)
+        bool m_mouseGrabbed = false;
+        HWND m_hwnd = nullptr;
+
+        void GrabMouse();
+        void UngrabMouse();
+        void UpdateGrabRect();
+        void UpdateTitleGrabStatus();
     };
 }
 

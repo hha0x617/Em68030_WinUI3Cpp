@@ -292,7 +292,15 @@ std::string Vt100Terminal::Render() const
         while (lastCol >= 0 && ScreenAt(r, lastCol) == ' ') lastCol--;
         if (r == m_cursorRow && m_cursorCol > lastCol) lastCol = m_cursorCol;
         for (int c = 0; c <= lastCol; c++)
-            result.push_back(ScreenAt(r, c));
+        {
+            char ch = ScreenAt(r, c);
+            // Use non-breaking space at cursor position to prevent TextBox
+            // from collapsing trailing spaces at wrap boundaries (jitter fix)
+            if (r == m_cursorRow && c == m_cursorCol && ch == ' ')
+                AppendUtf8(result, U'\u00A0');
+            else
+                result.push_back(ch);
+        }
     }
     return result;
 }
@@ -357,7 +365,13 @@ std::string Vt100Terminal::RenderFull() const
         while (lastCol >= 0 && ScreenAt(r, lastCol) == ' ') lastCol--;
         if (r == m_cursorRow && m_cursorCol > lastCol) lastCol = m_cursorCol;
         for (int c = 0; c <= lastCol; c++)
-            result.push_back(ScreenAt(r, c));
+        {
+            char ch = ScreenAt(r, c);
+            if (r == m_cursorRow && c == m_cursorCol && ch == ' ')
+                AppendUtf8(result, U'\u00A0');
+            else
+                result.push_back(ch);
+        }
     }
     return result;
 }
