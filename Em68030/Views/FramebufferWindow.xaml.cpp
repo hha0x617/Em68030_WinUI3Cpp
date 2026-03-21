@@ -283,15 +283,27 @@ namespace winrt::Em68030::implementation
         auto pos = point.Position();
 
         // Scale pointer position to framebuffer coordinates and update absolute registers.
-        // The guest driver polls these registers directly for mouse position.
+        // The guest driver polls these registers directly for mouse position (tablet device).
         auto actualW = m_displayImage.ActualWidth();
         auto actualH = m_displayImage.ActualHeight();
-        if (actualW > 0 && actualH > 0)
+        if (actualW <= 0 || actualH <= 0) return;
+
+        auto absX = static_cast<uint16_t>(std::clamp(pos.X * m_width / actualW, 0.0, static_cast<double>(m_width - 1)));
+        auto absY = static_cast<uint16_t>(std::clamp(pos.Y * m_height / actualH, 0.0, static_cast<double>(m_height - 1)));
+        m_inputDevice->SetMouseAbsPosition(absX, absY);
+
+        // Also push relative deltas to FIFO for the relative mouse device (gpm).
+        // PointerMoved only fires inside the window, so no window re-entry jumps.
+        if (m_lastMouseValid)
         {
-            auto absX = static_cast<uint16_t>(std::clamp(pos.X * m_width / actualW, 0.0, static_cast<double>(m_width - 1)));
-            auto absY = static_cast<uint16_t>(std::clamp(pos.Y * m_height / actualH, 0.0, static_cast<double>(m_height - 1)));
-            m_inputDevice->SetMouseAbsPosition(absX, absY);
+            auto dx = static_cast<int16_t>(absX - m_lastMouseX);
+            auto dy = static_cast<int16_t>(absY - m_lastMouseY);
+            if (dx != 0 || dy != 0)
+                m_inputDevice->PushMouseMoveEvent(dx, dy);
         }
+        m_lastMouseX = absX;
+        m_lastMouseY = absY;
+        m_lastMouseValid = true;
     }
 
     void FramebufferWindow::OnPointerPressed(

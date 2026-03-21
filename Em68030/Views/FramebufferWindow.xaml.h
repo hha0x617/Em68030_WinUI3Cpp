@@ -84,6 +84,11 @@ namespace winrt::Em68030::implementation
         int m_bpp = 0;
         uint32_t m_vramOffset = 0;
 
+        // Relative mouse delta tracking (for gpm via FIFO)
+        double m_lastMouseX = 0;
+        double m_lastMouseY = 0;
+        bool m_lastMouseValid = false;
+
         // Mouse grab (pointer confinement)
         bool m_mouseGrabbed = false;
         HWND m_hwnd = nullptr;
