@@ -284,34 +284,38 @@ namespace winrt::Em68030::implementation
         auto point = e.GetCurrentPoint(m_displayImage);
         auto pos = point.Position();
 
-        // Scale pointer position to framebuffer coordinates and update absolute registers.
-        // The guest driver polls these registers directly for mouse position (tablet device).
         auto actualW = m_displayImage.ActualWidth();
         auto actualH = m_displayImage.ActualHeight();
         if (actualW <= 0 || actualH <= 0) return;
 
+        // Update absolute position registers (tablet device for X Window System)
         auto absX = static_cast<uint16_t>(std::clamp(pos.X * m_width / actualW, 0.0, static_cast<double>(m_width - 1)));
         auto absY = static_cast<uint16_t>(std::clamp(pos.Y * m_height / actualH, 0.0, static_cast<double>(m_height - 1)));
         m_inputDevice->SetMouseAbsPosition(absX, absY);
 
-        // Also push relative deltas to FIFO for the relative mouse device (gpm).
-        // Use display-pixel coordinates (not framebuffer coordinates) to avoid
-        // amplification when the window is smaller than the framebuffer resolution.
-        // PointerMoved only fires inside the window, so no window re-entry jumps.
-        // Accumulate sub-pixel deltas and send integer part.
-        // Divide by 2 to compensate for gpm's internal scaling.
+        // Relative deltas for gpm (relative mouse device).
+        // gpm's evdev handler does NOT reset state->dy between events, and the
+        // Linux kernel drops REL_Y=0 (EV_REL with value=0 is filtered).
+        // This causes gpm to retain stale dy values, creating vertical drift.
+        //
+        // Fix: when dy is 0 but dx is non-zero, send alternating +1/-1 in dy.
+        // These cancel out over 2 frames (net Y movement = 0), while ensuring
+        // gpm always receives a fresh REL_Y event that overwrites the stale value.
+        // The 1-pixel oscillation is within a single character cell and invisible.
         if (m_lastMouseValid)
         {
-            m_accumDx += (pos.X - m_lastMouseX) / 1.6;
-            m_accumDy += (pos.Y - m_lastMouseY) / 2.0;
-            auto dx = static_cast<int16_t>(m_accumDx);
-            auto dy = static_cast<int16_t>(m_accumDy);
-            if (dx != 0 || dy != 0)
+            auto dx = static_cast<int16_t>(pos.X - m_lastMouseX);
+            auto dy = static_cast<int16_t>(pos.Y - m_lastMouseY);
+
+            if (dx != 0 && dy == 0)
             {
-                m_inputDevice->PushMouseMoveEvent(dx, dy);
-                m_accumDx -= dx;
-                m_accumDy -= dy;
+                // Inject alternating ±1 to prevent gpm stale dy
+                dy = static_cast<int16_t>(m_yDither);
+                m_yDither = -m_yDither;
             }
+
+            if (dx != 0 || dy != 0)
+                m_inputDevice->PushMouseMoveEvent(dx, dy);
         }
         m_lastMouseX = pos.X;
         m_lastMouseY = pos.Y;

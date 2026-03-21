@@ -96,9 +96,8 @@ namespace winrt::Em68030::implementation
         // Relative mouse delta tracking (for gpm via FIFO)
         double m_lastMouseX = 0;
         double m_lastMouseY = 0;
-        double m_accumDx = 0;
-        double m_accumDy = 0;
         bool m_lastMouseValid = false;
+        int m_yDither = 1; // alternates +1/-1 to cancel gpm stale dy
 
         // Mouse grab (pointer confinement)
         bool m_mouseGrabbed = false;
