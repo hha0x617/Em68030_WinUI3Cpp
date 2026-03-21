@@ -17,6 +17,7 @@
 #include "AboutDialog.g.cpp"
 #endif
 #include "GitVersion.h"
+#include "Helpers/ResourceHelper.h"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -70,12 +71,9 @@ namespace winrt::Em68030::implementation
     AboutDialog::AboutDialog()
     {
         InitializeComponent();
+        if (auto tb = FindName(L"VersionText").try_as<TextBlock>())
+            tb.Text(::Em68030::ResourceHelper::Format(L"About_VersionFormat", APP_VERSION));
         if (auto tb = FindName(L"BuildHashText").try_as<TextBlock>())
-        {
-            std::wstring text = L"Build: ";
-            std::string hash = GIT_COMMIT_HASH;
-            text.append(hash.begin(), hash.end());
-            tb.Text(text);
-        }
+            tb.Text(::Em68030::ResourceHelper::Format(L"About_BuildFormat", GIT_COMMIT_HASH));
     }
 }

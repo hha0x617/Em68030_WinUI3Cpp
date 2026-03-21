@@ -289,16 +289,22 @@
     <PackageReference Include="Microsoft.Windows.ImplementationLibrary" Version="1.0.240803.1" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
   </ItemGroup>
-  <!-- Generate GitVersion.h with the current git commit hash -->
+  <!-- Generate GitVersion.h with git commit hash and app version -->
   <Target Name="GenerateGitVersion" BeforeTargets="ClCompile">
     <Exec Command="git rev-parse --short HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitHash" />
     </Exec>
+    <Exec Command="git describe --tags --abbrev=0" ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true"
+          Condition="'$(AppVersion)' == ''">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitDescribeTag" />
+    </Exec>
     <PropertyGroup>
       <GitCommitHash Condition="'$(GitCommitHash)' == ''">unknown</GitCommitHash>
+      <AppVersion Condition="'$(AppVersion)' == '' and '$(GitDescribeTag)' != '' and $(GitDescribeTag.StartsWith('v'))">$(GitDescribeTag.Substring(1))</AppVersion>
+      <AppVersion Condition="'$(AppVersion)' == ''">0.0.0</AppVersion>
     </PropertyGroup>
     <WriteLinesToFile File="$(IntDir)GitVersion.h"
-                     Lines="#pragma once%0D%0A#define GIT_COMMIT_HASH &quot;$(GitCommitHash)&quot;"
+                     Lines="#pragma once%0D%0A#define GIT_COMMIT_HASH &quot;$(GitCommitHash)&quot;%0D%0A#define APP_VERSION &quot;$(AppVersion)&quot;"
                      Overwrite="true" />
   </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

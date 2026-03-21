@@ -25,12 +25,29 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore Em68030.Tests/packages.config -PackagesDirectory Em68030/packages
 
+      - name: Extract version from tag
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref }}" -match "^refs/tags/v(.+)$") {
+            $ver = $Matches[1]
+          } else {
+            $desc = git describe --tags --abbrev=0 2>$null
+            if ($desc -match "^v(.+)$") {
+              $ver = $Matches[1]
+            } else {
+              $ver = "0.0.0"
+            }
+          }
+          echo "APP_VERSION=$ver" >> $env:GITHUB_OUTPUT
+
       - name: Build
         run: >
           msbuild Em68030_WinUI3Cpp.sln
           -p:Configuration=Release
           -p:Platform=x64
           -p:PlatformToolset=v143
+          -p:AppVersion=${{ steps.version.outputs.APP_VERSION }}
           -v:minimal
 
       - name: Test

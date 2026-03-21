@@ -32,7 +32,7 @@
                            Foreground="#FFD4D4D4" />
             </StackPanel>
         </StackPanel>
-        <TextBlock Text="Version 0.1.0" FontSize="13"
+        <TextBlock x:Name="VersionText" FontSize="13"
                    Foreground="#FFD4D4D4" />
         <TextBlock x:Name="BuildHashText" FontSize="13"
                    Foreground="#FF888888" Margin="0,0,0,8" />
