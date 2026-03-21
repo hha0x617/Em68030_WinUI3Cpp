@@ -293,16 +293,26 @@ namespace winrt::Em68030::implementation
         m_inputDevice->SetMouseAbsPosition(absX, absY);
 
         // Also push relative deltas to FIFO for the relative mouse device (gpm).
+        // Use display-pixel coordinates (not framebuffer coordinates) to avoid
+        // amplification when the window is smaller than the framebuffer resolution.
         // PointerMoved only fires inside the window, so no window re-entry jumps.
+        // Accumulate sub-pixel deltas and send integer part.
+        // Divide by 2 to compensate for gpm's internal scaling.
         if (m_lastMouseValid)
         {
-            auto dx = static_cast<int16_t>(absX - m_lastMouseX);
-            auto dy = static_cast<int16_t>(absY - m_lastMouseY);
+            m_accumDx += (pos.X - m_lastMouseX) / 1.6;
+            m_accumDy += (pos.Y - m_lastMouseY) / 2.0;
+            auto dx = static_cast<int16_t>(m_accumDx);
+            auto dy = static_cast<int16_t>(m_accumDy);
             if (dx != 0 || dy != 0)
+            {
                 m_inputDevice->PushMouseMoveEvent(dx, dy);
+                m_accumDx -= dx;
+                m_accumDy -= dy;
+            }
         }
-        m_lastMouseX = absX;
-        m_lastMouseY = absY;
+        m_lastMouseX = pos.X;
+        m_lastMouseY = pos.Y;
         m_lastMouseValid = true;
     }
 
