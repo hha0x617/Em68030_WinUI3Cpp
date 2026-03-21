@@ -17,9 +17,18 @@
 #include "Core/Memory.h"
 #include "IO/FramebufferDevice.h"
 #include "IO/InputDevice.h"
+#include <winrt/Microsoft.UI.Input.h>
 
 namespace winrt::Em68030::implementation
 {
+    // Custom Grid subclass that exposes ProtectedCursor for cursor control
+    struct CursorGrid : Microsoft::UI::Xaml::Controls::GridT<CursorGrid>
+    {
+        void SetCursor(Microsoft::UI::Input::InputCursor const& cursor)
+        {
+            ProtectedCursor(cursor);
+        }
+    };
     // XAML template implementations
     template <typename D, typename... I>
     void FramebufferWindowT<D, I...>::InitializeComponent()
@@ -94,11 +103,13 @@ namespace winrt::Em68030::implementation
         // Mouse grab (pointer confinement)
         bool m_mouseGrabbed = false;
         HWND m_hwnd = nullptr;
+        winrt::com_ptr<CursorGrid> m_cursorGrid;
 
         void GrabMouse();
         void UngrabMouse();
         void UpdateGrabRect();
         void UpdateTitleGrabStatus();
+        void SetContentCursor(Microsoft::UI::Input::InputCursor const& cursor);
     };
 }
 

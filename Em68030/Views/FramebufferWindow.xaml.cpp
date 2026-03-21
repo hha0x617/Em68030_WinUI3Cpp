@@ -22,6 +22,8 @@
 #include <winrt/Microsoft.UI.Input.h>
 #include <winrt/Microsoft.UI.Dispatching.h>
 #include <microsoft.ui.xaml.window.h> // IWindowNative
+#include <winrt/Microsoft.UI.Input.h>
+#include <winrt/Microsoft.UI.Content.h>
 #include <format>
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.System.h>
@@ -375,6 +377,40 @@ namespace winrt::Em68030::implementation
     // Mouse grab (pointer confinement)
     // ========================================================================
 
+    void FramebufferWindow::SetContentCursor(Microsoft::UI::Input::InputCursor const& cursor)
+    {
+        // Replace the XAML Grid with our CursorGrid on first call
+        if (!m_cursorGrid)
+        {
+            auto oldContent = Content().try_as<Controls::Grid>();
+            if (!oldContent) return;
+
+            auto newGrid = winrt::make_self<CursorGrid>();
+            newGrid->Background(oldContent.Background());
+
+            // Move children from old Grid to new Grid
+            while (oldContent.Children().Size() > 0)
+            {
+                auto child = oldContent.Children().GetAt(0);
+                oldContent.Children().RemoveAt(0);
+                newGrid->Children().Append(child);
+            }
+
+            Content(*newGrid);
+            m_cursorGrid = newGrid;
+
+            // Re-wire keyboard events on new content
+            if (m_inputDevice)
+            {
+                newGrid->KeyDown({ this, &FramebufferWindow::OnKeyDown });
+                newGrid->KeyUp({ this, &FramebufferWindow::OnKeyUp });
+            }
+        }
+
+        if (m_cursorGrid)
+            m_cursorGrid->SetCursor(cursor);
+    }
+
     void FramebufferWindow::GrabMouse()
     {
         if (m_mouseGrabbed) return;
@@ -390,6 +426,11 @@ namespace winrt::Em68030::implementation
         m_mouseGrabbed = true;
         UpdateGrabRect();
 
+        // Hide cursor by setting a disposed cursor
+        auto blankCursor = Microsoft::UI::Input::InputSystemCursor::Create(
+            Microsoft::UI::Input::InputSystemCursorShape::Arrow);
+        blankCursor.Close();
+        SetContentCursor(blankCursor);
 
         UpdateTitleGrabStatus();
     }
@@ -401,6 +442,9 @@ namespace winrt::Em68030::implementation
         m_mouseGrabbed = false;
         ::ClipCursor(nullptr);
 
+        // Restore cursor
+        SetContentCursor(Microsoft::UI::Input::InputSystemCursor::Create(
+            Microsoft::UI::Input::InputSystemCursorShape::Arrow));
 
         UpdateTitleGrabStatus();
     }
