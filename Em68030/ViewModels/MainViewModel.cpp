@@ -154,6 +154,10 @@ namespace winrt::Em68030::implementation
         if (m_emulationThread.joinable())
             m_emulationThread.join();
 
+        // Save NVRAM state
+        if (m_rtcDevice)
+            m_rtcDevice->SaveToFile(GetNvramPath());
+
         // Close trace writer
         if (m_traceWriter)
         {
@@ -245,6 +249,7 @@ namespace winrt::Em68030::implementation
             ? m_config.ComputeVramBase()
             : static_cast<uint32_t>(m_config.MemorySize);
         m_rtcDevice->SetMvme147Config(kernelRamEnd, ethAddr, sizeof(ethAddr));
+        m_rtcDevice->LoadFromFile(GetNvramPath());
 
         m_lanceDevice = std::make_unique<::Em68030::IO::LanceDevice>();
         m_lanceDevice->AttachMemory(m_memory.get());
@@ -617,6 +622,14 @@ namespace winrt::Em68030::implementation
     uint8_t MainViewModel::ToBcd(int val)
     {
         return static_cast<uint8_t>(((val / 10) << 4) | (val % 10));
+    }
+
+    std::string MainViewModel::GetNvramPath()
+    {
+        wchar_t buf[MAX_PATH]{};
+        GetModuleFileNameW(nullptr, buf, MAX_PATH);
+        auto path = std::filesystem::path(buf).parent_path() / "nvram.bin";
+        return path.string();
     }
 
     void MainViewModel::WriteBoardIdPacket(uint32_t addr)

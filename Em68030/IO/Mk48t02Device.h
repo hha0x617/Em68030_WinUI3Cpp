@@ -15,6 +15,7 @@
 
 #include <cstdint>
 #include <array>
+#include <string>
 #include <vector>
 
 #include "IMemoryMappedDevice.h"
@@ -54,6 +55,12 @@ public:
     /// Linux uses raw 2-digit year: year stored as year % 100.
     /// Default is 0 (Linux/standard).
     void SetYearOffset(int offset) { m_yearOffset = offset; }
+
+    /// Load NVRAM contents from a binary file. Returns true on success.
+    bool LoadFromFile(const std::string& path);
+
+    /// Save NVRAM contents to a binary file. Returns true on success.
+    bool SaveToFile(const std::string& path) const;
 
 private:
     static constexpr uint32_t BaseAddress = 0xFFFE0000;

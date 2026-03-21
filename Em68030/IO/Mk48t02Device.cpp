@@ -16,6 +16,7 @@
 #include "Mk48t02Device.h"
 #include <chrono>
 #include <ctime>
+#include <fstream>
 
 namespace Em68030::IO {
 
@@ -120,6 +121,24 @@ void Mk48t02Device::SetMvme147Config(uint32_t onboardRamEnd, const uint8_t* ethe
         m_nvram[0x0779] = ethernetAddr[1];
         m_nvram[0x077A] = ethernetAddr[2];
     }
+}
+
+bool Mk48t02Device::LoadFromFile(const std::string& path)
+{
+    std::ifstream ifs(path, std::ios::binary);
+    if (!ifs) return false;
+
+    ifs.read(reinterpret_cast<char*>(m_nvram.data()), m_nvram.size());
+    return ifs.good() || ifs.eof();
+}
+
+bool Mk48t02Device::SaveToFile(const std::string& path) const
+{
+    std::ofstream ofs(path, std::ios::binary);
+    if (!ofs) return false;
+
+    ofs.write(reinterpret_cast<const char*>(m_nvram.data()), m_nvram.size());
+    return ofs.good();
 }
 
 } // namespace Em68030::IO

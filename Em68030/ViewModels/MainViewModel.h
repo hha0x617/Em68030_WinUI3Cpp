@@ -282,6 +282,7 @@ namespace winrt::Em68030::implementation
         void CheckForLstFile(const std::string& filePath);
         static void EnsureCpuDisklabel(const std::string& path);
         static uint8_t ToBcd(int val);
+        static std::string GetNvramPath();
 
         // ==================================================================
         // Emulation thread

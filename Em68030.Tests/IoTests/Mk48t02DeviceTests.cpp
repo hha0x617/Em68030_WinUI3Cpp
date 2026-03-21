@@ -215,4 +215,51 @@ TEST_F(Mk48t02DeviceTest, SetMvme147Config_ShortEthernet_NoWrite) {
     EXPECT_EQ(rtc.ReadByte(Base + 0x0778), 0xFF); // unchanged
 }
 
+// ============================================================================
+// File persistence
+// ============================================================================
+
+TEST_F(Mk48t02DeviceTest, SaveAndLoad_RoundTrip) {
+    // Write some data
+    rtc.WriteByte(Base + 0x0000, 0xAB);
+    rtc.WriteByte(Base + 0x0001, 0xCD);
+    rtc.WriteByte(Base + 0x07F7, 0xEF); // Last SRAM byte
+
+    std::string path = "test_nvram.bin";
+    ASSERT_TRUE(rtc.SaveToFile(path));
+
+    // Create a new device and load
+    IO::Mk48t02Device rtc2;
+    ASSERT_TRUE(rtc2.LoadFromFile(path));
+
+    EXPECT_EQ(rtc2.ReadByte(Base + 0x0000), 0xAB);
+    EXPECT_EQ(rtc2.ReadByte(Base + 0x0001), 0xCD);
+    EXPECT_EQ(rtc2.ReadByte(Base + 0x07F7), 0xEF);
+
+    std::remove(path.c_str());
+}
+
+TEST_F(Mk48t02DeviceTest, LoadFromFile_NonExistent_ReturnsFalse) {
+    EXPECT_FALSE(rtc.LoadFromFile("nonexistent_nvram.bin"));
+}
+
+TEST_F(Mk48t02DeviceTest, SaveAndLoad_PreservesConfig) {
+    uint8_t eth[] = {0x21, 0x00, 0x00};
+    rtc.SetMvme147Config(0x03000000, eth, 3);
+    rtc.WriteByte(Base + 0x0100, 0x42); // OS writes something
+
+    std::string path = "test_nvram_config.bin";
+    ASSERT_TRUE(rtc.SaveToFile(path));
+
+    IO::Mk48t02Device rtc2;
+    ASSERT_TRUE(rtc2.LoadFromFile(path));
+
+    // Both config and OS data preserved
+    EXPECT_EQ(rtc2.ReadLong(Base + 0x0774), 0x03000000u);
+    EXPECT_EQ(rtc2.ReadByte(Base + 0x0778), 0x21);
+    EXPECT_EQ(rtc2.ReadByte(Base + 0x0100), 0x42);
+
+    std::remove(path.c_str());
+}
+
 } // namespace Em68030::Tests

@@ -163,10 +163,10 @@ Em68030_WinUI3Cpp/
 
 ## Roadmap
 
-- Performance: Expand JIT to cover more instruction patterns
+- Performance: Expand JIT to cover more instruction patterns (Phase 2 memory access in progress)
 - FPU: Accurate 80-bit extended precision emulation
-- NVRAM file persistence
-- Graphics output (framebuffer)
+- ~~NVRAM file persistence~~ (Done)
+- ~~Graphics output (framebuffer)~~ (Done)
 
 ## Related Projects
 
