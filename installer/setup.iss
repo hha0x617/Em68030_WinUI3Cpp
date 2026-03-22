@@ -10,6 +10,10 @@
   #define SourceDir "..\release"
 #endif
 
+#ifndef Arch
+  #define Arch "x64"
+#endif
+
 [Setup]
 AppId={{A7E2B1C3-6D4F-4A5E-8F7B-2A3B4C5D6E7F}
 AppName={#MyAppName}
@@ -18,7 +22,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}-WinUI3
 DefaultGroupName={#MyAppName}-WinUI3
 DisableProgramGroupPage=yes
-OutputBaseFilename=Em68030-WinUI3-Setup-{#AppVersion}
+OutputBaseFilename=Em68030-WinUI3-Setup-{#Arch}-{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
