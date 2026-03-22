@@ -175,6 +175,7 @@ void Uart16550Device::ReceiveChar(uint8_t ch)
 {
     {
         std::lock_guard lock(m_rxMutex);
+        if (m_rxFifo.size() >= 64) return; // FIFO full — drop
         m_rxFifo.push(ch);
     }
     UpdateInterrupt();
