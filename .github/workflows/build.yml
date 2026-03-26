@@ -55,14 +55,28 @@ jobs:
           $dst = "release"
           New-Item -ItemType Directory -Force -Path $dst | Out-Null
 
-          # Copy main exe and WindowsAppSDK DLLs
+          # Copy main exe, DLLs, resource files, and XAML
           Copy-Item "$src/Em68030.exe" $dst
           Get-ChildItem "$src/*.dll" |
             Where-Object { $_.Name -notlike "*.Tests.*" } |
             Copy-Item -Destination $dst
+          Copy-Item "$src/*.pri" $dst
+          Copy-Item "$src/*.xbf" $dst
 
-          # Exclude MsixContent, Tests, PDBs
-          Get-ChildItem $dst | Where-Object {
+          # Copy Strings (MRT Core localization for unpackaged apps)
+          Copy-Item "Em68030/Strings" "$dst/Strings" -Recurse
+
+          # Copy Assets, XAML theme resources, and localization directories
+          Copy-Item "$src/Assets" "$dst/Assets" -Recurse
+          if (Test-Path "$src/Microsoft.UI.Xaml") {
+            Copy-Item "$src/Microsoft.UI.Xaml" "$dst/Microsoft.UI.Xaml" -Recurse
+          }
+          Get-ChildItem "$src" -Directory |
+            Where-Object { $_.Name -match '^[a-z]{2}(-[A-Za-z]{2,}){0,2}$' } |
+            ForEach-Object { Copy-Item $_.FullName "$dst/$($_.Name)" -Recurse }
+
+          # Exclude PDBs and test artifacts
+          Get-ChildItem $dst -Recurse | Where-Object {
             $_.Name -like "*.pdb" -or
             $_.Name -like "*Tests*"
           } | Remove-Item -Force
