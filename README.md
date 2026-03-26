@@ -58,7 +58,14 @@ The JIT compiler scans hot basic blocks consisting of register-only instructions
 - Windows App SDK / WinUI 3
 - C++20
 
-## Build
+## Installation
+
+Pre-built installers are available on the [Releases](https://github.com/hha0x617/Em68030_WinUI3Cpp/releases) page.
+Download the latest `Em68030-WinUI3-Setup-x64-*.exe` and run the installer.
+
+> **Note**: Since the installer is not code-signed, Windows Defender SmartScreen may show a warning. Click "More info" and then "Run anyway" to proceed.
+
+## Build from Source
 
 ```bash
 MSBuild Em68030_WinUI3Cpp.sln -p:Configuration=Release -p:Platform=x64

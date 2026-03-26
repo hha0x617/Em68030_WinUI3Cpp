@@ -58,7 +58,14 @@ JIT コンパイラはホットな基本ブロックをスキャンし、`JitOp`
 - Windows App SDK / WinUI 3
 - C++20
 
-## ビルド
+## インストール
+
+ビルド済みインストーラは [Releases](https://github.com/hha0x617/Em68030_WinUI3Cpp/releases) ページからダウンロードできます。
+最新の `Em68030-WinUI3-Setup-x64-*.exe` をダウンロードして実行してください。
+
+> **注意**: インストーラにコード署名がないため、Windows Defender SmartScreen が警告を表示することがあります。「詳細情報」をクリックし、「実行」を選択してください。
+
+## ソースからビルド
 
 ```bash
 MSBuild Em68030_WinUI3Cpp.sln -p:Configuration=Release -p:Platform=x64
