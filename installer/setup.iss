@@ -1,6 +1,6 @@
 #define MyAppName "Em68030"
 #define MyAppPublisher "hha0x617"
-#define MyAppExeName "Em68030-WinUI3.exe"
+#define MyAppExeName "Em68030.exe"
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -37,7 +37,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "{#SourceDir}\Em68030.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
+Source: "{#SourceDir}\Em68030.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\*.pri"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\*.xbf"; DestDir: "{app}"; Flags: ignoreversion
