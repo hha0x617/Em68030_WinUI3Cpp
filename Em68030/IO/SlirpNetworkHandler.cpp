@@ -637,6 +637,7 @@ void SlirpNetworkHandler::HandleTcp(const uint8_t* frame, int length, int ipHead
             sess->TheirWindow.store(guestWindow);
         }
         sess->WindowCV.notify_one();
+
     }
 
     // ACK of our SYN+ACK
@@ -749,6 +750,11 @@ void SlirpNetworkHandler::StartTcpReceiveLoop(std::shared_ptr<TcpSession> sessio
                 reinterpret_cast<const uint8_t*>(buffer), bytesRead);
             session->OurSeq += static_cast<uint32_t>(bytesRead);
             EnqueuePacket(std::move(dataPkt));
+
+            // Pace sending to avoid overwhelming the guest's LANCE receive ring.
+            // Without this, burst sends cause packet drops and duplicate ACKs,
+            // leading to a stall (no retransmission in this proxy).
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
         session->ReceiveLoopRunning = false;
