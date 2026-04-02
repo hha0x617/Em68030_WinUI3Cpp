@@ -20,6 +20,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <shlobj.h>
 #endif
 
 namespace Em68030::Config {
@@ -169,20 +170,67 @@ void from_json(const nlohmann::json& j, EmulatorConfig& c)
 }
 
 // ============================================================================
-// GetConfigPath -- equivalent to Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json")
+// GetDataDirectory -- user-writable data directory
+// ============================================================================
+
+std::filesystem::path EmulatorConfig::GetDataDirectory()
+{
+#ifdef _WIN32
+    wchar_t* appData = nullptr;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &appData)) && appData)
+    {
+        std::filesystem::path dir = std::filesystem::path(appData) / L"Em68030_WinUI3Cpp";
+        CoTaskMemFree(appData);
+        std::filesystem::create_directories(dir);
+        return dir;
+    }
+    // Fallback: exe directory
+    wchar_t buf[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, buf, MAX_PATH);
+    return std::filesystem::path(buf).parent_path();
+#else
+    return std::filesystem::current_path();
+#endif
+}
+
+// ============================================================================
+// MigrateIfNeeded -- move legacy files from exe directory to data directory
+// ============================================================================
+
+void EmulatorConfig::MigrateIfNeeded(const std::filesystem::path& dataDir)
+{
+#ifdef _WIN32
+    try
+    {
+        wchar_t buf[MAX_PATH]{};
+        GetModuleFileNameW(nullptr, buf, MAX_PATH);
+        auto exeDir = std::filesystem::path(buf).parent_path();
+        if (std::filesystem::equivalent(exeDir, dataDir))
+            return; // same directory, nothing to migrate
+
+        for (const auto& name : { L"appsettings.json", L"nvram.bin" })
+        {
+            auto src = exeDir / name;
+            auto dst = dataDir / name;
+            if (std::filesystem::exists(src) && !std::filesystem::exists(dst))
+            {
+                std::filesystem::copy_file(src, dst);
+            }
+        }
+    }
+    catch (...) {}
+#endif
+}
+
+// ============================================================================
+// GetConfigPath
 // ============================================================================
 
 std::filesystem::path EmulatorConfig::GetConfigPath()
 {
-#ifdef _WIN32
-    wchar_t buf[MAX_PATH]{};
-    GetModuleFileNameW(nullptr, buf, MAX_PATH);
-    std::filesystem::path exeDir = std::filesystem::path(buf).parent_path();
-#else
-    // Fallback: use current working directory
-    std::filesystem::path exeDir = std::filesystem::current_path();
-#endif
-    return exeDir / "appsettings.json";
+    auto dir = GetDataDirectory();
+    MigrateIfNeeded(dir);
+    return dir / "appsettings.json";
 }
 
 // ============================================================================

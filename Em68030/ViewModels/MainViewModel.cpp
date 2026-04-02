@@ -626,9 +626,7 @@ namespace winrt::Em68030::implementation
 
     std::string MainViewModel::GetNvramPath()
     {
-        wchar_t buf[MAX_PATH]{};
-        GetModuleFileNameW(nullptr, buf, MAX_PATH);
-        auto path = std::filesystem::path(buf).parent_path() / "nvram.bin";
+        auto path = Config::EmulatorConfig::GetDataDirectory() / "nvram.bin";
         return path.string();
     }
 
@@ -1377,10 +1375,8 @@ namespace winrt::Em68030::implementation
         m_cpu->VerboseTrace = !m_cpu->VerboseTrace;
         if (m_cpu->VerboseTrace)
         {
-            // Open trace log file next to the executable
-            wchar_t exePath[MAX_PATH];
-            GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-            auto traceDir = std::filesystem::path(exePath).parent_path();
+            // Open trace log file in data directory
+            auto traceDir = Config::EmulatorConfig::GetDataDirectory();
             auto tracePath = traceDir / "tracelog.txt";
             try
             {

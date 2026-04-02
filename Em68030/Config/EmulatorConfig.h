@@ -118,18 +118,23 @@ public:
     int JitMinBlockLength = 3;
     int JitCompileThreshold = 32;
 
-    // Load configuration from appsettings.json next to the executable.
+    // Load configuration from appsettings.json.
     // Returns default config on failure.
     static EmulatorConfig Load();
 
-    // Save configuration to appsettings.json next to the executable.
+    // Save configuration to appsettings.json.
     void Save() const;
 
     // Deep-copy via JSON round-trip.
     EmulatorConfig Clone() const;
 
+    // User-writable data directory (%LOCALAPPDATA%\Em68030\).
+    // Falls back to exe directory if LOCALAPPDATA is unavailable.
+    static std::filesystem::path GetDataDirectory();
+
 private:
     static std::filesystem::path GetConfigPath();
+    static void MigrateIfNeeded(const std::filesystem::path& dataDir);
 };
 
 void to_json(nlohmann::json& j, const EmulatorConfig& c);
