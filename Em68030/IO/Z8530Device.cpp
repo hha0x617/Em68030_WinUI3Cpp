@@ -193,13 +193,11 @@ void Z8530Channel::Tick(bool cpuStopped)
         m_txIdleTicks = 0;
     }
 
-    // Promote pending user-input to the hardware RX FIFO only when the
-    // CPU is stopped (idle/sleeping). This ensures:
-    //  - Boot polled mode (cngetc): CPU is running, no promotion.
-    //    Characters stay in pendingInput, read via RR0 + ReadData.
-    //  - Post-boot interrupt mode (read()): CPU is in STOP, promotion
-    //    fires RX interrupt, ISR delivers chars, kernel wakes up.
-    if (cpuStopped && IsRxInterruptEnabled() && !IsPendingInputEmpty()) {
+    // Promote pending user-input to the hardware RX FIFO when the kernel
+    // has enabled RX interrupts (= interrupt-driven mode, not polled boot).
+    // Previously this also required cpuStopped, but that made input
+    // dependent on the CPU entering STOP, which is fragile.
+    if (IsRxInterruptEnabled() && !IsPendingInputEmpty()) {
         uint8_t b;
         while (TryDequeuePendingInput(b))
             m_rxFifo.push(b);

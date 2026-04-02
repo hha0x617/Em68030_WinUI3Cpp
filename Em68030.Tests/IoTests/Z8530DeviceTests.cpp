@@ -248,12 +248,13 @@ TEST_F(Z8530ChannelTest, QueueInput_ReadData_ReturnsCharDirectly)
     EXPECT_EQ(channel.ReadData(), 0x42);
 }
 
-TEST_F(Z8530ChannelTest, QueueInput_NotPromotedWhenCpuRunning)
+TEST_F(Z8530ChannelTest, QueueInput_NotPromotedWhenRxIntDisabled)
 {
-    WriteReg(1, 0x10); // RX interrupt enabled (bits 4-3 = 10)
+    // RX interrupt disabled (WR1 bits 4-3 = 00)
+    WriteReg(1, 0x00);
     channel.QueueInput(0x42);
 
-    // CPU running — should not promote to FIFO
+    // RX int disabled — should not promote to FIFO
     channel.Tick(false);
     EXPECT_FALSE(channel.IsRxIntPending());
 
@@ -261,13 +262,13 @@ TEST_F(Z8530ChannelTest, QueueInput_NotPromotedWhenCpuRunning)
     EXPECT_EQ(channel.ReadData(), 0x42);
 }
 
-TEST_F(Z8530ChannelTest, QueueInput_PromotedWhenCpuStopped)
+TEST_F(Z8530ChannelTest, QueueInput_PromotedWhenRxIntEnabled)
 {
-    WriteReg(1, 0x10); // RX interrupt enabled
+    WriteReg(1, 0x10); // RX interrupt enabled (bits 4-3 = 10)
     channel.QueueInput(0x42);
 
-    // CPU stopped — promote to FIFO
-    channel.Tick(true);
+    // RX int enabled — promote to FIFO regardless of cpuStopped
+    channel.Tick(false);
     EXPECT_TRUE(channel.IsRxIntPending());
 
     EXPECT_EQ(channel.ReadData(), 0x42);
