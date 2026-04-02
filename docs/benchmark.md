@@ -47,5 +47,5 @@ Emulation speed depends on the host PC performance. Results will vary on differe
 
 ### Notes
 
-- The emulator's status bar shows ~44 MIPS (instruction throughput) and ~270 MHz (estimated cycle-based clock). These are internal metrics and not directly comparable to DMIPS, which measures application-level performance including memory access, function calls, and string operations.
+- The emulator's status bar shows ~270 MHz (estimated cycle-based clock). This is an internal metric based on approximate cycle counting and is not directly comparable to DMIPS, which measures application-level performance including memory access, function calls, and string operations.
 - Compiled without `register` attribute as reported by the benchmark output.

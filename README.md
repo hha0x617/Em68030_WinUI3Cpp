@@ -37,7 +37,7 @@ This is the high-performance C++/WinRT + WinUI 3 port of the [C# WPF version](ht
 - Warm reboot (RESET instruction) and halt detection
 
 ### Performance
-Achieves ~44.14 MIPS (~269.85 MHz estimated) on an Intel Core i7-13700. The status bar displays both approximate MHz (cycle-based) and MIPS (instruction throughput). Key optimizations:
+Achieves ~270 MHz (estimated cycle-based clock) on an Intel Core i7-13700. Key optimizations:
 
 - 65,536-entry opcode dispatch table
 - Specialized fast handlers for frequent instructions (MOVEQ, MOVE.L, Bcc.B, RTS, etc.)

@@ -57,24 +57,24 @@ skipping flag calculations that are overwritten by subsequent instructions.
 
 ### Performance
 
-~44.14 MIPS / ~269.85 MHz-cycles (JIT OFF, measured via Avg mode), ~6.1 cycles/instruction
-~41.90 MIPS / ~256.17 MHz-cycles (JIT ON, -5.1% overhead)
+~270 MHz (JIT OFF, measured via Avg mode), ~6.1 cycles/instruction
+~256 MHz (JIT ON, -5.1% overhead)
 
 > **Note**: These figures are approximate estimates, not cycle-accurate measurements.
 > - **MHz** = total emulated cycles / wall-clock seconds / 1,000,000. Cycle counts come from
 >   a 65,536-entry static lookup table (`s_cycleTable`) with EA cost adjustments, which
 >   approximates MC68030 timing but does not model pipeline, cache, or bus wait states.
-> - **MIPS** = total emulated instructions / wall-clock seconds / 1,000,000.
 > - **Avg** values are cumulative from the start of a Run session. Instantaneous values
 >   are sampled every ~500ms.
 > - Results vary depending on workload, host CPU, and system load.
+> - For application-level performance, see [Benchmark](benchmark.md) (Dhrystone DMIPS).
 
 > **STOP instruction idle time exclusion**: Linux uses the M68K `STOP` instruction
 > (0x4E72) to halt the CPU while waiting for interrupts (interrupt-driven idle).
 > The emulator tracks wall-clock time spent in the STOP state and excludes it from
-> the MHz/MIPS calculation denominator. This ensures that the displayed values reflect
+> the MHz calculation denominator. This ensures that the displayed values reflect
 > actual CPU execution speed rather than idle time. For example, at an idle Linux shell
-> prompt where the CPU spends nearly all time in STOP, the MHz/MIPS values remain
+> prompt where the CPU spends nearly all time in STOP, the MHz values remain
 > broadly consistent with active execution speed without showing obviously
 > anomalous values. NetBSD, by contrast, tends to use busy-wait loops that
 > continuously execute instructions, so STOP time exclusion has minimal effect.
@@ -432,7 +432,7 @@ The following parameters are configurable via Settings → Performance → JIT:
 
 ### Performance
 
-| Mode | MHz (cycles) | MIPS | Notes |
-|------|-------------|------|-------|
-| JIT OFF | ~270 | ~44.1 | Baseline |
-| JIT ON | ~256 | ~41.9 | -5.1% overhead due to bailout frequency |
+| Mode | MHz (cycles) | Notes |
+|------|-------------|-------|
+| JIT OFF | ~270 | Baseline |
+| JIT ON | ~256 | -5.1% overhead due to bailout frequency |
