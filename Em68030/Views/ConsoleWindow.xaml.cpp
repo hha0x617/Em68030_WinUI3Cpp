@@ -569,7 +569,9 @@ namespace winrt::Em68030::implementation
 
     void ConsoleWindow::RenderScreen()
     {
-        // Drain output queue into the VT100 terminal emulator
+        // Drain output queue into the VT100 terminal emulator.
+        // Always drain, even if we skip the UI update, so the terminal
+        // state stays current.
         {
             std::lock_guard lock(m_outputMutex);
             while (!m_outputQueue.empty())
@@ -593,14 +595,22 @@ namespace winrt::Em68030::implementation
         if (OutputBox().SelectionLength() > 0)
             return;
 
-        m_terminal.ClearDirty();
-
         // Skip text updates while scrolled back — the terminal continues
         // processing output internally, and will render when user scrolls
         // back to bottom (m_autoScroll becomes true via ViewChanged event).
         if (!m_autoScroll)
+        {
+            m_terminal.ClearDirty();
+            return;
+        }
+
+        // Skip if the previous render's UI update hasn't completed yet.
+        // The terminal stays dirty so the next timer tick will retry.
+        if (m_rendering)
             return;
 
+        m_terminal.ClearDirty();
+        m_rendering = true;
         m_suppressScrollEvent = true;
 
         std::string rendered = m_cursorVisible
@@ -614,11 +624,15 @@ namespace winrt::Em68030::implementation
         auto textLength = OutputBox().Text().size();
         OutputBox().Select(static_cast<int32_t>(textLength), 0);
 
-        // Clear suppress flag after layout settles (deferred to avoid
+        // Clear flags after layout settles (deferred to avoid
         // catching internal scroll events triggered by the text update)
         DispatcherQueue().TryEnqueue(
             Microsoft::UI::Dispatching::DispatcherQueuePriority::Low,
-            [this]() { m_suppressScrollEvent = false; });
+            [this]()
+            {
+                m_suppressScrollEvent = false;
+                m_rendering = false;
+            });
     }
 
     // ========================================================================

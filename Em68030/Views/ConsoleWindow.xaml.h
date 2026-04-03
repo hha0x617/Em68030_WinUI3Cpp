@@ -94,6 +94,9 @@ namespace winrt::Em68030::implementation
         int m_blinkCounter = 0;
         bool m_cursorVisible = true;
 
+        // Guard against overlapping renders on slow machines
+        bool m_rendering = false;
+
         // Render the terminal screen to the TextBox
         void RenderScreen();
 
