@@ -106,5 +106,6 @@ CoreMark score = Iterations / Total time.
 |--------|----------|-------|
 | MC68030 25 MHz (real hardware) | ~10-20 | Approximate, varies by implementation |
 | **Em68030 C++ on i7-13700** | **155.55** | ~8-15x faster than real MC68030 25 MHz |
+| Em68030 C# on i7-13700 | 112.86 | ~73% of C++ version |
 | Raspberry Pi 1 (ARM1176, 700 MHz) | ~1,073 | For reference |
 | Raspberry Pi 3 (Cortex-A53, 1.2 GHz) | ~4,292 | For reference |
