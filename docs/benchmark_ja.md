@@ -49,3 +49,62 @@ DMIPS = Dhrystones/秒 / 1757 (VAX 11/780 = 1.0 DMIPS を基準とした正規�
 
 - エミュレータのステータスバーには ~270 MHz (概算サイクルベースクロック) が表示されます。これは概算サイクルカウントに基づくエミュレータ内部の指標であり、メモリアクセス・関数呼び出し・文字列操作を含むアプリケーションレベルの性能を測定する DMIPS とは直接比較できません。
 - ベンチマーク出力に "Program compiled without 'register' attribute" と報告されています。
+
+---
+
+## CoreMark 1.0
+
+Em68030 エミュレータ上の NetBSD/mvme68k 10.1 で [eembc/coremark](https://github.com/eembc/coremark) を使用して計測。
+
+### 前提条件
+
+ゲスト上に `git` と `gmake` をインストール（NetBSD 標準の `make` は CoreMark の Makefile と非互換）:
+
+```sh
+pkg_add git gmake
+```
+
+### ビルド
+
+```sh
+git clone https://github.com/eembc/coremark.git
+cd coremark
+gmake PORT_DIR=posix CC=gcc XCFLAGS="-O2 -m68030" RECURSE_OUT=1
+```
+
+### 実行
+
+```sh
+./coremark.exe 0 0 0 5000
+```
+
+### 結果
+
+| 項目 | 値 |
+|------|---|
+| 反復回数 | 5,000 |
+| 合計時間（秒） | 32.145 |
+| **CoreMark スコア** | **155.55** |
+| コンパイラ | GCC 10.5.0 |
+| コンパイラフラグ | `-O2 -m68030 -DPERFORMANCE_RUN=1 -lrt` |
+| メモリ配置 | Heap |
+
+CoreMark スコア = 反復回数 / 合計時間。
+
+### ホスト環境
+
+| 項目 | 値 |
+|------|---|
+| エミュレータ | Em68030 (C++ / WinUI 3) |
+| JIT | OFF |
+| ホスト CPU | Intel Core i7-13700 |
+| ホスト OS | Windows 11 Pro 25H2 |
+
+### 比較
+
+| システム | CoreMark | 備考 |
+|---------|----------|------|
+| MC68030 25 MHz (実機) | ~10-20 | 概算、実装により異なる |
+| **Em68030 C++ on i7-13700** | **155.55** | 実機 MC68030 25 MHz の約 8-15 倍 |
+| Raspberry Pi 1 (ARM1176, 700 MHz) | ~1,073 | 参考値 |
+| Raspberry Pi 3 (Cortex-A53, 1.2 GHz) | ~4,292 | 参考値 |
