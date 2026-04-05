@@ -908,7 +908,8 @@ namespace winrt::Em68030::implementation
     void SettingsWindow::UpdateMvme147Visibility()
     {
         bool isMvme = GetSelectedItemText(BoardTypeBox()) == "MVME147";
-        Mvme147Panel().Visibility(isMvme ? Visibility::Visible : Visibility::Collapsed);
+        if (auto tab = FindName(L"TabMvme147").try_as<Controls::PivotItem>())
+            tab.IsEnabled(isMvme);
     }
 
     void SettingsWindow::UpdateTargetOSVisibility()
