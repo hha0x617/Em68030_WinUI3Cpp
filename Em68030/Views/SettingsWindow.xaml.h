@@ -61,6 +61,8 @@ namespace winrt::Em68030::implementation
                                winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
 
     private:
+        bool m_mvme147TabEnabled = false;
+
         void UpdateMvme147Visibility();
         void UpdateTargetOSVisibility();
         void UpdateNatGatewayEnabled();

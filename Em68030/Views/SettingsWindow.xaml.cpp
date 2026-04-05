@@ -174,6 +174,20 @@ namespace winrt::Em68030::implementation
         {
             BoardTypeBox().SelectionChanged({ this, &SettingsWindow::BoardType_Changed });
         }
+        if (auto pivot = FindName(L"SettingsTabs").try_as<Controls::Pivot>())
+        {
+            pivot.SelectionChanged([this](auto&&, auto&&)
+            {
+                auto pivot = FindName(L"SettingsTabs").try_as<Controls::Pivot>();
+                auto mvmeTab = FindName(L"TabMvme147").try_as<Controls::PivotItem>();
+                if (pivot && mvmeTab && !m_mvme147TabEnabled &&
+                    pivot.SelectedItem() == mvmeTab)
+                {
+                    // Bounce back to General tab
+                    pivot.SelectedIndex(0);
+                }
+            });
+        }
         if (auto btn = FindName(L"BrowseRomBtn").try_as<Controls::Button>())
             btn.Click({ this, &SettingsWindow::BrowseRom_Click });
         if (auto btn = FindName(L"CreateScsiImageBtn").try_as<Controls::Button>())
@@ -908,8 +922,12 @@ namespace winrt::Em68030::implementation
     void SettingsWindow::UpdateMvme147Visibility()
     {
         bool isMvme = GetSelectedItemText(BoardTypeBox()) == "MVME147";
+        m_mvme147TabEnabled = isMvme;
         if (auto tab = FindName(L"TabMvme147").try_as<Controls::PivotItem>())
+        {
             tab.IsEnabled(isMvme);
+            tab.Opacity(isMvme ? 1.0 : 0.35);
+        }
     }
 
     void SettingsWindow::UpdateTargetOSVisibility()
