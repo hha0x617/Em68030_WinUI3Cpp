@@ -178,13 +178,15 @@ namespace winrt::Em68030::implementation
         {
             pivot.SelectionChanged([this](auto&&, auto&&)
             {
+                if (m_suppressTabChange) return;
                 auto pivot = FindName(L"SettingsTabs").try_as<Controls::Pivot>();
                 auto mvmeTab = FindName(L"TabMvme147").try_as<Controls::PivotItem>();
                 if (pivot && mvmeTab && !m_mvme147TabEnabled &&
                     pivot.SelectedItem() == mvmeTab)
                 {
-                    // Bounce back to General tab
+                    m_suppressTabChange = true;
                     pivot.SelectedIndex(0);
+                    m_suppressTabChange = false;
                 }
             });
         }

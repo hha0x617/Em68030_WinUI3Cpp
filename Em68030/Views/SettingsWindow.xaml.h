@@ -62,6 +62,7 @@ namespace winrt::Em68030::implementation
 
     private:
         bool m_mvme147TabEnabled = false;
+        bool m_suppressTabChange = false;
 
         void UpdateMvme147Visibility();
         void UpdateTargetOSVisibility();
