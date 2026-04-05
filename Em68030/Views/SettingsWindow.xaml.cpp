@@ -174,8 +174,6 @@ namespace winrt::Em68030::implementation
         {
             BoardTypeBox().SelectionChanged({ this, &SettingsWindow::BoardType_Changed });
         }
-        // No SelectionChanged handler needed — MVME147 tab content is
-        // disabled/dimmed via UpdateMvme147Visibility() instead of blocking selection.
         if (auto btn = FindName(L"BrowseRomBtn").try_as<Controls::Button>())
             btn.Click({ this, &SettingsWindow::BrowseRom_Click });
         if (auto btn = FindName(L"CreateScsiImageBtn").try_as<Controls::Button>())
@@ -910,13 +908,9 @@ namespace winrt::Em68030::implementation
     void SettingsWindow::UpdateMvme147Visibility()
     {
         bool isMvme = GetSelectedItemText(BoardTypeBox()) == "MVME147";
-        m_mvme147TabEnabled = isMvme;
-        // Dim the entire MVME147 tab content when Generic is selected.
-        // StackPanel has no IsEnabled, so we use Opacity + IsHitTestVisible.
-        if (Mvme147Panel())
+        if (auto tab = FindName(L"TabMvme147").try_as<Controls::TabViewItem>())
         {
-            Mvme147Panel().Opacity(isMvme ? 1.0 : 0.35);
-            Mvme147Panel().IsHitTestVisible(isMvme);
+            tab.IsEnabled(isMvme);
         }
     }
 

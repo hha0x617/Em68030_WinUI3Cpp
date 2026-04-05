@@ -54,9 +54,11 @@
         </Style>
     </ContentDialog.Resources>
 
-    <Pivot x:Name="SettingsTabs">
+    <TabView x:Name="SettingsTabs" IsAddTabButtonVisible="False"
+             CanDragTabs="False" CanReorderTabs="False"
+             TabWidthMode="SizeToContent">
         <!-- ==================== General Tab ==================== -->
-        <PivotItem x:Name="TabGeneral" Header="General">
+        <TabViewItem x:Name="TabGeneral" Header="General" IsClosable="False">
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="420" Background="Transparent">
                 <StackPanel Spacing="0" Background="Transparent">
                     <!-- Board Type -->
@@ -173,10 +175,10 @@
                     </Grid>
                 </StackPanel>
             </ScrollViewer>
-        </PivotItem>
+        </TabViewItem>
 
         <!-- ==================== MVME147 Tab ==================== -->
-        <PivotItem x:Name="TabMvme147" Header="MVME147">
+        <TabViewItem x:Name="TabMvme147" Header="MVME147" IsClosable="False">
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="420" Background="Transparent">
                 <StackPanel x:Name="Mvme147Panel" Spacing="0" Background="Transparent">
                     <!-- MVME147 Settings -->
@@ -356,10 +358,10 @@
                     </Grid>
                 </StackPanel>
             </ScrollViewer>
-        </PivotItem>
+        </TabViewItem>
 
         <!-- ==================== Advanced Tab ==================== -->
-        <PivotItem x:Name="TabAdvanced" Header="Advanced">
+        <TabViewItem x:Name="TabAdvanced" Header="Advanced" IsClosable="False">
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="420" Background="Transparent">
                 <StackPanel Spacing="0" Background="Transparent">
                     <!-- Performance -->
@@ -392,6 +394,6 @@
                     <TextBlock x:Name="LblTraceFilePath" Text="" Foreground="#FF808080" FontSize="11" Margin="24,0,0,4" IsTextSelectionEnabled="True" />
                 </StackPanel>
             </ScrollViewer>
-        </PivotItem>
-    </Pivot>
+        </TabViewItem>
+    </TabView>
 </ContentDialog>
