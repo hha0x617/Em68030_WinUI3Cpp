@@ -54,6 +54,8 @@
         </Style>
     </ContentDialog.Resources>
 
+    <StackPanel>
+    <Border BorderBrush="#FF3F3F46" BorderThickness="0,0,0,1" Margin="0,0,0,8" />
     <TabView x:Name="SettingsTabs" IsAddTabButtonVisible="False"
              CanDragTabs="False" CanReorderTabs="False"
              TabWidthMode="SizeToContent">
@@ -410,4 +412,5 @@
             </ScrollViewer>
         </TabViewItem>
     </TabView>
+    </StackPanel>
 </ContentDialog>
