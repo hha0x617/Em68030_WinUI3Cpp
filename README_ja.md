@@ -98,6 +98,8 @@ vstest.console.exe Em68030\x64\Release\Em68030.Tests.exe
 {
     "BoardType": "MVME147",
     "MemorySize": 67108864,
+    "TargetOS": "NetBSD",
+    "NetBsdKernelImagePath": "path/to/netbsd-GENERIC",
     "Mvme147ScsiDisks": [
         { "Path": "path/to/scsi0.img", "ScsiId": 0 }
     ],
@@ -112,10 +114,15 @@ vstest.console.exe Em68030\x64\Release\Em68030.Tests.exe
 |---|---|---|
 | `BoardType` | `"Generic"` または `"MVME147"` | `"Generic"` |
 | `MemorySize` | RAM サイズ (バイト) | 48 MB |
+| `TargetOS` | `"NetBSD"` または `"Linux"` | `"NetBSD"` |
+| `NetBsdKernelImagePath` | 起動時に自動読み込みする NetBSD カーネルのパス | `""` |
+| `LinuxKernelImagePath` | 起動時に自動読み込みする Linux カーネルのパス | `""` |
 | `Mvme147ScsiDisks` | SCSI ディスクイメージのリスト (Path + ScsiId) | `[]` |
 | `Mvme147ScsiCdromPath` | SCSI CD-ROM ISO イメージパス | `""` |
-| `NetworkMode` | `"Virtual"` (エコーサーバ) または `"NAT"` (ホストネットワーク) | `"Virtual"` |
+| `NetworkMode` | `"Virtual"`、`"NAT"`、または `"TAP"` | `"Virtual"` |
 | `ConsoleScrollbackLines` | コンソールのスクロールバック行数 (0-100000) | 2000 |
+
+詳細な設定リファレンスは [ユーザーガイド](docs/user_guide_ja.md) を参照してください。
 | `JitEnabled` | 実験的 JIT コンパイラを有効化 | `false` |
 | `JitMinBlockLength` | JIT コンパイル対象の最小命令数 | 3 |
 | `JitCompileThreshold` | コンパイルまでの実行回数しきい値 | 32 |
