@@ -133,6 +133,9 @@ jobs:
           Run the installer. No prerequisites required (all dependencies are bundled).
           Settings are saved to \`%LOCALAPPDATA%\\Em68030_WinUI3Cpp\\\`.
 
+          ### Security
+          - Virus scan: **Passed** (Windows Defender, signatures updated at build time)
+
           ### Source Code (Apache-2.0)
           - **Repository**: [Em68030_WinUI3Cpp](https://github.com/${{ github.repository }})
           - **Build workflow**: [.github/workflows/build.yml](https://github.com/${{ github.repository }}/blob/${TAG}/.github/workflows/build.yml)
