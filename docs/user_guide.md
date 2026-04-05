@@ -191,6 +191,8 @@ Manages CPU breakpoints for debugging.
 
 ## Settings Reference
 
+Settings are saved to `%LOCALAPPDATA%\Em68030_WinUI3Cpp\appsettings.json`.
+
 ### Board Type
 
 | Setting | Values | Default | Description |

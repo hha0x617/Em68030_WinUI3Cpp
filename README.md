@@ -88,6 +88,7 @@ vstest.console.exe Em68030\x64\Release\Em68030.Tests.exe
 After building, run `Em68030\x64\Release\Em68030.exe`.
 
 On first launch, an `appsettings.json` file is generated from the Settings menu.
+Settings are saved to `%LOCALAPPDATA%\Em68030_WinUI3Cpp\`.
 
 > **Note**: Since the executable is not code-signed, Windows Defender SmartScreen may block it on first run. Click "More info" and then "Run anyway" to proceed. Alternatively, right-click the exe, open Properties, and check "Unblock" on the General tab.
 

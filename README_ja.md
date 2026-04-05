@@ -88,6 +88,7 @@ vstest.console.exe Em68030\x64\Release\Em68030.Tests.exe
 ビルド後、`Em68030\x64\Release\Em68030.exe` を実行します。
 
 初回起動後、Settings メニューから `appsettings.json` が生成されます。
+設定ファイルは `%LOCALAPPDATA%\Em68030_WinUI3Cpp\` に保存されます。
 
 > **注意**: 実行ファイルにコード署名がないため、初回実行時に Windows Defender SmartScreen によってブロックされることがあります。「詳細情報」をクリックし、「実行」を選択してください。または、exe ファイルを右クリックしてプロパティを開き、「全般」タブの「許可する」にチェックを入れてください。
 
