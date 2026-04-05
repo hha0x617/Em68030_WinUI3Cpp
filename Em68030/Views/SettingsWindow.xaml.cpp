@@ -176,6 +176,9 @@ namespace winrt::Em68030::implementation
         }
         if (auto btn = FindName(L"BrowseRomBtn").try_as<Controls::Button>())
             btn.Click({ this, &SettingsWindow::BrowseRom_Click });
+        KernelImagePathBox(FindName(L"KernelImagePathBox").try_as<Controls::TextBox>());
+        if (auto btn = FindName(L"BrowseKernelBtn").try_as<Controls::Button>())
+            btn.Click([this](auto&&, auto&&) { BrowseFile(L"ELF Image", L".elf", ResourceHelper::GetString(L"Settings_SelectKernelImage"), KernelImagePathBox()); });
         if (auto btn = FindName(L"CreateScsiImageBtn").try_as<Controls::Button>())
             btn.Click({ this, &SettingsWindow::CreateScsiImage_Click });
         if (auto btn = FindName(L"BrowseScsiCdromBtn").try_as<Controls::Button>())
@@ -586,6 +589,8 @@ namespace winrt::Em68030::implementation
         // Board type
         SelectItemByText(BoardTypeBox(), config.BoardType);
         Mvme147RomBox().Text(winrt::to_hstring(config.Mvme147RomPath));
+        if (KernelImagePathBox())
+            KernelImagePathBox().Text(winrt::to_hstring(config.Mvme147KernelImagePath));
 
         // SCSI Disks
         m_diskRows.clear();
@@ -700,6 +705,8 @@ namespace winrt::Em68030::implementation
         config.BoardType = GetSelectedItemText(BoardTypeBox());
 
         config.Mvme147RomPath = winrt::to_string(Mvme147RomBox().Text());
+        if (KernelImagePathBox())
+            config.Mvme147KernelImagePath = winrt::to_string(KernelImagePathBox().Text());
 
         // SCSI Disks
         config.Mvme147ScsiDisks.clear();

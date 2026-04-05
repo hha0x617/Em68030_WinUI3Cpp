@@ -95,6 +95,18 @@ namespace winrt::Em68030::implementation
         m_cpu->Reset();
         m_disasmAddress = m_cpu->PC;
 
+        // Auto-load kernel image if configured (MVME147 only)
+        if (m_config.BoardType == "MVME147" &&
+            !m_config.Mvme147KernelImagePath.empty() &&
+            std::filesystem::exists(m_config.Mvme147KernelImagePath))
+        {
+            try
+            {
+                LoadElfFileNative(m_config.Mvme147KernelImagePath);
+            }
+            catch (...) {}
+        }
+
         // Capture the dispatcher queue for UI thread callbacks
         m_dispatcherQueue = DispatcherQueue::GetForCurrentThread();
 

@@ -195,6 +195,20 @@
                                 Style="{StaticResource BrowseButtonStyle}" />
                     </Grid>
 
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="LblKernelImage" Text="Kernel Image:" Style="{StaticResource SettingLabelStyle}" />
+                        <TextBox x:Name="KernelImagePathBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+                        <Button x:Name="BrowseKernelBtn" Content="..." Grid.Column="2"
+                                Style="{StaticResource BrowseButtonStyle}" />
+                    </Grid>
+                    <TextBlock x:Name="LblKernelImageDescription" Text="If specified, this kernel image is automatically loaded when the emulator starts."
+                               Foreground="#FF808080" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,4" />
+
                     <!-- Target OS -->
                     <TextBlock x:Name="LblTargetOS" Text="Target OS" Style="{StaticResource SectionHeaderStyle}" />
                     <Grid>
