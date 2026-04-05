@@ -59,7 +59,7 @@
              TabWidthMode="SizeToContent">
         <!-- ==================== General Tab ==================== -->
         <TabViewItem x:Name="TabGeneral" Header="General" IsClosable="False">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="420" Background="Transparent">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MinHeight="420" MaxHeight="420" Background="Transparent">
                 <StackPanel Spacing="0" Background="Transparent">
                     <!-- Board Type -->
                     <TextBlock x:Name="LblBoardType" Text="Board Type" Style="{StaticResource SectionHeaderStyle}" />
@@ -179,7 +179,7 @@
 
         <!-- ==================== MVME147 Tab ==================== -->
         <TabViewItem x:Name="TabMvme147" Header="MVME147" IsClosable="False">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="420" Background="Transparent">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MinHeight="420" MaxHeight="420" Background="Transparent">
                 <StackPanel x:Name="Mvme147Panel" Spacing="0" Background="Transparent">
                     <!-- MVME147 Settings -->
                     <TextBlock x:Name="LblMvme147Settings" Text="MVME147 Settings" Style="{StaticResource SectionHeaderStyle}" />
@@ -376,7 +376,7 @@
 
         <!-- ==================== Advanced Tab ==================== -->
         <TabViewItem x:Name="TabAdvanced" Header="Advanced" IsClosable="False">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="420" Background="Transparent">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MinHeight="420" MaxHeight="420" Background="Transparent">
                 <StackPanel Spacing="0" Background="Transparent">
                     <!-- Performance -->
                     <TextBlock x:Name="LblPerformance" Text="Performance" Style="{StaticResource SectionHeaderStyle}" />
