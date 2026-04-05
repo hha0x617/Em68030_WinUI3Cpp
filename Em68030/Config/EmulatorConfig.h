@@ -73,8 +73,9 @@ public:
     std::string Mvme147ScsiCdromPath;
     int Mvme147ScsiCdromId = 3;
 
-    // Kernel image path for auto-load on startup
-    std::string Mvme147KernelImagePath;
+    // Kernel image paths for auto-load on startup (per target OS)
+    std::string NetBsdKernelImagePath;
+    std::string LinuxKernelImagePath;
 
     // Boot partition: 0='a', 1='b', etc. Used by boot stub to tell kernel which partition is root.
     int Mvme147BootPartition = 0;

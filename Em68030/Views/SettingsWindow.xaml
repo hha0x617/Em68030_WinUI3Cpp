@@ -197,20 +197,6 @@
                                 Style="{StaticResource BrowseButtonStyle}" />
                     </Grid>
 
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="150" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="LblKernelImage" Text="Kernel Image:" Style="{StaticResource SettingLabelStyle}" />
-                        <TextBox x:Name="KernelImagePathBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
-                        <Button x:Name="BrowseKernelBtn" Content="..." Grid.Column="2"
-                                Style="{StaticResource BrowseButtonStyle}" />
-                    </Grid>
-                    <TextBlock x:Name="LblKernelImageDescription" Text="If specified, this kernel image is automatically loaded when the emulator starts."
-                               Foreground="#FF808080" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,4" />
-
                     <!-- Target OS -->
                     <TextBlock x:Name="LblTargetOS" Text="Target OS" Style="{StaticResource SectionHeaderStyle}" />
                     <Grid>
@@ -230,6 +216,19 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="150" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="LblNetBsdKernelImage" Text="Kernel Image:" Style="{StaticResource SettingLabelStyle}" />
+                            <TextBox x:Name="NetBsdKernelImagePathBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+                            <Button x:Name="BrowseNetBsdKernelBtn" Content="..." Grid.Column="2"
+                                    Style="{StaticResource BrowseButtonStyle}" />
+                        </Grid>
+                        <TextBlock x:Name="LblNetBsdKernelDesc" Text="If specified, this kernel image is automatically loaded when the emulator starts."
+                                   Foreground="#FF808080" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,4" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="LblBootPartition" Text="Boot Partition:" Style="{StaticResource SettingLabelStyle}" />
                             <ComboBox x:Name="BootPartitionBox" Grid.Column="1"
@@ -241,6 +240,19 @@
                     </StackPanel>
                     <!-- Linux-specific settings -->
                     <StackPanel x:Name="LinuxPanel" Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="LblLinuxKernelImage" Text="Kernel Image:" Style="{StaticResource SettingLabelStyle}" />
+                            <TextBox x:Name="LinuxKernelImagePathBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
+                            <Button x:Name="BrowseLinuxKernelBtn" Content="..." Grid.Column="2"
+                                    Style="{StaticResource BrowseButtonStyle}" />
+                        </Grid>
+                        <TextBlock x:Name="LblLinuxKernelDesc" Text="If specified, this kernel image is automatically loaded when the emulator starts."
+                                   Foreground="#FF808080" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,4" />
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="150" />

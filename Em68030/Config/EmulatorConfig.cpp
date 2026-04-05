@@ -86,7 +86,8 @@ void to_json(nlohmann::json& j, const EmulatorConfig& c)
         {"Mvme147ScsiDisks",        c.Mvme147ScsiDisks},
         {"Mvme147ScsiCdromPath",    c.Mvme147ScsiCdromPath},
         {"Mvme147ScsiCdromId",      c.Mvme147ScsiCdromId},
-        {"Mvme147KernelImagePath",  c.Mvme147KernelImagePath},
+        {"NetBsdKernelImagePath",   c.NetBsdKernelImagePath},
+        {"LinuxKernelImagePath",    c.LinuxKernelImagePath},
         {"Mvme147BootPartition",    c.Mvme147BootPartition},
         {"TargetOS",                c.TargetOS},
         {"LinuxCommandLine",        c.LinuxCommandLine},
@@ -129,7 +130,14 @@ void from_json(const nlohmann::json& j, EmulatorConfig& c)
     if (j.contains("Mvme147ScsiDisks"))       j.at("Mvme147ScsiDisks").get_to(c.Mvme147ScsiDisks);
     if (j.contains("Mvme147ScsiCdromPath"))   j.at("Mvme147ScsiCdromPath").get_to(c.Mvme147ScsiCdromPath);
     if (j.contains("Mvme147ScsiCdromId"))     j.at("Mvme147ScsiCdromId").get_to(c.Mvme147ScsiCdromId);
-    if (j.contains("Mvme147KernelImagePath")) j.at("Mvme147KernelImagePath").get_to(c.Mvme147KernelImagePath);
+    if (j.contains("NetBsdKernelImagePath"))  j.at("NetBsdKernelImagePath").get_to(c.NetBsdKernelImagePath);
+    if (j.contains("LinuxKernelImagePath"))  j.at("LinuxKernelImagePath").get_to(c.LinuxKernelImagePath);
+    // Migration: old single field
+    if (j.contains("Mvme147KernelImagePath") && c.NetBsdKernelImagePath.empty() && c.LinuxKernelImagePath.empty())
+    {
+        std::string old; j.at("Mvme147KernelImagePath").get_to(old);
+        if (!old.empty()) { if (c.TargetOS == "Linux") c.LinuxKernelImagePath = old; else c.NetBsdKernelImagePath = old; }
+    }
     if (j.contains("Mvme147BootPartition")) j.at("Mvme147BootPartition").get_to(c.Mvme147BootPartition);
     if (j.contains("TargetOS"))              j.at("TargetOS").get_to(c.TargetOS);
     if (j.contains("LinuxCommandLine"))      j.at("LinuxCommandLine").get_to(c.LinuxCommandLine);
