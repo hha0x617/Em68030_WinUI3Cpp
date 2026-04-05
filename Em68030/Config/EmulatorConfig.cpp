@@ -102,7 +102,8 @@ void to_json(nlohmann::json& j, const EmulatorConfig& c)
         {"FramebufferBpp",          c.FramebufferBpp},
         {"JitEnabled",              c.JitEnabled},
         {"JitMinBlockLength",       c.JitMinBlockLength},
-        {"JitCompileThreshold",     c.JitCompileThreshold}
+        {"JitCompileThreshold",     c.JitCompileThreshold},
+        {"EnableTraceButton",       c.EnableTraceButton}
     };
 }
 
@@ -144,6 +145,7 @@ void from_json(const nlohmann::json& j, EmulatorConfig& c)
     if (j.contains("JitEnabled"))             j.at("JitEnabled").get_to(c.JitEnabled);
     if (j.contains("JitMinBlockLength"))     j.at("JitMinBlockLength").get_to(c.JitMinBlockLength);
     if (j.contains("JitCompileThreshold"))   j.at("JitCompileThreshold").get_to(c.JitCompileThreshold);
+    if (j.contains("EnableTraceButton"))     j.at("EnableTraceButton").get_to(c.EnableTraceButton);
 
     // Migrate legacy per-disk fields to Mvme147ScsiDisks list
     if (c.Mvme147ScsiDisks.empty() && !j.contains("Mvme147ScsiDisks"))

@@ -302,7 +302,15 @@ namespace winrt::Em68030::implementation
             if (auto btn = root.FindName(L"BtnFullReset").try_as<Controls::Button>())
             { BtnFullReset(btn); btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_FullReset"))); btn.Click({ this, &MainWindow::FullReset_Click }); }
             if (auto btn = root.FindName(L"BtnTrace").try_as<Controls::Button>())
-            { BtnTrace(btn); btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_Trace"))); btn.Click({ this, &MainWindow::Trace_Click }); }
+            {
+                BtnTrace(btn);
+                btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_Trace")));
+                btn.Click({ this, &MainWindow::Trace_Click });
+                auto initConfig = ::Em68030::Config::EmulatorConfig::Load();
+                btn.Visibility(initConfig.EnableTraceButton
+                    ? Microsoft::UI::Xaml::Visibility::Visible
+                    : Microsoft::UI::Xaml::Visibility::Collapsed);
+            }
 
             // --- Disassembly controls ---
             if (DisasmAddrBox())
@@ -928,6 +936,10 @@ namespace winrt::Em68030::implementation
                 vmImpl->ApplyConfig(config);
                 UpdateStatusBar();
                 UpdateToolbarInfo();
+                if (BtnTrace())
+                    BtnTrace().Visibility(config.EnableTraceButton
+                        ? Microsoft::UI::Xaml::Visibility::Visible
+                        : Microsoft::UI::Xaml::Visibility::Collapsed);
                 if (m_consoleWindow)
                 {
                     auto consoleImpl = m_consoleWindow.as<implementation::ConsoleWindow>();

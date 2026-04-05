@@ -118,6 +118,9 @@ public:
     int JitMinBlockLength = 3;
     int JitCompileThreshold = 32;
 
+    // Debug
+    bool EnableTraceButton = false;
+
     // Load configuration from appsettings.json.
     // Returns default config on failure.
     static EmulatorConfig Load();

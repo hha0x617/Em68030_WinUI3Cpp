@@ -349,6 +349,14 @@
                 <TextBox x:Name="JitCompileThresholdBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
             </Grid>
 
+            <!-- Debug -->
+            <TextBlock x:Name="LblDebug" Text="Debug" Style="{StaticResource SectionHeaderStyle}" />
+            <CheckBox x:Name="EnableTraceButtonBox" Content="Show Trace Button"
+                      Foreground="#FFD4D4D4" Margin="0,4" />
+            <TextBlock x:Name="LblTraceDescription" Text="When enabled, a Trace button appears on the toolbar. Clicking it toggles verbose instruction tracing to a log file."
+                       Foreground="#FF808080" FontSize="11" TextWrapping="Wrap" Margin="24,0,0,4" />
+            <TextBlock x:Name="LblTraceFilePath" Text="" Foreground="#FF808080" FontSize="11" Margin="24,0,0,4" IsTextSelectionEnabled="True" />
+
             <!-- Display Settings -->
             <TextBlock x:Name="LblDisplay" Text="Display" Style="{StaticResource SectionHeaderStyle}" />
             <Grid>

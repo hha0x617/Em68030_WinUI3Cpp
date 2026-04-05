@@ -602,5 +602,8 @@ NetBSD ディスク イメージに対してのみ使用してください。</v
 範囲: ${1}-${2}
 {3} セグメントをロード</value>
   </data>
+  <data name="Settings_EnableTraceButton" xml:space="preserve">
+    <value>Trace ボタンを表示</value>
+  </data>
 
 </root>

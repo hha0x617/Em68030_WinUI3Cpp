@@ -137,6 +137,7 @@ namespace winrt::Em68030::implementation
         JitEnabledBox(FindName(L"JitEnabledBox").try_as<Controls::CheckBox>());
         JitMinBlockLengthBox(FindName(L"JitMinBlockLengthBox").try_as<Controls::TextBox>());
         JitCompileThresholdBox(FindName(L"JitCompileThresholdBox").try_as<Controls::TextBox>());
+        EnableTraceButtonBox(FindName(L"EnableTraceButtonBox").try_as<Controls::CheckBox>());
         AddScsiDiskBtn(FindName(L"AddScsiDiskBtn").try_as<Controls::Button>());
         BootPartitionBox(FindName(L"BootPartitionBox").try_as<Controls::ComboBox>());
         TargetOSBox(FindName(L"TargetOSBox").try_as<Controls::ComboBox>());
@@ -319,6 +320,15 @@ namespace winrt::Em68030::implementation
             JitEnabledBox().Content(winrt::box_value(ResourceHelper::GetString(L"Settings_EnableJit")));
         if (FramebufferEnabledBox())
             FramebufferEnabledBox().Content(winrt::box_value(ResourceHelper::GetString(L"Settings_EnableFramebuffer")));
+        if (EnableTraceButtonBox())
+            EnableTraceButtonBox().Content(winrt::box_value(ResourceHelper::GetString(L"Settings_EnableTraceButton")));
+
+        // Set trace file path display
+        if (auto lbl = FindName(L"LblTraceFilePath").try_as<Controls::TextBlock>())
+        {
+            auto tracePath = ::Em68030::Config::EmulatorConfig::GetDataDirectory() / "tracelog.txt";
+            lbl.Text(winrt::hstring(L"Trace file: " + tracePath.wstring()));
+        }
 
         // Buttons
         if (AddScsiDiskBtn())
@@ -675,6 +685,10 @@ namespace winrt::Em68030::implementation
         if (JitCompileThresholdBox())
             JitCompileThresholdBox().Text(winrt::to_hstring(std::to_string(config.JitCompileThreshold)));
 
+        // Debug
+        if (EnableTraceButtonBox())
+            EnableTraceButtonBox().IsChecked(config.EnableTraceButton);
+
         // Display
         FontFamilyBox().Text(winrt::to_hstring(config.FontFamily));
         FontSizeBox().Text(winrt::to_hstring(std::to_string(config.FontSize)));
@@ -805,6 +819,10 @@ namespace winrt::Em68030::implementation
             try { config.JitCompileThreshold = std::clamp(std::stoi(winrt::to_string(JitCompileThresholdBox().Text())), 1, 255); }
             catch (...) { /* keep previous */ }
         }
+
+        // Debug
+        if (EnableTraceButtonBox())
+            config.EnableTraceButton = EnableTraceButtonBox().IsChecked().Value();
 
         config.FontFamily = winrt::to_string(FontFamilyBox().Text());
 

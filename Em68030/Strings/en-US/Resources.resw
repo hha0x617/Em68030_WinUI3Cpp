@@ -601,5 +601,8 @@ Entry: ${0}
 Range: ${1}-${2}
 {3} segments loaded</value>
   </data>
+  <data name="Settings_EnableTraceButton" xml:space="preserve">
+    <value>Show Trace Button</value>
+  </data>
 
 </root>
