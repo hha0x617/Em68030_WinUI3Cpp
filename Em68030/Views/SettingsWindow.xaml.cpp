@@ -268,8 +268,16 @@ namespace winrt::Em68030::implementation
             tb.Text(ResourceHelper::GetString(L"Settings_RomImage"));
         if (auto tb = FindName(L"LblOperatingSystem").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_OperatingSystem"));
+        if (auto tb = FindName(L"LblNetBsdKernelImage").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_KernelImage"));
+        if (auto tb = FindName(L"LblNetBsdKernelDesc").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_KernelImageDescription"));
         if (auto tb = FindName(L"LblBootPartition").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_BootPartition"));
+        if (auto tb = FindName(L"LblLinuxKernelImage").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_KernelImage"));
+        if (auto tb = FindName(L"LblLinuxKernelDesc").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_KernelImageDescription"));
         if (auto tb = FindName(L"LblCommandLine").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_CommandLine"));
         if (auto tb = FindName(L"LblScsiNewImageSize").try_as<Controls::TextBlock>())

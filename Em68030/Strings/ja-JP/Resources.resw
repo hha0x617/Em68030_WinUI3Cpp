@@ -605,6 +605,12 @@ NetBSD ディスク イメージに対してのみ使用してください。</v
   <data name="Settings_EnableTraceButton" xml:space="preserve">
     <value>Trace ボタンを表示</value>
   </data>
+  <data name="Settings_KernelImage" xml:space="preserve">
+    <value>カーネルイメージ:</value>
+  </data>
+  <data name="Settings_KernelImageDescription" xml:space="preserve">
+    <value>指定した場合、エミュレータ起動時に自動的にカーネルイメージを読み込みます。</value>
+  </data>
   <data name="Settings_SelectKernelImage" xml:space="preserve">
     <value>カーネルイメージを選択</value>
   </data>

@@ -604,6 +604,12 @@ Range: ${1}-${2}
   <data name="Settings_EnableTraceButton" xml:space="preserve">
     <value>Show Trace Button</value>
   </data>
+  <data name="Settings_KernelImage" xml:space="preserve">
+    <value>Kernel Image:</value>
+  </data>
+  <data name="Settings_KernelImageDescription" xml:space="preserve">
+    <value>If specified, this kernel image is automatically loaded when the emulator starts.</value>
+  </data>
   <data name="Settings_SelectKernelImage" xml:space="preserve">
     <value>Select Kernel Image</value>
   </data>
