@@ -1049,17 +1049,28 @@ namespace winrt::Em68030::implementation
         std::vector<CallStackEntry> stack;
         if (!m_cpu) return stack;
 
+        uint32_t memSize = m_cpu->GetMemory().GetSize();
+
+        // Helper: check if an address looks like a valid code address.
+        // Accept addresses in loaded program range OR in kernel text range (above 0x1000).
+        auto isCodeAddress = [&](uint32_t addr) -> bool {
+            if (addr == 0 || addr >= memSize || (addr & 1) != 0) return false;
+            // If we know the program range, use it
+            if (m_programStartAddress < m_programEndAddress)
+                return addr >= m_programStartAddress && addr < m_programEndAddress;
+            // Otherwise accept any even address in RAM above page 0
+            return addr >= 0x1000;
+        };
+
         // Frame 0: current PC
         stack.push_back({ m_cpu->PC, m_cpu->A[6], "<current>" });
 
         // Walk A6 (frame pointer) chain.
         // MC68030 LINK A6 creates: [A6] = saved A6, [A6+4] = return address
         uint32_t fp = m_cpu->A[6];
-        uint32_t memSize = m_cpu->GetMemory().GetSize();
 
         for (int i = 0; i < maxDepth && fp != 0; i++)
         {
-            // Validate frame pointer is in accessible RAM range
             if (fp + 4 >= memSize || fp < 0x1000 || (fp & 1) != 0)
                 break;
 
@@ -1068,13 +1079,11 @@ namespace winrt::Em68030::implementation
                 uint32_t retAddr = m_cpu->GetMemory().ReadLong(fp + 4);
                 uint32_t savedFp = m_cpu->GetMemory().ReadLong(fp);
 
-                // Validate return address looks reasonable (in code range)
-                if (retAddr == 0 || retAddr >= memSize)
+                if (!isCodeAddress(retAddr))
                     break;
 
                 stack.push_back({ retAddr, savedFp, "" });
 
-                // Detect cycle or upward chain (stack grows downward)
                 if (savedFp == 0 || savedFp == fp || savedFp <= fp)
                     break;
 
@@ -1086,19 +1095,25 @@ namespace winrt::Em68030::implementation
             }
         }
 
-        // If A6 chain yielded only the current frame, try heuristic:
-        // scan stack for return addresses that point into code range
-        if (stack.size() <= 1 && m_programStartAddress < m_programEndAddress)
+        // Heuristic: always scan the stack for return address candidates.
+        // This catches frames from code compiled with -fomit-frame-pointer,
+        // hand-written assembly, interrupt frames, and cases where A6 chain is broken.
+        // Deduplicate against addresses already found via A6 chain.
         {
+            std::unordered_set<uint32_t> knownAddrs;
+            for (const auto& e : stack) knownAddrs.insert(e.address);
+
             uint32_t sp = m_cpu->A[7];
-            for (uint32_t offset = 0; offset < 256 && sp + offset + 3 < memSize; offset += 2)
+            constexpr uint32_t ScanBytes = 4096;
+            for (uint32_t offset = 0; offset < ScanBytes && sp + offset + 3 < memSize; offset += 2)
             {
                 try
                 {
                     uint32_t val = m_cpu->GetMemory().ReadLong(sp + offset);
-                    if (val >= m_programStartAddress && val < m_programEndAddress && (val & 1) == 0)
+                    if (isCodeAddress(val) && knownAddrs.find(val) == knownAddrs.end())
                     {
                         stack.push_back({ val, 0, "?" });
+                        knownAddrs.insert(val);
                         if (static_cast<int>(stack.size()) >= maxDepth) break;
                     }
                 }
