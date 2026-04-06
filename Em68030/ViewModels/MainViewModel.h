@@ -172,6 +172,8 @@ namespace winrt::Em68030::implementation
         void NavigateToProgram();
 
         void Step();
+        void StepOver();
+        void StepOut();
         void Run();
         void RunToCursor(uint32_t address);
         void Stop();

@@ -1044,6 +1044,43 @@ namespace winrt::Em68030::implementation
         RefreshAll();
     }
 
+    void MainViewModel::StepOver()
+    {
+        if (m_cpu->Halted) return;
+        if (m_cpu->Stopped && !m_cpu->HasExternalDevices()) return;
+
+        // Check if current instruction is JSR or BSR
+        uint16_t opcode = m_memory->ReadWord(m_cpu->PC);
+        bool isSubroutineCall = false;
+
+        // JSR: 0100 1110 10xx xxxx (0x4E80-0x4EBF)
+        if ((opcode & 0xFFC0) == 0x4E80) isSubroutineCall = true;
+        // BSR.B: 0110 0001 xxxx xxxx (0x6100-0x61FF, but 0x6100 is BSR.W)
+        if ((opcode & 0xFF00) == 0x6100) isSubroutineCall = true;
+
+        if (isSubroutineCall)
+        {
+            // Get instruction length to find return address
+            auto line = m_disassembler->DisassembleOne(m_cpu->PC);
+            uint32_t returnAddr = m_cpu->PC + line.Length;
+            RunToCursor(returnAddr);
+        }
+        else
+        {
+            Step();
+        }
+    }
+
+    void MainViewModel::StepOut()
+    {
+        if (m_cpu->Halted) return;
+        if (m_cpu->Stopped && !m_cpu->HasExternalDevices()) return;
+
+        // Read return address from top of stack (A7)
+        uint32_t returnAddr = m_memory->ReadLong(m_cpu->A[7]);
+        RunToCursor(returnAddr);
+    }
+
     void MainViewModel::Run()
     {
         if (m_cpu->Halted) return;

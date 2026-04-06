@@ -175,6 +175,8 @@
                 <MenuFlyoutItem x:Name="MenuRun" Text="Run (F5)" />
                 <MenuFlyoutItem x:Name="MenuStop" Text="Stop (Shift+F5)" />
                 <MenuFlyoutItem x:Name="MenuStep" Text="Step (F10)" />
+                <MenuFlyoutItem x:Name="MenuStepOver" Text="Step Over (F11)" />
+                <MenuFlyoutItem x:Name="MenuStepOut" Text="Step Out (Shift+F11)" />
                 <MenuFlyoutItem x:Name="MenuRunToCursor" Text="Run to Cursor (F4)" />
                 <MenuFlyoutSeparator />
                 <MenuFlyoutItem x:Name="MenuSetPCToCursor" Text="Set PC to Cursor" />
@@ -201,6 +203,8 @@
             <Button x:Name="BtnRun" Content="Run (F5)" Style="{StaticResource ToolBarButtonStyle}" />
             <Button x:Name="BtnStop" Content="Stop" Style="{StaticResource ToolBarButtonStyle}" />
             <Button x:Name="BtnStep" Content="Step (F10)" Style="{StaticResource ToolBarButtonStyle}" />
+            <Button x:Name="BtnStepOver" Content="Step Over (F11)" Style="{StaticResource ToolBarButtonStyle}" />
+            <Button x:Name="BtnStepOut" Content="Step Out (Shift+F11)" Style="{StaticResource ToolBarButtonStyle}" />
             <Button x:Name="BtnReset" Content="Reset" Style="{StaticResource ToolBarButtonStyle}" />
             <Button x:Name="BtnFullReset" Content="Full Reset" Style="{StaticResource ToolBarButtonStyle}" />
             <Button x:Name="BtnTrace" Content="Trace" Style="{StaticResource ToolBarButtonStyle}" />

@@ -221,6 +221,10 @@ namespace winrt::Em68030::implementation
                 mi.Click({ this, &MainWindow::Stop_Click });
             if (auto mi = root.FindName(L"MenuStep").try_as<Controls::MenuFlyoutItem>())
                 mi.Click({ this, &MainWindow::Step_Click });
+            if (auto mi = root.FindName(L"MenuStepOver").try_as<Controls::MenuFlyoutItem>())
+                mi.Click([this](auto&&, auto&&) { m_viewModel.as<implementation::MainViewModel>()->StepOver(); });
+            if (auto mi = root.FindName(L"MenuStepOut").try_as<Controls::MenuFlyoutItem>())
+                mi.Click([this](auto&&, auto&&) { m_viewModel.as<implementation::MainViewModel>()->StepOut(); });
             if (auto mi = root.FindName(L"MenuRunToCursor").try_as<Controls::MenuFlyoutItem>())
                 mi.Click({ this, &MainWindow::RunToCursor_Click });
             if (auto mi = root.FindName(L"MenuSetPCToCursor").try_as<Controls::MenuFlyoutItem>())
@@ -297,6 +301,10 @@ namespace winrt::Em68030::implementation
             { BtnStop(btn); btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_Stop"))); btn.Click({ this, &MainWindow::Stop_Click }); }
             if (auto btn = root.FindName(L"BtnStep").try_as<Controls::Button>())
             { BtnStep(btn); btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_Step"))); btn.Click({ this, &MainWindow::Step_Click }); }
+            if (auto btn = root.FindName(L"BtnStepOver").try_as<Controls::Button>())
+            { btn.Click([this](auto&&, auto&&) { m_viewModel.as<implementation::MainViewModel>()->StepOver(); }); }
+            if (auto btn = root.FindName(L"BtnStepOut").try_as<Controls::Button>())
+            { btn.Click([this](auto&&, auto&&) { m_viewModel.as<implementation::MainViewModel>()->StepOut(); }); }
             if (auto btn = root.FindName(L"BtnReset").try_as<Controls::Button>())
             { BtnReset(btn); btn.Content(winrt::box_value(ResourceHelper::GetString(L"Toolbar_Reset"))); btn.Click({ this, &MainWindow::Reset_Click }); }
             if (auto btn = root.FindName(L"BtnFullReset").try_as<Controls::Button>())
@@ -590,6 +598,17 @@ namespace winrt::Em68030::implementation
                 accelStep.Key(Windows::System::VirtualKey::F10);
                 accelStep.Invoked({ this, &MainWindow::StepAccelerator_Invoked });
                 rootGrid.KeyboardAccelerators().Append(accelStep);
+
+                KeyboardAccelerator accelStepOver;
+                accelStepOver.Key(Windows::System::VirtualKey::F11);
+                accelStepOver.Invoked([this](auto&&, auto&&) { m_viewModel.as<implementation::MainViewModel>()->StepOver(); });
+                rootGrid.KeyboardAccelerators().Append(accelStepOver);
+
+                KeyboardAccelerator accelStepOut;
+                accelStepOut.Key(Windows::System::VirtualKey::F11);
+                accelStepOut.Modifiers(Windows::System::VirtualKeyModifiers::Shift);
+                accelStepOut.Invoked([this](auto&&, auto&&) { m_viewModel.as<implementation::MainViewModel>()->StepOut(); });
+                rootGrid.KeyboardAccelerators().Append(accelStepOut);
 
                 KeyboardAccelerator accelRunToCursor;
                 accelRunToCursor.Key(Windows::System::VirtualKey::F4);
