@@ -137,6 +137,7 @@
     <ClCompile Include="NetworkTests\TcpFlowControlTests.cpp" />
     <ClCompile Include="CpuTests\JitCompilerTests.cpp" />
     <ClCompile Include="CpuTests\CycleTableTests.cpp" />
+    <ClCompile Include="CpuTests\ConditionEvaluatorTests.cpp" />
     <ClCompile Include="IoTests\Z8530DeviceTests.cpp" />
     <ClCompile Include="IoTests\Wd33c93DeviceTests.cpp" />
     <ClCompile Include="IoTests\PccDeviceTests.cpp" />
