@@ -17,23 +17,42 @@
 
 #include <functional>
 #include <cstdint>
+#include <string>
 #include <unordered_map>
 
 namespace winrt::Em68030::implementation
 {
+    // Forward declarations (defined in MainViewModel.h)
+    struct BreakpointData;
+    struct WatchpointData;
+    enum class WatchpointType;
+    enum class WatchpointSize;
+
     struct BreakpointsWindow : BreakpointsWindowT<BreakpointsWindow>
     {
         BreakpointsWindow();
 
         /// Refresh the breakpoint list from AllBreakpoints data.
         void RefreshList(
-            const std::unordered_map<uint32_t, struct BreakpointData>& breakpoints);
+            const std::unordered_map<uint32_t, struct BreakpointData>& breakpoints,
+            const std::unordered_map<uint32_t, struct WatchpointData>& watchpoints);
 
         // Callbacks (set by MainWindow)
         std::function<void(uint32_t, bool)> OnToggleEnabled;
         std::function<void(uint32_t)> OnDelete;
+        std::function<void(uint32_t, const std::string&)> OnSetCondition;
         std::function<void()> OnClearAll;
         std::function<void(uint32_t)> OnDoubleClick;
+
+        // Watchpoint callbacks
+        std::function<void(uint32_t, bool)> OnToggleWatchpointEnabled;
+        std::function<void(uint32_t)> OnDeleteWatchpoint;
+        std::function<void()> OnClearAllWatchpoints;
+        std::function<void(uint32_t, WatchpointSize, WatchpointType, const std::string&)> OnAddWatchpoint;
+
+    private:
+        winrt::fire_and_forget ShowAddWatchpointDialog();
+        winrt::fire_and_forget ShowEditConditionDialog(uint32_t addr, std::string currentCondition);
     };
 }
 

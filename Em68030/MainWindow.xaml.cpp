@@ -2364,10 +2364,36 @@ namespace winrt::Em68030::implementation
                 UpdateDisasmListAppearance();
                 RefreshBreakpointsWindow();
             };
+            bpImpl->OnSetCondition = [this, vmImpl](uint32_t addr, const std::string& condition)
+            {
+                vmImpl->SetBreakpointCondition(addr, condition);
+                RefreshBreakpointsWindow();
+            };
             bpImpl->OnClearAll = [this, vmImpl]()
             {
                 vmImpl->ClearAllBreakpoints();
                 UpdateDisasmListAppearance();
+                RefreshBreakpointsWindow();
+            };
+            bpImpl->OnAddWatchpoint = [this, vmImpl](uint32_t addr, WatchpointSize size,
+                                                      WatchpointType type, const std::string& cond)
+            {
+                vmImpl->AddWatchpoint(addr, size, type, cond);
+                RefreshBreakpointsWindow();
+            };
+            bpImpl->OnToggleWatchpointEnabled = [this, vmImpl](uint32_t addr, bool enabled)
+            {
+                vmImpl->EnableWatchpoint(addr, enabled);
+                RefreshBreakpointsWindow();
+            };
+            bpImpl->OnDeleteWatchpoint = [this, vmImpl](uint32_t addr)
+            {
+                vmImpl->RemoveWatchpoint(addr);
+                RefreshBreakpointsWindow();
+            };
+            bpImpl->OnClearAllWatchpoints = [this, vmImpl]()
+            {
+                vmImpl->ClearAllWatchpoints();
                 RefreshBreakpointsWindow();
             };
             bpImpl->OnDoubleClick = [this, vmImpl](uint32_t addr)
@@ -2404,7 +2430,7 @@ namespace winrt::Em68030::implementation
         if (!m_breakpointsWindow) return;
         auto bpImpl = m_breakpointsWindow.as<implementation::BreakpointsWindow>();
         auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
-        bpImpl->RefreshList(vmImpl->AllBreakpoints());
+        bpImpl->RefreshList(vmImpl->AllBreakpoints(), vmImpl->AllWatchpoints());
     }
 
     // ========================================================================

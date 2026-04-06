@@ -23,7 +23,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Breakpoint list -->
+        <!-- Breakpoint and watchpoint list -->
         <ListView x:Name="BreakpointList" Grid.Row="0"
                   Background="#FF1E1E1E" BorderThickness="0"
                   SelectionMode="Single">
@@ -38,6 +38,10 @@
 
         <!-- Bottom toolbar -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#FF2D2D30" Padding="4,4">
+            <Button x:Name="AddWatchpointButton" Content="Add Watchpoint"
+                    Background="#FF3E3E42" Foreground="#FFD4D4D4"
+                    BorderBrush="#FF555555" Padding="8,3" Margin="4"
+                    FontFamily="Segoe UI" FontSize="12" />
             <Button x:Name="ClearAllButton" Content="Clear All"
                     Background="#FF3E3E42" Foreground="#FFD4D4D4"
                     BorderBrush="#FF555555" Padding="8,3" Margin="4"
