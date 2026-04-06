@@ -46,7 +46,7 @@ jobs:
           -v:minimal
 
       - name: Test
-        run: Em68030/x64/Release/Em68030.Tests.exe --gtest_filter=-ResourceIntegrityTest.*
+        run: Em68030/x64/Release/Em68030.Tests.exe
 
       - name: Prepare release artifacts
         if: startsWith(github.ref, 'refs/tags/v')

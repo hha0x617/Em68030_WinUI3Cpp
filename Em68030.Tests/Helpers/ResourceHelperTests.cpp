@@ -231,26 +231,18 @@ TEST(ResourceIntegrityTest, ReswParsingProducesCorrectValues)
 }
 
 // Verify exe-relative Strings directory exists in build output
-TEST(ResourceIntegrityTest, StringsDirExistsNextToExe)
+TEST(ResourceIntegrityTest, ResourcesPriExistsNextToExe)
 {
     wchar_t exePath[MAX_PATH];
     GetModuleFileNameW(nullptr, exePath, MAX_PATH);
     std::filesystem::path exeDir = std::filesystem::path(exePath).parent_path();
-    std::filesystem::path stringsDir = exeDir / L"Strings";
 
-    // Report the actual path for diagnostics
+    // MRT Core compiles .resw files into <AppName>.pri at build time.
+    // The Strings/ directory only exists in source, not in the build output.
+    std::filesystem::path priFile = exeDir / L"Em68030.pri";
     std::string exeDirStr = exeDir.string();
-    EXPECT_TRUE(std::filesystem::exists(stringsDir))
-        << "Strings/ directory not found next to exe at: " << exeDirStr;
-
-    if (std::filesystem::exists(stringsDir))
-    {
-        // Check for language subdirectories
-        EXPECT_TRUE(std::filesystem::exists(stringsDir / L"en-US" / L"Resources.resw"))
-            << "en-US/Resources.resw not found under " << exeDirStr;
-        EXPECT_TRUE(std::filesystem::exists(stringsDir / L"ja-JP" / L"Resources.resw"))
-            << "ja-JP/Resources.resw not found under " << exeDirStr;
-    }
+    EXPECT_TRUE(std::filesystem::exists(priFile))
+        << "Em68030.pri not found next to exe at: " << exeDirStr;
 }
 
 // Verify preferred UI language matches an available Strings subdirectory
