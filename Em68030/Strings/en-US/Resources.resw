@@ -120,6 +120,18 @@
   <data name="Menu_BreakpointsWindow" xml:space="preserve">
     <value>Breakpoints Window</value>
   </data>
+  <data name="Menu_CallStackWindow" xml:space="preserve">
+    <value>Call Stack Window</value>
+  </data>
+  <data name="Window_CallStack" xml:space="preserve">
+    <value>Call Stack</value>
+  </data>
+  <data name="CallStack_Running" xml:space="preserve">
+    <value>Running...</value>
+  </data>
+  <data name="CallStack_Empty" xml:space="preserve">
+    <value>(empty)</value>
+  </data>
   <data name="Menu_ToggleLstView" xml:space="preserve">
     <value>Toggle LST View</value>
   </data>

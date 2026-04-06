@@ -31,6 +31,7 @@
 #include "Views/FramebufferWindow.xaml.h"
 #include "GitVersion.h"
 #include "Views/BreakpointsWindow.xaml.h"
+#include "Views/CallStackWindow.xaml.h"
 #include "ViewModels/MainViewModel.h"
 #include "ViewModels/DisasmLineViewModel.h"
 #include "ViewModels/MemoryDumpRow.h"
@@ -239,6 +240,8 @@ namespace winrt::Em68030::implementation
                 mi.Click({ this, &MainWindow::ShowFramebuffer_Click });
             if (auto mi = root.FindName(L"MenuShowBreakpoints").try_as<Controls::MenuFlyoutItem>())
                 mi.Click({ this, &MainWindow::ShowBreakpoints_Click });
+            if (auto mi = root.FindName(L"MenuShowCallStack").try_as<Controls::MenuFlyoutItem>())
+                mi.Click([this](auto&&, auto&&) { EnsureCallStackWindow(); });
             if (auto mi = root.FindName(L"MenuToggleLst").try_as<Controls::MenuFlyoutItem>())
                 mi.Click({ this, &MainWindow::ToggleLst_Click });
             if (auto mi = root.FindName(L"MenuSettings").try_as<Controls::MenuFlyoutItem>())
@@ -287,6 +290,8 @@ namespace winrt::Em68030::implementation
                 mi.Text(ResourceHelper::GetString(L"Menu_FramebufferWindow"));
             if (auto mi = root.FindName(L"MenuShowBreakpoints").try_as<Controls::MenuFlyoutItem>())
                 mi.Text(ResourceHelper::GetString(L"Menu_BreakpointsWindow"));
+            if (auto mi = root.FindName(L"MenuShowCallStack").try_as<Controls::MenuFlyoutItem>())
+                mi.Text(ResourceHelper::GetString(L"Menu_CallStackWindow"));
             if (auto mi = root.FindName(L"MenuToggleLst").try_as<Controls::MenuFlyoutItem>())
                 mi.Text(ResourceHelper::GetString(L"Menu_ToggleLstView"));
             if (auto mi = root.FindName(L"MenuSettings").try_as<Controls::MenuFlyoutItem>())
@@ -461,11 +466,13 @@ namespace winrt::Em68030::implementation
                 UpdateMemoryDumpDisplay();
                 UpdateToolbarInfo();
                 UpdateStatusBar();
+                RefreshCallStackWindow();
             }
             else if (name == L"IsRunning")
             {
                 UpdateButtonStates();
                 UpdateStatusBar();
+                RefreshCallStackWindow();
             }
             else if (name == L"CycleCount" || name == L"EstimatedMHz" ||
                      name == L"StopReason" || name == L"LoadedFileName")
@@ -2438,6 +2445,54 @@ namespace winrt::Em68030::implementation
         auto bpImpl = m_breakpointsWindow.as<implementation::BreakpointsWindow>();
         auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
         bpImpl->RefreshList(vmImpl->AllBreakpoints(), vmImpl->AllWatchpoints());
+    }
+
+    // ========================================================================
+    // Call Stack window
+    // ========================================================================
+
+    void MainWindow::EnsureCallStackWindow()
+    {
+        if (!m_callStackWindow)
+        {
+            m_callStackWindow = winrt::make<implementation::CallStackWindow>();
+            auto csImpl = m_callStackWindow.as<implementation::CallStackWindow>();
+            auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
+
+            csImpl->OnNavigateToAddress = [this, vmImpl](uint32_t addr)
+            {
+                vmImpl->ScrollToAddress(addr);
+                RebuildDisasmList();
+                auto lines = vmImpl->DisassemblyLines();
+                for (uint32_t i = 0; i < lines.Size(); i++)
+                {
+                    auto lineImpl = lines.GetAt(i).as<implementation::DisasmLineViewModel>();
+                    if (lineImpl->HasAddress() && lineImpl->Address() == addr)
+                    {
+                        ScrollDisasmToCenter(static_cast<int32_t>(i));
+                        break;
+                    }
+                }
+            };
+
+            m_callStackWindow.Closed([this](auto&&, auto&&)
+            {
+                m_callStackWindow = nullptr;
+            });
+        }
+        m_callStackWindow.Activate();
+        SetOwnerWindow(m_callStackWindow, *this);
+        RefreshCallStackWindow();
+    }
+
+    void MainWindow::RefreshCallStackWindow()
+    {
+        if (!m_callStackWindow) return;
+        auto csImpl = m_callStackWindow.as<implementation::CallStackWindow>();
+        auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
+        bool isRunning = vmImpl->IsRunning();
+        auto stack = isRunning ? std::vector<CallStackEntry>{} : vmImpl->GetCallStack();
+        csImpl->RefreshList(stack, isRunning);
     }
 
     // ========================================================================

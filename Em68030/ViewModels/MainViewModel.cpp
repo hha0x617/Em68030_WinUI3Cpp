@@ -1044,6 +1044,71 @@ namespace winrt::Em68030::implementation
     // Execution control
     // ======================================================================
 
+    std::vector<CallStackEntry> MainViewModel::GetCallStack(int maxDepth) const
+    {
+        std::vector<CallStackEntry> stack;
+        if (!m_cpu) return stack;
+
+        // Frame 0: current PC
+        stack.push_back({ m_cpu->PC, m_cpu->A[6], "<current>" });
+
+        // Walk A6 (frame pointer) chain.
+        // MC68030 LINK A6 creates: [A6] = saved A6, [A6+4] = return address
+        uint32_t fp = m_cpu->A[6];
+        uint32_t memSize = m_cpu->GetMemory().GetSize();
+
+        for (int i = 0; i < maxDepth && fp != 0; i++)
+        {
+            // Validate frame pointer is in accessible RAM range
+            if (fp + 4 >= memSize || fp < 0x1000 || (fp & 1) != 0)
+                break;
+
+            try
+            {
+                uint32_t retAddr = m_cpu->GetMemory().ReadLong(fp + 4);
+                uint32_t savedFp = m_cpu->GetMemory().ReadLong(fp);
+
+                // Validate return address looks reasonable (in code range)
+                if (retAddr == 0 || retAddr >= memSize)
+                    break;
+
+                stack.push_back({ retAddr, savedFp, "" });
+
+                // Detect cycle or upward chain (stack grows downward)
+                if (savedFp == 0 || savedFp == fp || savedFp <= fp)
+                    break;
+
+                fp = savedFp;
+            }
+            catch (...)
+            {
+                break;
+            }
+        }
+
+        // If A6 chain yielded only the current frame, try heuristic:
+        // scan stack for return addresses that point into code range
+        if (stack.size() <= 1 && m_programStartAddress < m_programEndAddress)
+        {
+            uint32_t sp = m_cpu->A[7];
+            for (uint32_t offset = 0; offset < 256 && sp + offset + 3 < memSize; offset += 2)
+            {
+                try
+                {
+                    uint32_t val = m_cpu->GetMemory().ReadLong(sp + offset);
+                    if (val >= m_programStartAddress && val < m_programEndAddress && (val & 1) == 0)
+                    {
+                        stack.push_back({ val, 0, "?" });
+                        if (static_cast<int>(stack.size()) >= maxDepth) break;
+                    }
+                }
+                catch (...) { break; }
+            }
+        }
+
+        return stack;
+    }
+
     void MainViewModel::Step()
     {
         if (m_cpu->Halted) return;

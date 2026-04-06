@@ -65,6 +65,7 @@
 #include "Views/ConsoleWindow.xaml.h"
 #include "Views/FramebufferWindow.xaml.h"
 #include "Views/BreakpointsWindow.xaml.h"
+#include "Views/CallStackWindow.xaml.h"
 #include "Views/SettingsWindow.xaml.h"
 #include "Views/InputDialog.xaml.h"
 #include "Views/AboutDialog.xaml.h"

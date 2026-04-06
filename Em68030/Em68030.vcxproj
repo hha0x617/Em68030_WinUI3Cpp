@@ -216,6 +216,7 @@
     <Midl Include="Views\ConsoleWindow.idl" />
     <Midl Include="Views\FramebufferWindow.idl" />
     <Midl Include="Views\BreakpointsWindow.idl" />
+    <Midl Include="Views\CallStackWindow.idl" />
     <Midl Include="Views\SettingsWindow.idl" />
     <Midl Include="Views\InputDialog.idl" />
     <Midl Include="Views\AboutDialog.idl" />
@@ -235,6 +236,9 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\BreakpointsWindow.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\CallStackWindow.xaml">
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\SettingsWindow.xaml">
@@ -259,6 +263,8 @@
     <ClCompile Include="Views\FramebufferWindow.xaml.cpp" />
     <ClInclude Include="Views\BreakpointsWindow.xaml.h" />
     <ClCompile Include="Views\BreakpointsWindow.xaml.cpp" />
+    <ClInclude Include="Views\CallStackWindow.xaml.h" />
+    <ClCompile Include="Views\CallStackWindow.xaml.cpp" />
     <ClInclude Include="Views\SettingsWindow.xaml.h" />
     <ClCompile Include="Views\SettingsWindow.xaml.cpp" />
     <ClInclude Include="Views\InputDialog.xaml.h" />

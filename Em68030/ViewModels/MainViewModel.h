@@ -51,6 +51,13 @@ namespace winrt::Em68030::implementation
         std::string condition;  // e.g. "D0==0x1234", "A7<0x10000", "[0x1000].w==0xFF"
     };
 
+    struct CallStackEntry
+    {
+        uint32_t address = 0;     // Return address (or current PC for top frame)
+        uint32_t framePointer = 0; // A6 value at this frame (0 if unknown)
+        std::string label;         // Symbolic label if available
+    };
+
     enum class WatchpointType { Read, Write, ReadWrite };
     enum class WatchpointSize { Byte = 1, Word = 2, Long = 4 };
 
@@ -202,6 +209,7 @@ namespace winrt::Em68030::implementation
         void DoReset();
         void DoFullReset();
 
+        std::vector<CallStackEntry> GetCallStack(int maxDepth = 32) const;
         void SetPCToCursor(uint32_t address);
         void ToggleBreakpoint(uint32_t address);
         void EnableBreakpoint(uint32_t addr, bool enabled);

@@ -120,6 +120,18 @@
   <data name="Menu_BreakpointsWindow" xml:space="preserve">
     <value>ブレークポイント ウィンドウ</value>
   </data>
+  <data name="Menu_CallStackWindow" xml:space="preserve">
+    <value>コールスタック ウィンドウ</value>
+  </data>
+  <data name="Window_CallStack" xml:space="preserve">
+    <value>コールスタック</value>
+  </data>
+  <data name="CallStack_Running" xml:space="preserve">
+    <value>実行中...</value>
+  </data>
+  <data name="CallStack_Empty" xml:space="preserve">
+    <value>(空)</value>
+  </data>
   <data name="Menu_ToggleLstView" xml:space="preserve">
     <value>LST 表示切替</value>
   </data>

@@ -145,6 +145,8 @@ namespace winrt::Em68030::implementation
         void ReopenFramebufferWindow();
         void EnsureBreakpointsWindow();
         void RefreshBreakpointsWindow();
+        void EnsureCallStackWindow();
+        void RefreshCallStackWindow();
         uint32_t GetSelectedDisasmAddress();
 
         winrt::fire_and_forget ShowOpenBinaryDialog();
@@ -163,6 +165,8 @@ namespace winrt::Em68030::implementation
         winrt::Em68030::FramebufferWindow m_framebufferWindow{ nullptr };
         // Breakpoints window
         winrt::Em68030::BreakpointsWindow m_breakpointsWindow{ nullptr };
+        // Call Stack window
+        winrt::Em68030::CallStackWindow m_callStackWindow{ nullptr };
         Microsoft::UI::Dispatching::DispatcherQueue m_dispatcherQueue{ nullptr };
 
         // Event tokens for ViewModel subscriptions
