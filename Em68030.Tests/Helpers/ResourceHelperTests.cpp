@@ -30,8 +30,19 @@
 
 namespace {
 
-const std::string kEnUsPath = "D:/projects/em68030_WinUI3Cpp/Em68030/Strings/en-US/Resources.resw";
-const std::string kJaJpPath = "D:/projects/em68030_WinUI3Cpp/Em68030/Strings/ja-JP/Resources.resw";
+// Derive source Strings/ path from exe location.
+// Build output: <repo>/Em68030/x64/Release/Em68030.Tests.exe
+// Strings source: <repo>/Em68030/Strings/
+std::filesystem::path GetRepoRoot()
+{
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    // exe is at <repo>/Em68030/x64/Release/ → go up 3 levels to <repo>
+    return std::filesystem::path(exePath).parent_path().parent_path().parent_path().parent_path();
+}
+
+const std::string kEnUsPath = (GetRepoRoot() / "Em68030" / "Strings" / "en-US" / "Resources.resw").string();
+const std::string kJaJpPath = (GetRepoRoot() / "Em68030" / "Strings" / "ja-JP" / "Resources.resw").string();
 
 // Parse resource keys from a .resw file
 std::set<std::string> ParseReswKeys(const std::string& filePath)
