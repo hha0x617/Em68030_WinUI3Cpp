@@ -40,6 +40,9 @@ namespace winrt::Em68030::implementation
         bool HasDisabledBreakpoint() const { return m_hasDisabledBreakpoint; }
         void HasDisabledBreakpoint(bool value);
 
+        bool IsCallStackFrame() const { return m_isCallStackFrame; }
+        void IsCallStackFrame(bool value);
+
         hstring RawBytes() const { return m_rawBytes; }
         void RawBytes(hstring const& value);
 
@@ -65,6 +68,7 @@ namespace winrt::Em68030::implementation
         bool m_isCurrentPC = false;
         bool m_hasBreakpoint = false;
         bool m_hasDisabledBreakpoint = false;
+        bool m_isCallStackFrame = false;
         hstring m_rawBytes;
         hstring m_mnemonic;
         hstring m_operands;

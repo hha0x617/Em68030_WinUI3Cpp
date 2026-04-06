@@ -2156,6 +2156,11 @@ namespace winrt::Em68030::implementation
                 bpIndicator.Text(L"\u25CF"); // filled circle
                 bpIndicator.Foreground(impl->HasDisabledBreakpoint() ? m_brGray : m_brRed);
             }
+            else if (impl->IsCallStackFrame())
+            {
+                bpIndicator.Text(L"\u25B8"); // right-pointing triangle
+                bpIndicator.Foreground(m_brGreen);
+            }
 
             // Main disassembly text
             Controls::TextBlock mainText;
@@ -2195,6 +2200,8 @@ namespace winrt::Em68030::implementation
             Windows::UI::Color{ 0xFF, 0x80, 0x80, 0x80 });
         m_brNormal = Microsoft::UI::Xaml::Media::SolidColorBrush(
             Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
+        m_brGreen = Microsoft::UI::Xaml::Media::SolidColorBrush(
+            Windows::UI::Color{ 0xFF, 0x60, 0xC0, 0x60 });
         m_brPcBg = Microsoft::UI::Xaml::Media::SolidColorBrush(
             Windows::UI::Color{ 0xFF, 0x26, 0x4F, 0x78 });
         m_brTransparent = Microsoft::UI::Xaml::Media::SolidColorBrush(
@@ -2247,10 +2254,17 @@ namespace winrt::Em68030::implementation
                 if (impl->HasBreakpoint())
                 {
                     auto bpBrush = impl->HasDisabledBreakpoint() ? m_brGray : m_brRed;
-                    if (bpIndicator.Text().empty())
+                    if (bpIndicator.Text() != L"\u25CF")
                         bpIndicator.Text(L"\u25CF");
                     if (bpIndicator.Foreground() != bpBrush)
                         bpIndicator.Foreground(bpBrush);
+                }
+                else if (impl->IsCallStackFrame())
+                {
+                    if (bpIndicator.Text() != L"\u25B8")
+                        bpIndicator.Text(L"\u25B8");
+                    if (bpIndicator.Foreground() != m_brGreen)
+                        bpIndicator.Foreground(m_brGreen);
                 }
                 else
                 {

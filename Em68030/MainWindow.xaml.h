@@ -192,6 +192,7 @@ namespace winrt::Em68030::implementation
         Microsoft::UI::Xaml::Media::SolidColorBrush m_brRed{ nullptr };
         Microsoft::UI::Xaml::Media::SolidColorBrush m_brGray{ nullptr };
         Microsoft::UI::Xaml::Media::SolidColorBrush m_brNormal{ nullptr };
+        Microsoft::UI::Xaml::Media::SolidColorBrush m_brGreen{ nullptr };
         Microsoft::UI::Xaml::Media::SolidColorBrush m_brPcBg{ nullptr };
         Microsoft::UI::Xaml::Media::SolidColorBrush m_brTransparent{ nullptr };
         void EnsureDisasmBrushes();

@@ -2025,6 +2025,15 @@ namespace winrt::Em68030::implementation
 
     void MainViewModel::UpdatePCHighlight()
     {
+        // Build call stack address set for marking disassembly lines
+        std::unordered_set<uint32_t> callStackAddrs;
+        if (!m_isRunning && m_cpu)
+        {
+            auto stack = GetCallStack();
+            for (size_t j = 1; j < stack.size(); j++) // skip frame 0 (current PC)
+                callStackAddrs.insert(stack[j].address);
+        }
+
         int pcIndex = -1;
         for (uint32_t i = 0; i < m_disassemblyLines.Size(); i++)
         {
@@ -2038,6 +2047,7 @@ namespace winrt::Em68030::implementation
                 bool hasBp = it != m_breakpoints.end();
                 impl->HasBreakpoint(hasBp);
                 impl->HasDisabledBreakpoint(hasBp && !it->second.enabled);
+                impl->IsCallStackFrame(callStackAddrs.count(impl->Address()) > 0);
             }
             if (isCurrent) pcIndex = static_cast<int>(i);
         }

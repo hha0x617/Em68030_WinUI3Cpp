@@ -73,6 +73,15 @@ namespace winrt::Em68030::implementation
         }
     }
 
+    void DisasmLineViewModel::IsCallStackFrame(bool value)
+    {
+        if (m_isCallStackFrame != value)
+        {
+            m_isCallStackFrame = value;
+            RaisePropertyChanged(L"IsCallStackFrame");
+        }
+    }
+
     void DisasmLineViewModel::RawBytes(hstring const& value)
     {
         if (m_rawBytes != value)
