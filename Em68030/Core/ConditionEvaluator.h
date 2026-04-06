@@ -119,14 +119,8 @@ inline bool ParseAddrExpression(const std::string& rawExpr, const MC68030& cpu, 
     return true;
 }
 
-/// Evaluate a condition expression against the current CPU/memory state.
-/// Returns true if condition is met (or if expression is empty/unparseable).
-///
-/// Supports: D0-D7, A0-A7, PC, SR, SP, [addr].b/w/l
-/// Operators: ==, !=, <, >, <=, >=, & (bitwise AND test)
-/// Values: decimal, 0x hex, $hex
-/// Examples: "D0==0x1234", "A7<0x10000", "SR&0x2000!=0", "[0x1000].w==0xFF"
-inline bool EvaluateCondition(const std::string& cond, MC68030& cpu, Memory& memory)
+/// Evaluate a single comparison expression (no || or &&).
+inline bool EvaluateSingleCondition(const std::string& cond, MC68030& cpu, Memory& memory)
 {
     if (cond.empty()) return true;
 
@@ -236,6 +230,71 @@ inline bool EvaluateCondition(const std::string& cond, MC68030& cpu, Memory& mem
     if (op == "<=") return lhs <= rhs;
     if (op == ">=") return lhs >= rhs;
     return true;
+}
+
+/// Evaluate a condition expression with support for || (OR) and && (AND).
+/// || has lower precedence than &&: "A || B && C" means "A || (B && C)".
+/// Examples: "D0==1 || D0==3", "[A7+12].l==1 || [A7+12].l==3",
+///           "D0>0 && D0<100", "SR&0x2000!=0 && D0==0"
+inline bool EvaluateCondition(const std::string& cond, MC68030& cpu, Memory& memory)
+{
+    if (cond.empty()) return true;
+
+    // Split by || (OR) — any clause being true makes the whole expression true
+    // We need to find || that is NOT inside [...] brackets
+    std::vector<std::string> orClauses;
+    {
+        size_t start = 0;
+        int bracketDepth = 0;
+        for (size_t k = 0; k < cond.size(); k++)
+        {
+            if (cond[k] == '[') bracketDepth++;
+            else if (cond[k] == ']') bracketDepth--;
+            else if (bracketDepth == 0 && k + 1 < cond.size() &&
+                     cond[k] == '|' && cond[k + 1] == '|')
+            {
+                orClauses.push_back(cond.substr(start, k - start));
+                k++; // skip second |
+                start = k + 1;
+            }
+        }
+        orClauses.push_back(cond.substr(start));
+    }
+
+    for (const auto& orClause : orClauses)
+    {
+        // Split by && (AND) — all parts must be true
+        std::vector<std::string> andClauses;
+        {
+            size_t start = 0;
+            int bracketDepth = 0;
+            for (size_t k = 0; k < orClause.size(); k++)
+            {
+                if (orClause[k] == '[') bracketDepth++;
+                else if (orClause[k] == ']') bracketDepth--;
+                else if (bracketDepth == 0 && k + 1 < orClause.size() &&
+                         orClause[k] == '&' && orClause[k + 1] == '&')
+                {
+                    andClauses.push_back(orClause.substr(start, k - start));
+                    k++; // skip second &
+                    start = k + 1;
+                }
+            }
+            andClauses.push_back(orClause.substr(start));
+        }
+
+        bool allTrue = true;
+        for (const auto& clause : andClauses)
+        {
+            if (!EvaluateSingleCondition(clause, cpu, memory))
+            {
+                allTrue = false;
+                break;
+            }
+        }
+        if (allTrue) return true; // This OR branch is satisfied
+    }
+    return false; // No OR branch was satisfied
 }
 
 } // namespace Em68030::Core

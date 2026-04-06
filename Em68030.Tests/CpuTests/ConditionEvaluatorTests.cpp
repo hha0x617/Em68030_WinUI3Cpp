@@ -375,6 +375,87 @@ TEST_F(ConditionEvaluatorTests, WhitespaceAroundBitwiseAnd)
 }
 
 // ========================================================================
+// Logical OR (||) and AND (&&)
+// ========================================================================
+
+TEST_F(ConditionEvaluatorTests, LogicalOr_FirstTrue)
+{
+    Cpu.D[0] = 1;
+    EXPECT_TRUE(Eval("D0==1 || D0==3"));
+}
+
+TEST_F(ConditionEvaluatorTests, LogicalOr_SecondTrue)
+{
+    Cpu.D[0] = 3;
+    EXPECT_TRUE(Eval("D0==1 || D0==3"));
+}
+
+TEST_F(ConditionEvaluatorTests, LogicalOr_NeitherTrue)
+{
+    Cpu.D[0] = 2;
+    EXPECT_FALSE(Eval("D0==1 || D0==3"));
+}
+
+TEST_F(ConditionEvaluatorTests, LogicalOr_ThreeClauses)
+{
+    Cpu.D[0] = 5;
+    EXPECT_TRUE(Eval("D0==1 || D0==3 || D0==5"));
+    Cpu.D[0] = 4;
+    EXPECT_FALSE(Eval("D0==1 || D0==3 || D0==5"));
+}
+
+TEST_F(ConditionEvaluatorTests, LogicalAnd_BothTrue)
+{
+    Cpu.D[0] = 10;
+    Cpu.D[1] = 20;
+    EXPECT_TRUE(Eval("D0==10 && D1==20"));
+}
+
+TEST_F(ConditionEvaluatorTests, LogicalAnd_OneFalse)
+{
+    Cpu.D[0] = 10;
+    Cpu.D[1] = 99;
+    EXPECT_FALSE(Eval("D0==10 && D1==20"));
+}
+
+TEST_F(ConditionEvaluatorTests, LogicalOr_WithAnd_Precedence)
+{
+    // "D0==1 || D0==3 && D1==10" means "D0==1 || (D0==3 && D1==10)"
+    Cpu.D[0] = 1;
+    Cpu.D[1] = 0;
+    EXPECT_TRUE(Eval("D0==1 || D0==3 && D1==10")); // first OR clause true
+
+    Cpu.D[0] = 3;
+    Cpu.D[1] = 10;
+    EXPECT_TRUE(Eval("D0==1 || D0==3 && D1==10")); // second clause true
+
+    Cpu.D[0] = 3;
+    Cpu.D[1] = 0;
+    EXPECT_FALSE(Eval("D0==1 || D0==3 && D1==10")); // neither satisfied
+}
+
+TEST_F(ConditionEvaluatorTests, LogicalOr_WithMemoryDeref)
+{
+    Cpu.A[7] = 0x10000;
+    Memory.WriteLong(0x1000C, 1);
+    EXPECT_TRUE(Eval("[A7+12].l==1 || [A7+12].l==3"));
+    Memory.WriteLong(0x1000C, 3);
+    EXPECT_TRUE(Eval("[A7+12].l==1 || [A7+12].l==3"));
+    Memory.WriteLong(0x1000C, 2);
+    EXPECT_FALSE(Eval("[A7+12].l==1 || [A7+12].l==3"));
+}
+
+TEST_F(ConditionEvaluatorTests, LogicalAnd_WithBitwiseAnd)
+{
+    // "SR&0x2000!=0 && D0==0" — supervisor mode AND D0 is zero
+    Cpu.SR = 0x2700;
+    Cpu.D[0] = 0;
+    EXPECT_TRUE(Eval("SR&0x2000!=0 && D0==0"));
+    Cpu.D[0] = 1;
+    EXPECT_FALSE(Eval("SR&0x2000!=0 && D0==0"));
+}
+
+// ========================================================================
 // All data/address registers
 // ========================================================================
 
