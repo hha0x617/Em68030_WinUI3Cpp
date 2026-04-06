@@ -304,9 +304,11 @@ namespace winrt::Em68030::implementation
             row.ColumnDefinitions().Append(ColumnDefinition());
             row.ColumnDefinitions().Append(ColumnDefinition());
             row.ColumnDefinitions().Append(ColumnDefinition());
+            row.ColumnDefinitions().Append(ColumnDefinition());
             row.ColumnDefinitions().GetAt(0).Width(GridLengthHelper::FromPixels(40));
             row.ColumnDefinitions().GetAt(1).Width(GridLengthHelper::FromValueAndType(1, GridUnitType::Star));
             row.ColumnDefinitions().GetAt(2).Width(GridLengthHelper::Auto());
+            row.ColumnDefinitions().GetAt(3).Width(GridLengthHelper::Auto());
             row.Padding(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(4, 2, 4, 2));
             row.Tag(winrt::box_value(addr));
 
@@ -354,15 +356,30 @@ namespace winrt::Em68030::implementation
             }
             Grid::SetColumn(textStack, 1);
 
+            // Edit condition button
+            Button wpEditBtn;
+            wpEditBtn.Content(winrt::box_value(ResourceHelper::GetString(L"Breakpoints_EditCondition")));
+            wpEditBtn.Background(btnBg);
+            wpEditBtn.Foreground(editFg);
+            wpEditBtn.BorderBrush(btnBorder);
+            wpEditBtn.Padding(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(6, 2, 6, 2));
+            wpEditBtn.Margin(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(4, 0, 0, 0));
+            wpEditBtn.FontSize(11);
+            wpEditBtn.VerticalAlignment(VerticalAlignment::Center);
+            std::string capturedCond = wp.condition;
+            wpEditBtn.Click([this, capturedAddr, capturedCond](auto&&, auto&&)
+            {
+                ShowEditWatchpointConditionDialog(capturedAddr, capturedCond);
+            });
+            Grid::SetColumn(wpEditBtn, 2);
+
             Button delBtn;
             delBtn.Content(winrt::box_value(ResourceHelper::GetString(L"Breakpoints_Delete")));
-            delBtn.Background(Microsoft::UI::Xaml::Media::SolidColorBrush(
-                Windows::UI::Color{ 0xFF, 0x3E, 0x3E, 0x42 }));
+            delBtn.Background(btnBg);
             delBtn.Foreground(deleteFg);
-            delBtn.BorderBrush(Microsoft::UI::Xaml::Media::SolidColorBrush(
-                Windows::UI::Color{ 0xFF, 0x55, 0x55, 0x55 }));
+            delBtn.BorderBrush(btnBorder);
             delBtn.Padding(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(6, 2, 6, 2));
-            delBtn.Margin(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(8, 0, 4, 0));
+            delBtn.Margin(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(4, 0, 4, 0));
             delBtn.FontSize(11);
             delBtn.VerticalAlignment(VerticalAlignment::Center);
             delBtn.HorizontalAlignment(HorizontalAlignment::Right);
@@ -370,10 +387,11 @@ namespace winrt::Em68030::implementation
             {
                 if (OnDeleteWatchpoint) OnDeleteWatchpoint(capturedAddr);
             });
-            Grid::SetColumn(delBtn, 2);
+            Grid::SetColumn(delBtn, 3);
 
             row.Children().Append(cb);
             row.Children().Append(textStack);
+            row.Children().Append(wpEditBtn);
             row.Children().Append(delBtn);
 
             items.Append(row);
@@ -538,6 +556,56 @@ namespace winrt::Em68030::implementation
         else if (result == ContentDialogResult::Secondary)
         {
             if (OnSetCondition) OnSetCondition(addr, "");
+        }
+    }
+
+    winrt::fire_and_forget BreakpointsWindow::ShowEditWatchpointConditionDialog(uint32_t addr, std::string currentCondition)
+    {
+        auto normalFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
+            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
+
+        StackPanel panel;
+        panel.Spacing(8);
+
+        TextBlock label;
+        label.Text(winrt::to_hstring(std::format("{} ${:08X}",
+            winrt::to_string(ResourceHelper::GetString(L"Breakpoints_ConditionFor")), addr)));
+        label.Foreground(normalFg);
+        label.FontSize(12);
+        panel.Children().Append(label);
+
+        TextBlock hint;
+        hint.Text(ResourceHelper::GetString(L"Breakpoints_ConditionHint"));
+        hint.Foreground(Microsoft::UI::Xaml::Media::SolidColorBrush(
+            Windows::UI::Color{ 0xFF, 0x90, 0x90, 0x90 }));
+        hint.FontSize(11);
+        hint.TextWrapping(TextWrapping::Wrap);
+        panel.Children().Append(hint);
+
+        TextBox condBox;
+        condBox.Text(winrt::to_hstring(currentCondition));
+        condBox.PlaceholderText(L"e.g. D0==0x1234, SR&0x2000!=0");
+        condBox.FontFamily(Microsoft::UI::Xaml::Media::FontFamily(L"Consolas"));
+        panel.Children().Append(condBox);
+
+        ContentDialog dialog;
+        dialog.XamlRoot(Content().XamlRoot());
+        dialog.Title(winrt::box_value(ResourceHelper::GetString(L"Breakpoints_EditConditionTitle")));
+        dialog.Content(panel);
+        dialog.PrimaryButtonText(L"OK");
+        dialog.SecondaryButtonText(ResourceHelper::GetString(L"Breakpoints_ClearCondition"));
+        dialog.CloseButtonText(ResourceHelper::GetString(L"Watchpoint_Cancel"));
+        dialog.DefaultButton(ContentDialogButton::Primary);
+
+        auto result = co_await dialog.ShowAsync();
+        if (result == ContentDialogResult::Primary)
+        {
+            auto newCond = winrt::to_string(condBox.Text());
+            if (OnSetWatchpointCondition) OnSetWatchpointCondition(addr, newCond);
+        }
+        else if (result == ContentDialogResult::Secondary)
+        {
+            if (OnSetWatchpointCondition) OnSetWatchpointCondition(addr, "");
         }
     }
 }

@@ -2396,6 +2396,11 @@ namespace winrt::Em68030::implementation
                 vmImpl->ClearAllWatchpoints();
                 RefreshBreakpointsWindow();
             };
+            bpImpl->OnSetWatchpointCondition = [this, vmImpl](uint32_t addr, const std::string& cond)
+            {
+                vmImpl->SetWatchpointCondition(addr, cond);
+                RefreshBreakpointsWindow();
+            };
             bpImpl->OnDoubleClick = [this, vmImpl](uint32_t addr)
             {
                 // 1) Update data model (may re-disassemble around the address)
