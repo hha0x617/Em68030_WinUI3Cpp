@@ -356,9 +356,9 @@ namespace winrt::Em68030::implementation
             }
             Grid::SetColumn(textStack, 1);
 
-            // Edit condition button
+            // Edit watchpoint button
             Button wpEditBtn;
-            wpEditBtn.Content(winrt::box_value(ResourceHelper::GetString(L"Breakpoints_EditCondition")));
+            wpEditBtn.Content(winrt::box_value(ResourceHelper::GetString(L"Breakpoints_Edit")));
             wpEditBtn.Background(btnBg);
             wpEditBtn.Foreground(editFg);
             wpEditBtn.BorderBrush(btnBorder);
@@ -366,10 +366,12 @@ namespace winrt::Em68030::implementation
             wpEditBtn.Margin(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(4, 0, 0, 0));
             wpEditBtn.FontSize(11);
             wpEditBtn.VerticalAlignment(VerticalAlignment::Center);
+            WatchpointSize capturedSize = wp.size;
+            WatchpointType capturedType = wp.type;
             std::string capturedCond = wp.condition;
-            wpEditBtn.Click([this, capturedAddr, capturedCond](auto&&, auto&&)
+            wpEditBtn.Click([this, capturedAddr, capturedSize, capturedType, capturedCond](auto&&, auto&&)
             {
-                ShowEditWatchpointConditionDialog(capturedAddr, capturedCond);
+                ShowEditWatchpointDialog(capturedAddr, capturedSize, capturedType, capturedCond);
             });
             Grid::SetColumn(wpEditBtn, 2);
 
@@ -559,53 +561,115 @@ namespace winrt::Em68030::implementation
         }
     }
 
-    winrt::fire_and_forget BreakpointsWindow::ShowEditWatchpointConditionDialog(uint32_t addr, std::string currentCondition)
+    winrt::fire_and_forget BreakpointsWindow::ShowEditWatchpointDialog(
+        uint32_t oldAddr, WatchpointSize oldSize, WatchpointType oldType, std::string oldCondition)
     {
         auto normalFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
             Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
 
         StackPanel panel;
         panel.Spacing(8);
+        panel.Background(Microsoft::UI::Xaml::Media::SolidColorBrush(
+            Windows::UI::Color{ 0x00, 0x00, 0x00, 0x00 }));
 
-        TextBlock label;
-        label.Text(winrt::to_hstring(std::format("{} ${:08X}",
-            winrt::to_string(ResourceHelper::GetString(L"Breakpoints_ConditionFor")), addr)));
-        label.Foreground(normalFg);
-        label.FontSize(12);
-        panel.Children().Append(label);
+        // Address
+        TextBlock addrLabel;
+        addrLabel.Text(ResourceHelper::GetString(L"Watchpoint_AddressLabel"));
+        addrLabel.Foreground(normalFg);
+        addrLabel.FontSize(12);
+        panel.Children().Append(addrLabel);
 
-        TextBlock hint;
-        hint.Text(ResourceHelper::GetString(L"Breakpoints_ConditionHint"));
-        hint.Foreground(Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x90, 0x90, 0x90 }));
-        hint.FontSize(11);
-        hint.TextWrapping(TextWrapping::Wrap);
-        panel.Children().Append(hint);
+        TextBox addrBox;
+        addrBox.Text(winrt::to_hstring(std::format("0x{:X}", oldAddr)));
+        addrBox.FontFamily(Microsoft::UI::Xaml::Media::FontFamily(L"Consolas"));
+        panel.Children().Append(addrBox);
+
+        // Size
+        TextBlock sizeLabel;
+        sizeLabel.Text(ResourceHelper::GetString(L"Watchpoint_SizeLabel"));
+        sizeLabel.Foreground(normalFg);
+        sizeLabel.FontSize(12);
+        panel.Children().Append(sizeLabel);
+
+        ComboBox sizeCombo;
+        sizeCombo.Items().Append(winrt::box_value(L"Byte (.B)"));
+        sizeCombo.Items().Append(winrt::box_value(L"Word (.W)"));
+        sizeCombo.Items().Append(winrt::box_value(L"Long (.L)"));
+        sizeCombo.SelectedIndex(oldSize == WatchpointSize::Byte ? 0 : oldSize == WatchpointSize::Long ? 2 : 1);
+        panel.Children().Append(sizeCombo);
+
+        // Type
+        TextBlock typeLabel;
+        typeLabel.Text(ResourceHelper::GetString(L"Watchpoint_TypeLabel"));
+        typeLabel.Foreground(normalFg);
+        typeLabel.FontSize(12);
+        panel.Children().Append(typeLabel);
+
+        ComboBox typeCombo;
+        typeCombo.Items().Append(winrt::box_value(ResourceHelper::GetString(L"Watchpoint_TypeWrite")));
+        typeCombo.Items().Append(winrt::box_value(ResourceHelper::GetString(L"Watchpoint_TypeRead")));
+        typeCombo.Items().Append(winrt::box_value(ResourceHelper::GetString(L"Watchpoint_TypeReadWrite")));
+        typeCombo.SelectedIndex(oldType == WatchpointType::Read ? 1 : oldType == WatchpointType::ReadWrite ? 2 : 0);
+        panel.Children().Append(typeCombo);
+
+        // Condition
+        TextBlock condLabel;
+        condLabel.Text(ResourceHelper::GetString(L"Watchpoint_ConditionLabel"));
+        condLabel.Foreground(normalFg);
+        condLabel.FontSize(12);
+        panel.Children().Append(condLabel);
 
         TextBox condBox;
-        condBox.Text(winrt::to_hstring(currentCondition));
-        condBox.PlaceholderText(L"e.g. D0==0x1234, SR&0x2000!=0");
+        condBox.Text(winrt::to_hstring(oldCondition));
+        condBox.PlaceholderText(L"e.g. D0==0x1234 (optional)");
         condBox.FontFamily(Microsoft::UI::Xaml::Media::FontFamily(L"Consolas"));
         panel.Children().Append(condBox);
 
         ContentDialog dialog;
         dialog.XamlRoot(Content().XamlRoot());
-        dialog.Title(winrt::box_value(ResourceHelper::GetString(L"Breakpoints_EditConditionTitle")));
+        dialog.Title(winrt::box_value(ResourceHelper::GetString(L"Watchpoint_EditTitle")));
         dialog.Content(panel);
         dialog.PrimaryButtonText(L"OK");
-        dialog.SecondaryButtonText(ResourceHelper::GetString(L"Breakpoints_ClearCondition"));
         dialog.CloseButtonText(ResourceHelper::GetString(L"Watchpoint_Cancel"));
         dialog.DefaultButton(ContentDialogButton::Primary);
 
         auto result = co_await dialog.ShowAsync();
-        if (result == ContentDialogResult::Primary)
+        if (result != ContentDialogResult::Primary) co_return;
+
+        // Parse address
+        auto addrStr = winrt::to_string(addrBox.Text());
+        uint32_t addr = 0;
+        bool parsed = false;
+        if (addrStr.size() > 2 && addrStr[0] == '0' && (addrStr[1] == 'x' || addrStr[1] == 'X'))
         {
-            auto newCond = winrt::to_string(condBox.Text());
-            if (OnSetWatchpointCondition) OnSetWatchpointCondition(addr, newCond);
+            char* end = nullptr;
+            addr = static_cast<uint32_t>(std::strtoull(addrStr.c_str() + 2, &end, 16));
+            parsed = (end != addrStr.c_str() + 2);
         }
-        else if (result == ContentDialogResult::Secondary)
+        else if (!addrStr.empty() && addrStr[0] == '$')
         {
-            if (OnSetWatchpointCondition) OnSetWatchpointCondition(addr, "");
+            char* end = nullptr;
+            addr = static_cast<uint32_t>(std::strtoull(addrStr.c_str() + 1, &end, 16));
+            parsed = (end != addrStr.c_str() + 1);
         }
+        else
+        {
+            char* end = nullptr;
+            addr = static_cast<uint32_t>(std::strtoull(addrStr.c_str(), &end, 16));
+            parsed = (end != addrStr.c_str());
+        }
+        if (!parsed) co_return;
+
+        WatchpointSize size = WatchpointSize::Word;
+        if (sizeCombo.SelectedIndex() == 0) size = WatchpointSize::Byte;
+        else if (sizeCombo.SelectedIndex() == 2) size = WatchpointSize::Long;
+
+        WatchpointType type = WatchpointType::Write;
+        if (typeCombo.SelectedIndex() == 1) type = WatchpointType::Read;
+        else if (typeCombo.SelectedIndex() == 2) type = WatchpointType::ReadWrite;
+
+        auto condStr = winrt::to_string(condBox.Text());
+
+        if (OnEditWatchpoint) OnEditWatchpoint(oldAddr, addr, size, type, condStr);
     }
 }

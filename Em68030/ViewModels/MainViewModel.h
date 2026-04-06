@@ -214,7 +214,8 @@ namespace winrt::Em68030::implementation
         void AddWatchpoint(uint32_t addr, WatchpointSize size, WatchpointType type,
                            const std::string& condition = "");
         void EnableWatchpoint(uint32_t addr, bool enabled);
-        void SetWatchpointCondition(uint32_t addr, const std::string& condition);
+        void EditWatchpoint(uint32_t oldAddr, uint32_t newAddr, WatchpointSize size,
+                            WatchpointType type, const std::string& condition);
         void RemoveWatchpoint(uint32_t addr);
         void ClearAllWatchpoints();
         const std::unordered_map<uint32_t, WatchpointData>& AllWatchpoints() const { return m_watchpoints; }

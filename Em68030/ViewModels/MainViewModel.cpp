@@ -1584,11 +1584,12 @@ namespace winrt::Em68030::implementation
         }
     }
 
-    void MainViewModel::SetWatchpointCondition(uint32_t addr, const std::string& condition)
+    void MainViewModel::EditWatchpoint(uint32_t oldAddr, uint32_t newAddr, WatchpointSize size,
+                                       WatchpointType type, const std::string& condition)
     {
-        auto it = m_watchpoints.find(addr);
-        if (it != m_watchpoints.end())
-            it->second.condition = condition;
+        m_watchpoints.erase(oldAddr);
+        m_watchpoints[newAddr] = WatchpointData{ newAddr, size, type, true, condition };
+        RebuildWatchpointState();
     }
 
     void MainViewModel::RemoveWatchpoint(uint32_t addr)

@@ -49,12 +49,14 @@ namespace winrt::Em68030::implementation
         std::function<void(uint32_t)> OnDeleteWatchpoint;
         std::function<void()> OnClearAllWatchpoints;
         std::function<void(uint32_t, WatchpointSize, WatchpointType, const std::string&)> OnAddWatchpoint;
-        std::function<void(uint32_t, const std::string&)> OnSetWatchpointCondition;
+        // Edit: remove old watchpoint and add updated one
+        std::function<void(uint32_t, uint32_t, WatchpointSize, WatchpointType, const std::string&)> OnEditWatchpoint;
 
     private:
         winrt::fire_and_forget ShowAddWatchpointDialog();
+        winrt::fire_and_forget ShowEditWatchpointDialog(uint32_t addr, WatchpointSize size,
+                                                         WatchpointType type, std::string condition);
         winrt::fire_and_forget ShowEditConditionDialog(uint32_t addr, std::string currentCondition);
-        winrt::fire_and_forget ShowEditWatchpointConditionDialog(uint32_t addr, std::string currentCondition);
     };
 }
 
