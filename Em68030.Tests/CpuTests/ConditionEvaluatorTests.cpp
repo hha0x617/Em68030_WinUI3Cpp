@@ -456,6 +456,110 @@ TEST_F(ConditionEvaluatorTests, LogicalAnd_WithBitwiseAnd)
 }
 
 // ========================================================================
+// IN {set} operator
+// ========================================================================
+
+TEST_F(ConditionEvaluatorTests, InSet_Match)
+{
+    Cpu.D[0] = 3;
+    EXPECT_TRUE(Eval("D0 IN {1, 3, 7, 20}"));
+}
+
+TEST_F(ConditionEvaluatorTests, InSet_NoMatch)
+{
+    Cpu.D[0] = 5;
+    EXPECT_FALSE(Eval("D0 IN {1, 3, 7, 20}"));
+}
+
+TEST_F(ConditionEvaluatorTests, InSet_HexValues)
+{
+    Cpu.D[0] = 0xFF;
+    EXPECT_TRUE(Eval("D0 IN {0xFE, 0xFF, 0x100}"));
+    Cpu.D[0] = 0xFD;
+    EXPECT_FALSE(Eval("D0 IN {0xFE, 0xFF, 0x100}"));
+}
+
+TEST_F(ConditionEvaluatorTests, InSet_MemoryDeref)
+{
+    Cpu.A[7] = 0x10000;
+    Memory.WriteLong(0x1000C, 7);
+    EXPECT_TRUE(Eval("[A7+12].l IN {1, 3, 7, 20}"));
+    Memory.WriteLong(0x1000C, 99);
+    EXPECT_FALSE(Eval("[A7+12].l IN {1, 3, 7, 20}"));
+}
+
+TEST_F(ConditionEvaluatorTests, InSet_WithRegisterValues)
+{
+    Cpu.D[0] = 42;
+    Cpu.D[1] = 42;
+    EXPECT_TRUE(Eval("D0 IN {10, D1, 99}"));
+}
+
+TEST_F(ConditionEvaluatorTests, InSet_CaseInsensitive)
+{
+    Cpu.D[0] = 5;
+    EXPECT_TRUE(Eval("D0 in {3, 5, 7}"));
+    EXPECT_TRUE(Eval("D0 In {3, 5, 7}"));
+}
+
+TEST_F(ConditionEvaluatorTests, InSet_WithAndOr)
+{
+    Cpu.D[0] = 3;
+    Cpu.D[1] = 100;
+    EXPECT_TRUE(Eval("D0 IN {1, 3, 7} && D1==100"));
+    Cpu.D[1] = 99;
+    EXPECT_FALSE(Eval("D0 IN {1, 3, 7} && D1==100"));
+}
+
+// ========================================================================
+// Parentheses grouping
+// ========================================================================
+
+TEST_F(ConditionEvaluatorTests, Parens_GroupingOrThenAnd)
+{
+    // Without parens: D0==1 || D0==3 && D1==10 => D0==1 || (D0==3 && D1==10)
+    // With parens: (D0==1 || D0==3) && D1==10
+    Cpu.D[0] = 1;
+    Cpu.D[1] = 0;
+    // Without parens: true (first OR clause)
+    EXPECT_TRUE(Eval("D0==1 || D0==3 && D1==10"));
+    // With parens: (true || false) && false => false
+    EXPECT_FALSE(Eval("(D0==1 || D0==3) && D1==10"));
+}
+
+TEST_F(ConditionEvaluatorTests, Parens_GroupingAndThenOr)
+{
+    Cpu.D[0] = 3;
+    Cpu.D[1] = 10;
+    Cpu.D[2] = 99;
+    // (D0==3 && D1==10) || D2==0 => true || false => true
+    EXPECT_TRUE(Eval("(D0==3 && D1==10) || D2==0"));
+    // D0==3 && (D1==10 || D2==0) => true && true => true
+    EXPECT_TRUE(Eval("D0==3 && (D1==10 || D2==0)"));
+    // D0==3 && (D1==99 || D2==0) => true && false => false
+    EXPECT_FALSE(Eval("D0==3 && (D1==99 || D2==0)"));
+}
+
+TEST_F(ConditionEvaluatorTests, Parens_NestedParens)
+{
+    Cpu.D[0] = 1;
+    Cpu.D[1] = 2;
+    Cpu.D[2] = 3;
+    // ((D0==1 && D1==2) || D2==0) => (true || false) => true
+    EXPECT_TRUE(Eval("((D0==1 && D1==2) || D2==0)"));
+}
+
+TEST_F(ConditionEvaluatorTests, Parens_InSetInsideCompound)
+{
+    Cpu.D[0] = 3;
+    Cpu.D[1] = 100;
+    // (D0 IN {1, 3, 7}) && D1==100
+    EXPECT_TRUE(Eval("(D0 IN {1, 3, 7}) && D1==100"));
+    Cpu.D[1] = 99;
+    EXPECT_FALSE(Eval("(D0 IN {1, 3, 7}) && D1==100"));
+}
+
+// ========================================================================
 // All data/address registers
 // ========================================================================
 

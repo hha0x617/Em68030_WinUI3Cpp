@@ -205,6 +205,40 @@ inline bool EvaluateSingleCondition(const std::string& cond, MC68030& cpu, Memor
             { op = "!="; afterLhs += 2; }
         else return lhs != 0;
     }
+    else if ((cond[afterLhs] == 'I' || cond[afterLhs] == 'i') &&
+             afterLhs + 1 < cond.size() &&
+             (cond[afterLhs + 1] == 'N' || cond[afterLhs + 1] == 'n') &&
+             (afterLhs + 2 >= cond.size() || cond[afterLhs + 2] == ' ' || cond[afterLhs + 2] == '{'))
+    {
+        // IN {val1, val2, ...}
+        afterLhs += 2;
+        while (afterLhs < cond.size() && cond[afterLhs] == ' ') afterLhs++;
+        if (afterLhs >= cond.size() || cond[afterLhs] != '{') return true;
+        size_t closeBrace = cond.find('}', afterLhs + 1);
+        if (closeBrace == std::string::npos) return true;
+        std::string setStr = cond.substr(afterLhs + 1, closeBrace - afterLhs - 1);
+        // Parse comma-separated values
+        size_t pos = 0;
+        while (pos < setStr.size())
+        {
+            while (pos < setStr.size() && (setStr[pos] == ' ' || setStr[pos] == ',')) pos++;
+            if (pos >= setStr.size()) break;
+            uint32_t val = 0;
+            size_t end;
+            // Try register name first
+            size_t tokEnd = pos;
+            while (tokEnd < setStr.size() && std::isalnum(static_cast<unsigned char>(setStr[tokEnd]))) tokEnd++;
+            std::string tok = setStr.substr(pos, tokEnd - pos);
+            if (ParseRegisterValue(tok, cpu, val))
+                pos = tokEnd;
+            else if (ParseNumber(setStr, pos, end, val))
+                pos = end;
+            else
+                return true;
+            if (lhs == val) return true;
+        }
+        return false;
+    }
     else
     {
         return true;
@@ -232,69 +266,83 @@ inline bool EvaluateSingleCondition(const std::string& cond, MC68030& cpu, Memor
     return true;
 }
 
-/// Evaluate a condition expression with support for || (OR) and && (AND).
-/// || has lower precedence than &&: "A || B && C" means "A || (B && C)".
-/// Examples: "D0==1 || D0==3", "[A7+12].l==1 || [A7+12].l==3",
-///           "D0>0 && D0<100", "SR&0x2000!=0 && D0==0"
+/// Split a string by a 2-char delimiter, respecting [...], {...}, and (...) nesting.
+inline std::vector<std::string> SplitOutsideNesting(const std::string& s, char d0, char d1)
+{
+    std::vector<std::string> parts;
+    size_t start = 0;
+    int depth = 0; // tracks [, {, ( nesting
+    for (size_t k = 0; k < s.size(); k++)
+    {
+        char c = s[k];
+        if (c == '[' || c == '{' || c == '(') depth++;
+        else if (c == ']' || c == '}' || c == ')') depth--;
+        else if (depth == 0 && k + 1 < s.size() && c == d0 && s[k + 1] == d1)
+        {
+            parts.push_back(s.substr(start, k - start));
+            k++; // skip second char
+            start = k + 1;
+        }
+    }
+    parts.push_back(s.substr(start));
+    return parts;
+}
+
+/// Evaluate a leaf clause: if it's "(expr)", recurse; otherwise call EvaluateSingleCondition.
+inline bool EvaluateLeaf(const std::string& rawClause, MC68030& cpu, Memory& memory);
+
+/// Evaluate a condition expression with support for ||, &&, (), and IN {}.
 inline bool EvaluateCondition(const std::string& cond, MC68030& cpu, Memory& memory)
 {
     if (cond.empty()) return true;
 
-    // Split by || (OR) — any clause being true makes the whole expression true
-    // We need to find || that is NOT inside [...] brackets
-    std::vector<std::string> orClauses;
-    {
-        size_t start = 0;
-        int bracketDepth = 0;
-        for (size_t k = 0; k < cond.size(); k++)
-        {
-            if (cond[k] == '[') bracketDepth++;
-            else if (cond[k] == ']') bracketDepth--;
-            else if (bracketDepth == 0 && k + 1 < cond.size() &&
-                     cond[k] == '|' && cond[k + 1] == '|')
-            {
-                orClauses.push_back(cond.substr(start, k - start));
-                k++; // skip second |
-                start = k + 1;
-            }
-        }
-        orClauses.push_back(cond.substr(start));
-    }
+    // Split by || (OR)
+    auto orClauses = SplitOutsideNesting(cond, '|', '|');
 
     for (const auto& orClause : orClauses)
     {
-        // Split by && (AND) — all parts must be true
-        std::vector<std::string> andClauses;
-        {
-            size_t start = 0;
-            int bracketDepth = 0;
-            for (size_t k = 0; k < orClause.size(); k++)
-            {
-                if (orClause[k] == '[') bracketDepth++;
-                else if (orClause[k] == ']') bracketDepth--;
-                else if (bracketDepth == 0 && k + 1 < orClause.size() &&
-                         orClause[k] == '&' && orClause[k + 1] == '&')
-                {
-                    andClauses.push_back(orClause.substr(start, k - start));
-                    k++; // skip second &
-                    start = k + 1;
-                }
-            }
-            andClauses.push_back(orClause.substr(start));
-        }
+        // Split by && (AND)
+        auto andClauses = SplitOutsideNesting(orClause, '&', '&');
 
         bool allTrue = true;
         for (const auto& clause : andClauses)
         {
-            if (!EvaluateSingleCondition(clause, cpu, memory))
+            if (!EvaluateLeaf(clause, cpu, memory))
             {
                 allTrue = false;
                 break;
             }
         }
-        if (allTrue) return true; // This OR branch is satisfied
+        if (allTrue) return true;
     }
-    return false; // No OR branch was satisfied
+    return false;
+}
+
+inline bool EvaluateLeaf(const std::string& rawClause, MC68030& cpu, Memory& memory)
+{
+    // Trim whitespace
+    size_t s = 0, e = rawClause.size();
+    while (s < e && rawClause[s] == ' ') s++;
+    while (e > s && rawClause[e - 1] == ' ') e--;
+    if (s >= e) return true;
+
+    // Check for (...) grouping — strip outer parens and recurse
+    if (rawClause[s] == '(' && rawClause[e - 1] == ')')
+    {
+        // Verify the parens are matched (not just coincidental)
+        int depth = 0;
+        bool matched = true;
+        for (size_t k = s; k < e; k++)
+        {
+            if (rawClause[k] == '(') depth++;
+            else if (rawClause[k] == ')') depth--;
+            if (depth == 0 && k < e - 1) { matched = false; break; }
+        }
+        if (matched)
+            return EvaluateCondition(rawClause.substr(s + 1, e - s - 2), cpu, memory);
+    }
+
+    return EvaluateSingleCondition(rawClause.substr(s, e - s), cpu, memory);
 }
 
 } // namespace Em68030::Core
