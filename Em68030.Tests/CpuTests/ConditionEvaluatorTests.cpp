@@ -303,6 +303,61 @@ TEST_F(ConditionEvaluatorTests, MemoryDeref_DollarAddress)
 }
 
 // ========================================================================
+// Address arithmetic: [reg+offset], [reg-offset], [num+reg]
+// ========================================================================
+
+TEST_F(ConditionEvaluatorTests, MemoryDeref_RegisterPlusDecimal)
+{
+    Cpu.A[7] = 0x10000;
+    Memory.WriteLong(0x1000C, 0xCAFEBABE);
+    EXPECT_TRUE(Eval("[A7+12].l==0xCAFEBABE"));
+}
+
+TEST_F(ConditionEvaluatorTests, MemoryDeref_RegisterPlusHex)
+{
+    Cpu.A[7] = 0x10000;
+    Memory.WriteLong(0x1000C, 0xCAFEBABE);
+    EXPECT_TRUE(Eval("[A7+0xC].l==0xCAFEBABE"));
+}
+
+TEST_F(ConditionEvaluatorTests, MemoryDeref_RegisterPlusDollarHex)
+{
+    Cpu.A[0] = 0x2000;
+    Memory.WriteWord(0x2010, 0xBEEF);
+    EXPECT_TRUE(Eval("[A0+$10].w==0xBEEF"));
+}
+
+TEST_F(ConditionEvaluatorTests, MemoryDeref_RegisterMinusOffset)
+{
+    Cpu.A[7] = 0x10010;
+    Memory.WriteLong(0x10000, 0xDEADBEEF);
+    EXPECT_TRUE(Eval("[A7-16].l==0xDEADBEEF"));
+}
+
+TEST_F(ConditionEvaluatorTests, MemoryDeref_NumberPlusRegister)
+{
+    Cpu.D[0] = 0x100;
+    Memory.WriteByte(0x1100, 0x42);
+    EXPECT_TRUE(Eval("[0x1000+D0].b==0x42"));
+}
+
+TEST_F(ConditionEvaluatorTests, MemoryDeref_RegisterPlusRegister)
+{
+    Cpu.A[0] = 0x3000;
+    Cpu.D[1] = 0x20;
+    Memory.WriteWord(0x3020, 0x1234);
+    EXPECT_TRUE(Eval("[A0+D1].w==0x1234"));
+}
+
+TEST_F(ConditionEvaluatorTests, MemoryDeref_ArithmeticWithSpaces)
+{
+    Cpu.A[7] = 0x10000;
+    Memory.WriteLong(0x1000C, 0xCAFEBABE);
+    EXPECT_TRUE(Eval("[A7 + 12].l==0xCAFEBABE"));
+    EXPECT_TRUE(Eval("[ A7+12 ].l==0xCAFEBABE"));
+}
+
+// ========================================================================
 // Whitespace handling
 // ========================================================================
 

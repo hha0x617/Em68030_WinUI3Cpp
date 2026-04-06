@@ -63,6 +63,62 @@ inline bool ParseNumber(const std::string& s, size_t pos, size_t& endPos, uint32
     return true;
 }
 
+/// Parse an address expression that may contain + or - operators.
+/// Supports: register, number, register+number, number+register, register+register, etc.
+/// Examples: "A7", "0x1000", "A7+12", "A7+0xC", "A7-4", "$1000+A0"
+inline bool ParseAddrExpression(const std::string& rawExpr, const MC68030& cpu, uint32_t& outVal)
+{
+    // Trim whitespace
+    size_t start = 0, end = rawExpr.size();
+    while (start < end && rawExpr[start] == ' ') start++;
+    while (end > start && rawExpr[end - 1] == ' ') end--;
+    std::string expr = rawExpr.substr(start, end - start);
+    if (expr.empty()) return false;
+
+    // Find + or - operator (skip leading $ or 0x)
+    size_t opPos = std::string::npos;
+    for (size_t k = 1; k < expr.size(); k++)
+    {
+        if (expr[k] == '+' || expr[k] == '-')
+        {
+            // Make sure this isn't part of 0x prefix
+            if (k >= 2 && (expr[k-1] == 'x' || expr[k-1] == 'X') && expr[k-2] == '0')
+                continue;
+            opPos = k;
+            break;
+        }
+    }
+
+    if (opPos == std::string::npos)
+    {
+        // No operator — simple value
+        size_t dummy;
+        if (ParseNumber(expr, 0, dummy, outVal)) return true;
+        return ParseRegisterValue(expr, cpu, outVal);
+    }
+
+    // Split into left and right around operator
+    std::string leftStr = expr.substr(0, opPos);
+    std::string rightStr = expr.substr(opPos + 1);
+    char op = expr[opPos];
+
+    // Trim whitespace
+    while (!leftStr.empty() && leftStr.back() == ' ') leftStr.pop_back();
+    size_t rs = 0;
+    while (rs < rightStr.size() && rightStr[rs] == ' ') rs++;
+    if (rs > 0) rightStr = rightStr.substr(rs);
+
+    uint32_t leftVal = 0, rightVal = 0;
+    size_t dummy;
+    if (!ParseNumber(leftStr, 0, dummy, leftVal))
+        if (!ParseRegisterValue(leftStr, cpu, leftVal)) return false;
+    if (!ParseNumber(rightStr, 0, dummy, rightVal))
+        if (!ParseRegisterValue(rightStr, cpu, rightVal)) return false;
+
+    outVal = (op == '+') ? (leftVal + rightVal) : (leftVal - rightVal);
+    return true;
+}
+
 /// Evaluate a condition expression against the current CPU/memory state.
 /// Returns true if condition is met (or if expression is empty/unparseable).
 ///
@@ -88,12 +144,8 @@ inline bool EvaluateCondition(const std::string& cond, MC68030& cpu, Memory& mem
 
         std::string addrExpr = cond.substr(i + 1, closeBracket - i - 1);
         uint32_t addr = 0;
-        size_t dummy;
-        if (!ParseNumber(addrExpr, 0, dummy, addr))
-        {
-            if (!ParseRegisterValue(addrExpr, cpu, addr))
-                return true;
-        }
+        if (!ParseAddrExpression(addrExpr, cpu, addr))
+            return true;
 
         afterLhs = closeBracket + 1;
         if (afterLhs + 1 < cond.size() && cond[afterLhs] == '.')
