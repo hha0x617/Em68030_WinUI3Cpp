@@ -141,6 +141,11 @@ public:
     /// On real hardware, RESET asserts the RSTO signal to reset all external devices.
     std::function<void()> OnResetInstruction;
 
+    /// Memory watchpoint callback. Called on every data read/write when WatchpointsEnabled is true.
+    /// Parameters: (address, accessSize, isWrite, oldValue, newValue)
+    std::function<void(uint32_t, uint32_t, bool, uint32_t, uint32_t)> OnMemoryAccess;
+    bool WatchpointsEnabled = false;
+
     // ========================================================================
     // Accessors for owned subsystems
     // ========================================================================

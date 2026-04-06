@@ -145,7 +145,11 @@ uint8_t MC68030::ReadByte(uint32_t addr)
 {
     // Data page cache fast path (read-only; MOVES invalidates cache before overriding FC)
     if (_dataCacheValid && (addr & ~_dataPageMask) == _dataPageVA)
-        return m_memory.ReadByte(_dataPagePA + (addr & _dataPageMask));
+    {
+        uint8_t val = m_memory.ReadByte(_dataPagePA + (addr & _dataPageMask));
+        if (WatchpointsEnabled && OnMemoryAccess) OnMemoryAccess(addr, 1, false, val, val);
+        return val;
+    }
     uint32_t pa = TranslateRead(addr);
     if (m_mmu.GetEnabled()) {
         _dataPageMask = m_mmu.CachedPageMask;
@@ -153,7 +157,9 @@ uint8_t MC68030::ReadByte(uint32_t addr)
         _dataPagePA = pa & ~_dataPageMask;
         _dataCacheValid = true;
     }
-    return m_memory.ReadByte(pa);
+    uint8_t val = m_memory.ReadByte(pa);
+    if (WatchpointsEnabled && OnMemoryAccess) OnMemoryAccess(addr, 1, false, val, val);
+    return val;
 }
 
 uint16_t MC68030::ReadWord(uint32_t addr)
@@ -161,13 +167,19 @@ uint16_t MC68030::ReadWord(uint32_t addr)
     // Data page cache fast path (read-only; MOVES invalidates cache before overriding FC)
     if (_dataCacheValid && (addr & ~_dataPageMask) == _dataPageVA
         && (addr & _dataPageMask) + 1 < _dataPageMask)
-        return m_memory.ReadWord(_dataPagePA + (addr & _dataPageMask));
+    {
+        uint16_t val = m_memory.ReadWord(_dataPagePA + (addr & _dataPageMask));
+        if (WatchpointsEnabled && OnMemoryAccess) OnMemoryAccess(addr, 2, false, val, val);
+        return val;
+    }
     // A word read can cross a page boundary when addr is at the last byte of a page.
     if (m_mmu.GetEnabled() && (addr & m_mmu.CachedPageMask) == m_mmu.CachedPageMask)
     {
         uint8_t hi = m_memory.ReadByte(TranslateRead(addr));
         uint8_t lo = m_memory.ReadByte(TranslateRead(addr + 1));
-        return static_cast<uint16_t>((hi << 8) | lo);
+        uint16_t val = static_cast<uint16_t>((hi << 8) | lo);
+        if (WatchpointsEnabled && OnMemoryAccess) OnMemoryAccess(addr, 2, false, val, val);
+        return val;
     }
     uint32_t pa = TranslateRead(addr);
     if (m_mmu.GetEnabled()) {
@@ -176,7 +188,9 @@ uint16_t MC68030::ReadWord(uint32_t addr)
         _dataPagePA = pa & ~_dataPageMask;
         _dataCacheValid = true;
     }
-    return m_memory.ReadWord(pa);
+    uint16_t val = m_memory.ReadWord(pa);
+    if (WatchpointsEnabled && OnMemoryAccess) OnMemoryAccess(addr, 2, false, val, val);
+    return val;
 }
 
 uint32_t MC68030::ReadLong(uint32_t addr)
@@ -184,7 +198,11 @@ uint32_t MC68030::ReadLong(uint32_t addr)
     // Data page cache fast path (read-only; MOVES invalidates cache before overriding FC)
     if (_dataCacheValid && (addr & ~_dataPageMask) == _dataPageVA
         && (addr & _dataPageMask) + 3 < _dataPageMask)
-        return m_memory.ReadLong(_dataPagePA + (addr & _dataPageMask));
+    {
+        uint32_t val = m_memory.ReadLong(_dataPagePA + (addr & _dataPageMask));
+        if (WatchpointsEnabled && OnMemoryAccess) OnMemoryAccess(addr, 4, false, val, val);
+        return val;
+    }
     // A longword read can cross a page boundary when within 3 bytes of page end.
     if (m_mmu.GetEnabled())
     {
@@ -203,18 +221,42 @@ uint32_t MC68030::ReadLong(uint32_t addr)
         _dataPagePA = pa & ~_dataPageMask;
         _dataCacheValid = true;
     }
-    return m_memory.ReadLong(pa);
+    uint32_t val = m_memory.ReadLong(pa);
+    if (WatchpointsEnabled && OnMemoryAccess) OnMemoryAccess(addr, 4, false, val, val);
+    return val;
 }
 
 void MC68030::WriteByte(uint32_t addr, uint8_t val)
 {
     _dataCacheValid = false;
+    if (WatchpointsEnabled && OnMemoryAccess)
+    {
+        uint32_t pa = TranslateWrite(addr);
+        uint32_t oldVal = m_memory.ReadByte(pa);
+        m_memory.WriteByte(pa, val);
+        OnMemoryAccess(addr, 1, true, oldVal, val);
+        return;
+    }
     m_memory.WriteByte(TranslateWrite(addr), val);
 }
 
 void MC68030::WriteWord(uint32_t addr, uint16_t val)
 {
     _dataCacheValid = false;
+    if (WatchpointsEnabled && OnMemoryAccess)
+    {
+        if (m_mmu.GetEnabled() && (addr & m_mmu.CachedPageMask) == m_mmu.CachedPageMask)
+        {
+            WriteByte(addr, static_cast<uint8_t>(val >> 8));
+            WriteByte(addr + 1, static_cast<uint8_t>(val));
+            return;
+        }
+        uint32_t pa = TranslateWrite(addr);
+        uint32_t oldVal = m_memory.ReadWord(pa);
+        m_memory.WriteWord(pa, val);
+        OnMemoryAccess(addr, 2, true, oldVal, val);
+        return;
+    }
     if (m_mmu.GetEnabled() && (addr & m_mmu.CachedPageMask) == m_mmu.CachedPageMask)
     {
         m_memory.WriteByte(TranslateWrite(addr), static_cast<uint8_t>(val >> 8));
@@ -227,6 +269,24 @@ void MC68030::WriteWord(uint32_t addr, uint16_t val)
 void MC68030::WriteLong(uint32_t addr, uint32_t val)
 {
     _dataCacheValid = false;
+    if (WatchpointsEnabled && OnMemoryAccess)
+    {
+        if (m_mmu.GetEnabled())
+        {
+            uint32_t offset = addr & m_mmu.CachedPageMask;
+            if (offset + 3 > m_mmu.CachedPageMask)
+            {
+                WriteWord(addr, static_cast<uint16_t>(val >> 16));
+                WriteWord(addr + 2, static_cast<uint16_t>(val));
+                return;
+            }
+        }
+        uint32_t pa = TranslateWrite(addr);
+        uint32_t oldVal = m_memory.ReadLong(pa);
+        m_memory.WriteLong(pa, val);
+        OnMemoryAccess(addr, 4, true, oldVal, val);
+        return;
+    }
     if (m_mmu.GetEnabled())
     {
         uint32_t offset = addr & m_mmu.CachedPageMask;

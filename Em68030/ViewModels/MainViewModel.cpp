@@ -29,6 +29,7 @@
 #include "IO/LanceDevice.h"
 #include "IO/Mvme147IoSpaceDevice.h"
 #include "Config/EmulatorConfig.h"
+#include "Core/ConditionEvaluator.h"
 
 #include "IO/Z8530Device.h"
 #include "IO/Wd33c93Device.h"
@@ -378,6 +379,13 @@ namespace winrt::Em68030::implementation
         // RESET instruction: reset all external devices (PCC timers, interrupt lines)
         m_cpu->OnResetInstruction = [this]() {
             m_pccDevice->HardwareReset();
+        };
+
+        // Memory watchpoint hook
+        m_cpu->OnMemoryAccess = [this](uint32_t addr, uint32_t size, bool isWrite,
+                                        uint32_t oldValue, uint32_t newValue) {
+            if (!m_watchpointHit.has_value())
+                CheckWatchpoint(addr, size, isWrite, oldValue, newValue);
         };
 
         // PCC watchdog timer: Linux MVME147 uses this for hardware reboot
@@ -1128,6 +1136,10 @@ namespace winrt::Em68030::implementation
         bool hasBreakpoints = !m_enabledBreakpoints.empty();
         bool hasRunToCursor = m_runToCursorAddress.has_value();
         uint32_t runToCursorAddr = m_runToCursorAddress.value_or(0);
+        bool hasWatchpoints = m_hasEnabledWatchpoints;
+        bool hasConditionalBP = m_hasConditionalBreakpoints;
+        m_cpu->WatchpointsEnabled = hasWatchpoints;
+        m_watchpointHit.reset();
         auto lastMhzUpdate = std::chrono::steady_clock::now();
 
         // Select execution function once at loop start to avoid per-instruction branching.
@@ -1148,9 +1160,9 @@ namespace winrt::Em68030::implementation
                 if (m_cpu->Halted) { RequestStopOnUI(); return; }
                 if (m_cpu->Stopped && !m_cpu->HasExternalDevices()) { RequestStopOnUI(); return; }
 
-                if (!hasBreakpoints && !hasRunToCursor)
+                if (!hasBreakpoints && !hasRunToCursor && !hasWatchpoints)
                 {
-                    // ---- Fast path: no breakpoints, no run-to-cursor ----
+                    // ---- Fast path: no breakpoints, no run-to-cursor, no watchpoints ----
                     uint32_t loopDetectPC = UINT32_MAX;
                     int loopDetectCount = 0;
                     for (int i = 0; i < BatchSize; i++)
@@ -1190,7 +1202,7 @@ namespace winrt::Em68030::implementation
                 }
                 else
                 {
-                    // ---- Slow path: breakpoint / run-to-cursor checks ----
+                    // ---- Slow path: breakpoint / run-to-cursor / watchpoint checks ----
                     uint32_t loopDetectPC = UINT32_MAX;
                     int loopDetectCount = 0;
                     for (int i = 0; i < BatchSize; i++)
@@ -1210,14 +1222,42 @@ namespace winrt::Em68030::implementation
                         }
 
                         if (m_cpu->Halted) { RequestStopOnUI(); return; }
-                        if (hasBreakpoints && m_enabledBreakpoints.contains(m_cpu->PC))
+
+                        // Watchpoint hit (set by OnMemoryAccess callback during instruction execution)
+                        if (hasWatchpoints && m_watchpointHit.has_value())
                         {
-                            { auto pcHex = std::format("{:08X}", m_cpu->PC);
-                            m_cpu->StopReason = winrt::to_string(winrt::hstring(
-                                ResourceHelper::Format(L"Status_BreakpointFormat",
-                                    std::wstring(pcHex.begin(), pcHex.end())))); }
+                            auto& hit = m_watchpointHit.value();
+                            auto hitAddrHex = std::format("{:08X}", hit.address);
+                            std::string sizeStr = hit.size == WatchpointSize::Byte ? ".B" :
+                                                  hit.size == WatchpointSize::Long ? ".L" : ".W";
+                            auto msg = std::format("{} watchpoint at ${}{}: ${:X} -> ${:X}",
+                                hit.isWrite ? "Write" : "Read",
+                                hitAddrHex, sizeStr, hit.oldValue, hit.newValue);
+                            m_cpu->StopReason = msg;
+                            m_watchpointHit.reset();
                             RequestStopOnUI();
                             return;
+                        }
+
+                        // Breakpoint check (with optional condition evaluation)
+                        if (hasBreakpoints && m_enabledBreakpoints.contains(m_cpu->PC))
+                        {
+                            bool shouldBreak = true;
+                            if (hasConditionalBP)
+                            {
+                                auto it = m_breakpoints.find(m_cpu->PC);
+                                if (it != m_breakpoints.end() && !it->second.condition.empty())
+                                    shouldBreak = EvaluateCondition(it->second.condition);
+                            }
+                            if (shouldBreak)
+                            {
+                                { auto pcHex = std::format("{:08X}", m_cpu->PC);
+                                m_cpu->StopReason = winrt::to_string(winrt::hstring(
+                                    ResourceHelper::Format(L"Status_BreakpointFormat",
+                                        std::wstring(pcHex.begin(), pcHex.end())))); }
+                                RequestStopOnUI();
+                                return;
+                            }
                         }
                         if (hasRunToCursor && m_cpu->PC == runToCursorAddr)
                         { RequestStopOnUI(); return; }
@@ -1342,6 +1382,8 @@ namespace winrt::Em68030::implementation
             m_emulationThread.join();
 
         m_runToCursorAddress = std::nullopt;
+        m_cpu->WatchpointsEnabled = false;
+        m_watchpointHit.reset();
         m_isRunning = false;
         RaisePropertyChanged(L"IsRunning");
         RaiseAllCommandsCanExecuteChanged();
@@ -1499,11 +1541,106 @@ namespace winrt::Em68030::implementation
     void MainViewModel::RebuildEnabledSet()
     {
         m_enabledBreakpoints.clear();
+        m_hasConditionalBreakpoints = false;
         for (const auto& [addr, bp] : m_breakpoints)
         {
             if (bp.enabled)
+            {
                 m_enabledBreakpoints.insert(addr);
+                if (!bp.condition.empty())
+                    m_hasConditionalBreakpoints = true;
+            }
         }
+    }
+
+    void MainViewModel::SetBreakpointCondition(uint32_t addr, const std::string& condition)
+    {
+        auto it = m_breakpoints.find(addr);
+        if (it != m_breakpoints.end())
+        {
+            it->second.condition = condition;
+            RebuildEnabledSet();
+        }
+    }
+
+    // ======================================================================
+    // Watchpoints
+    // ======================================================================
+
+    void MainViewModel::AddWatchpoint(uint32_t addr, WatchpointSize size, WatchpointType type,
+                                       const std::string& condition)
+    {
+        m_watchpoints[addr] = WatchpointData{ addr, size, type, true, condition };
+        RebuildWatchpointState();
+    }
+
+    void MainViewModel::EnableWatchpoint(uint32_t addr, bool enabled)
+    {
+        auto it = m_watchpoints.find(addr);
+        if (it != m_watchpoints.end())
+        {
+            it->second.enabled = enabled;
+            RebuildWatchpointState();
+        }
+    }
+
+    void MainViewModel::RemoveWatchpoint(uint32_t addr)
+    {
+        m_watchpoints.erase(addr);
+        RebuildWatchpointState();
+    }
+
+    void MainViewModel::ClearAllWatchpoints()
+    {
+        m_watchpoints.clear();
+        m_hasEnabledWatchpoints = false;
+    }
+
+    void MainViewModel::RebuildWatchpointState()
+    {
+        m_hasEnabledWatchpoints = false;
+        for (const auto& [addr, wp] : m_watchpoints)
+        {
+            if (wp.enabled)
+            {
+                m_hasEnabledWatchpoints = true;
+                break;
+            }
+        }
+    }
+
+    void MainViewModel::CheckWatchpoint(uint32_t addr, uint32_t size, bool isWrite,
+                                         uint32_t oldValue, uint32_t newValue)
+    {
+        for (const auto& [wpAddr, wp] : m_watchpoints)
+        {
+            if (!wp.enabled) continue;
+
+            // Check access type
+            if (isWrite && wp.type == WatchpointType::Read) continue;
+            if (!isWrite && wp.type == WatchpointType::Write) continue;
+
+            // Check address range overlap
+            uint32_t wpSize = static_cast<uint32_t>(wp.size);
+            if (addr + size <= wpAddr || wpAddr + wpSize <= addr) continue;
+
+            // Check condition if present
+            if (!wp.condition.empty() && !EvaluateCondition(wp.condition)) continue;
+
+            m_watchpointHit = WatchpointHitInfo{ addr, oldValue, newValue,
+                static_cast<WatchpointSize>(size), isWrite };
+            return;
+        }
+    }
+
+    // ======================================================================
+    // Condition expression evaluator (delegates to Core::EvaluateCondition)
+    // ======================================================================
+
+    bool MainViewModel::EvaluateCondition(const std::string& cond) const
+    {
+        if (!m_cpu) return true;
+        return ::Em68030::Core::EvaluateCondition(cond, *m_cpu, m_cpu->GetMemory());
     }
 
     // ======================================================================

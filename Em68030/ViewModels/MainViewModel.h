@@ -48,7 +48,29 @@ namespace winrt::Em68030::implementation
     {
         uint32_t address = 0;
         bool enabled = true;
-        // Future extension: std::string condition; uint32_t hitCount; uint32_t hitTarget;
+        std::string condition;  // e.g. "D0==0x1234", "A7<0x10000", "[0x1000].w==0xFF"
+    };
+
+    enum class WatchpointType { Read, Write, ReadWrite };
+    enum class WatchpointSize { Byte = 1, Word = 2, Long = 4 };
+
+    struct WatchpointData
+    {
+        uint32_t address = 0;
+        WatchpointSize size = WatchpointSize::Word;
+        WatchpointType type = WatchpointType::Write;
+        bool enabled = true;
+        std::string condition;
+    };
+
+    // Result of a watchpoint hit, set by MC68030 callback, consumed by emulation loop
+    struct WatchpointHitInfo
+    {
+        uint32_t address = 0;
+        uint32_t oldValue = 0;
+        uint32_t newValue = 0;
+        WatchpointSize size = WatchpointSize::Word;
+        bool isWrite = true;
     };
 
     struct MainViewModel : MainViewModelT<MainViewModel>
@@ -183,9 +205,18 @@ namespace winrt::Em68030::implementation
         void SetPCToCursor(uint32_t address);
         void ToggleBreakpoint(uint32_t address);
         void EnableBreakpoint(uint32_t addr, bool enabled);
+        void SetBreakpointCondition(uint32_t addr, const std::string& condition);
         void RemoveBreakpoint(uint32_t addr);
         void ClearAllBreakpoints();
         const std::unordered_map<uint32_t, BreakpointData>& AllBreakpoints() const { return m_breakpoints; }
+
+        // Watchpoints
+        void AddWatchpoint(uint32_t addr, WatchpointSize size, WatchpointType type,
+                           const std::string& condition = "");
+        void EnableWatchpoint(uint32_t addr, bool enabled);
+        void RemoveWatchpoint(uint32_t addr);
+        void ClearAllWatchpoints();
+        const std::unordered_map<uint32_t, WatchpointData>& AllWatchpoints() const { return m_watchpoints; }
 
         void UnmountAllScsiDisks();
         void ApplyConfig(::Em68030::Config::EmulatorConfig const& newConfig);
@@ -388,7 +419,19 @@ namespace winrt::Em68030::implementation
         // Breakpoints
         std::unordered_map<uint32_t, BreakpointData> m_breakpoints;
         std::unordered_set<uint32_t> m_enabledBreakpoints;
+        bool m_hasConditionalBreakpoints = false;
         void RebuildEnabledSet();
+
+        // Watchpoints
+        std::unordered_map<uint32_t, WatchpointData> m_watchpoints;
+        bool m_hasEnabledWatchpoints = false;
+        std::optional<WatchpointHitInfo> m_watchpointHit;
+        void RebuildWatchpointState();
+        void CheckWatchpoint(uint32_t addr, uint32_t size, bool isWrite,
+                             uint32_t oldValue, uint32_t newValue);
+
+        // Condition expression evaluator
+        bool EvaluateCondition(const std::string& condition) const;
 
         // Trace file
         std::unique_ptr<std::ofstream> m_traceWriter;
