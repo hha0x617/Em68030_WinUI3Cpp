@@ -1049,75 +1049,19 @@ namespace winrt::Em68030::implementation
         std::vector<CallStackEntry> stack;
         if (!m_cpu) return stack;
 
-        uint32_t memSize = m_cpu->GetMemory().GetSize();
-
-        // Helper: check if an address looks like a valid code address.
-        // Accept addresses in loaded program range OR in kernel text range (above 0x1000).
-        auto isCodeAddress = [&](uint32_t addr) -> bool {
-            if (addr == 0 || addr >= memSize || (addr & 1) != 0) return false;
-            // If we know the program range, use it
-            if (m_programStartAddress < m_programEndAddress)
-                return addr >= m_programStartAddress && addr < m_programEndAddress;
-            // Otherwise accept any even address in RAM above page 0
-            return addr >= 0x1000;
-        };
-
         // Frame 0: current PC
-        stack.push_back({ m_cpu->PC, m_cpu->A[6], "<current>" });
+        stack.push_back({ m_cpu->PC, 0, "<current>" });
 
-        // Walk A6 (frame pointer) chain.
-        // MC68030 LINK A6 creates: [A6] = saved A6, [A6+4] = return address
-        uint32_t fp = m_cpu->A[6];
-
-        for (int i = 0; i < maxDepth && fp != 0; i++)
+        if (m_cpu->ShadowStackEnabled && m_cpu->_shadowStackTop > 0)
         {
-            if (fp + 4 >= memSize || fp < 0x1000 || (fp & 1) != 0)
-                break;
-
-            try
+            // Read shadow stack in reverse order (most recent call first)
+            for (int i = m_cpu->_shadowStackTop - 1; i >= 0 && static_cast<int>(stack.size()) < maxDepth; --i)
             {
-                uint32_t retAddr = m_cpu->GetMemory().ReadLong(fp + 4);
-                uint32_t savedFp = m_cpu->GetMemory().ReadLong(fp);
-
-                if (!isCodeAddress(retAddr))
-                    break;
-
-                stack.push_back({ retAddr, savedFp, "" });
-
-                if (savedFp == 0 || savedFp == fp || savedFp <= fp)
-                    break;
-
-                fp = savedFp;
-            }
-            catch (...)
-            {
-                break;
-            }
-        }
-
-        // Heuristic: always scan the stack for return address candidates.
-        // This catches frames from code compiled with -fomit-frame-pointer,
-        // hand-written assembly, interrupt frames, and cases where A6 chain is broken.
-        // Deduplicate against addresses already found via A6 chain.
-        {
-            std::unordered_set<uint32_t> knownAddrs;
-            for (const auto& e : stack) knownAddrs.insert(e.address);
-
-            uint32_t sp = m_cpu->A[7];
-            constexpr uint32_t ScanBytes = 4096;
-            for (uint32_t offset = 0; offset < ScanBytes && sp + offset + 3 < memSize; offset += 2)
-            {
-                try
-                {
-                    uint32_t val = m_cpu->GetMemory().ReadLong(sp + offset);
-                    if (isCodeAddress(val) && knownAddrs.find(val) == knownAddrs.end())
-                    {
-                        stack.push_back({ val, 0, "?" });
-                        knownAddrs.insert(val);
-                        if (static_cast<int>(stack.size()) >= maxDepth) break;
-                    }
-                }
-                catch (...) { break; }
+                auto& entry = m_cpu->_shadowStack[i];
+                std::string label;
+                if (entry.kind == 1) label = "(exception)";
+                else if (entry.kind == 2) label = "(interrupt)";
+                stack.push_back({ entry.returnPC, entry.callPC, label });
             }
         }
 
@@ -1164,9 +1108,11 @@ namespace winrt::Em68030::implementation
         if (m_cpu->Halted) return;
         if (m_cpu->Stopped && !m_cpu->HasExternalDevices()) return;
 
-        // Read return address from top of stack (A7)
-        uint32_t returnAddr = m_memory->ReadLong(m_cpu->A[7]);
-        RunToCursor(returnAddr);
+        // SP-based StepOut: run until RTS is executed with A7 >= current A7.
+        // This works regardless of frame pointer conventions (-fomit-frame-pointer).
+        m_stepOutSP = m_cpu->A[7];
+        m_runToCursorAddress = std::nullopt;
+        StartEmulation();
     }
 
     void MainViewModel::Run()
@@ -1216,6 +1162,8 @@ namespace winrt::Em68030::implementation
         bool hasBreakpoints = !m_enabledBreakpoints.empty();
         bool hasRunToCursor = m_runToCursorAddress.has_value();
         uint32_t runToCursorAddr = m_runToCursorAddress.value_or(0);
+        bool hasStepOutSP = m_stepOutSP.has_value();
+        uint32_t stepOutSP = m_stepOutSP.value_or(0);
         bool hasWatchpoints = m_hasEnabledWatchpoints;
         bool hasConditionalBP = m_hasConditionalBreakpoints;
         m_cpu->WatchpointsEnabled = hasWatchpoints;
@@ -1240,7 +1188,7 @@ namespace winrt::Em68030::implementation
                 if (m_cpu->Halted) { RequestStopOnUI(); return; }
                 if (m_cpu->Stopped && !m_cpu->HasExternalDevices()) { RequestStopOnUI(); return; }
 
-                if (!hasBreakpoints && !hasRunToCursor && !hasWatchpoints)
+                if (!hasBreakpoints && !hasRunToCursor && !hasStepOutSP && !hasWatchpoints)
                 {
                     // ---- Fast path: no breakpoints, no run-to-cursor, no watchpoints ----
                     uint32_t loopDetectPC = UINT32_MAX;
@@ -1341,6 +1289,17 @@ namespace winrt::Em68030::implementation
                         }
                         if (hasRunToCursor && m_cpu->PC == runToCursorAddr)
                         { RequestStopOnUI(); return; }
+                        // StepOut: stop when about to execute RTS with SP >= recorded value
+                        if (hasStepOutSP && m_cpu->A[7] >= stepOutSP)
+                        {
+                            uint16_t nextOp = m_memory->ReadWord(m_cpu->PC);
+                            if (nextOp == 0x4E75) // RTS
+                            {
+                                // Execute the RTS, then stop
+                                m_cpu->ExecuteStep();
+                                RequestStopOnUI(); return;
+                            }
+                        }
                         // Infinite loop detection
                         if (m_cpu->PC == loopDetectPC)
                         {
@@ -1429,6 +1388,7 @@ namespace winrt::Em68030::implementation
             m_emulationThread.join();
 
         m_runToCursorAddress = std::nullopt;
+        m_stepOutSP = std::nullopt;
         m_isRunning = false;
         RaisePropertyChanged(L"IsRunning");
         RaiseAllCommandsCanExecuteChanged();
@@ -1462,6 +1422,7 @@ namespace winrt::Em68030::implementation
             m_emulationThread.join();
 
         m_runToCursorAddress = std::nullopt;
+        m_stepOutSP = std::nullopt;
         m_cpu->WatchpointsEnabled = false;
         m_watchpointHit.reset();
         m_isRunning = false;

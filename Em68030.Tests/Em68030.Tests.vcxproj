@@ -121,6 +121,7 @@
     <ClCompile Include="CpuTests\BusErrorFrameTests.cpp" />
     <ClCompile Include="CpuTests\SswEncodingTests.cpp" />
     <ClCompile Include="CpuTests\StackAndSrTests.cpp" />
+    <ClCompile Include="CpuTests\StepOutTests.cpp" />
     <ClCompile Include="CpuTests\RegisterSnapshotTests.cpp" />
     <ClCompile Include="CpuTests\DataPageCacheTests.cpp" />
     <ClCompile Include="MmuTests\PageTableWalkTests.cpp" />

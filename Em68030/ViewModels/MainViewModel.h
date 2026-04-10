@@ -383,6 +383,7 @@ namespace winrt::Em68030::implementation
         std::thread m_emulationThread;
         std::atomic<bool> m_stopRequested{ false };
         std::optional<uint32_t> m_runToCursorAddress;
+        std::optional<uint32_t> m_stepOutSP;
         Microsoft::UI::Dispatching::DispatcherQueue m_dispatcherQueue{ nullptr };
 
         // ==================================================================
