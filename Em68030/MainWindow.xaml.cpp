@@ -2489,8 +2489,14 @@ namespace winrt::Em68030::implementation
                 }
             };
 
+            // Enable shadow call stack tracking
+            vmImpl->Cpu().ShadowStackEnabled = true;
+            vmImpl->Cpu().ShadowStackClear();
+
             m_callStackWindow.Closed([this](auto&&, auto&&)
             {
+                auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
+                vmImpl->Cpu().ShadowStackEnabled = false;
                 m_callStackWindow = nullptr;
             });
         }

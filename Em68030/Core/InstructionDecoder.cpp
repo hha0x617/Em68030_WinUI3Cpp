@@ -1203,6 +1203,7 @@ void InstructionDecoder::DecodeGroup4(uint16_t opcode)
         }
         _cpu.SetSR(newSR);
         _cpu.PC = newPC;
+        _cpu.ShadowPop();
         return;
     }
 
@@ -1212,17 +1213,19 @@ void InstructionDecoder::DecodeGroup4(uint16_t opcode)
         int16_t disp = static_cast<int16_t>(_cpu.FetchWord());
         _cpu.PC = _cpu.PopLong();
         _cpu.A[7] += static_cast<uint32_t>(disp);
+        _cpu.ShadowPop();
         return;
     }
 
     // RTS
-    if (opcode == 0x4E75) { _cpu.PC = _cpu.PopLong(); return; }
+    if (opcode == 0x4E75) { _cpu.PC = _cpu.PopLong(); _cpu.ShadowPop(); return; }
 
     // RTR
     if (opcode == 0x4E77)
     {
         _cpu.SetCCRByte(static_cast<uint8_t>(_cpu.PopWord()));
         _cpu.PC = _cpu.PopLong();
+        _cpu.ShadowPop();
         return;
     }
 
@@ -1240,6 +1243,7 @@ void InstructionDecoder::DecodeGroup4(uint16_t opcode)
         auto [eaMode, eaR] = EffectiveAddress::Decode(mode, reg);
         uint32_t addr = EffectiveAddress::ResolveAddress(_cpu, eaMode, eaR, 4);
         _cpu.PushLong(_cpu.PC);
+        _cpu.ShadowPush(_cpu._lastPC, addr, _cpu.PC);
         _cpu.PC = addr;
         return;
     }
@@ -1628,6 +1632,7 @@ void InstructionDecoder::DecodeGroup6(uint16_t opcode)
             break;
         case 1: // BSR
             _cpu.PushLong(_cpu.PC);
+            _cpu.ShadowPush(_cpu._lastPC, targetPC, _cpu.PC);
             _cpu.PC = targetPC;
             break;
         default: // Bcc
@@ -3169,6 +3174,7 @@ void InstructionDecoder::FastRTS(uint16_t /*opcode*/)
 {
     _cpu.EnsureRegSnapshot();  // PopLong does memory read
     _cpu.PC = _cpu.PopLong();
+    _cpu.ShadowPop();
 }
 
 void InstructionDecoder::FastBcc8(uint16_t opcode)

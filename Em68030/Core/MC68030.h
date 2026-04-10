@@ -130,6 +130,39 @@ public:
     uint32_t _lastPC = 0;
 
     // ========================================================================
+    // Shadow call stack (runtime BSR/JSR/RTS tracking)
+    // ========================================================================
+
+    struct ShadowStackEntry {
+        uint32_t callPC = 0;     // PC of BSR/JSR or exception
+        uint32_t targetPC = 0;   // Where execution went
+        uint32_t returnPC = 0;   // Expected return address
+        uint32_t sp = 0;         // A7 after push
+        uint8_t kind = 0;        // 0=Call(BSR/JSR), 1=Exception, 2=Interrupt
+    };
+
+    static constexpr int ShadowStackMaxDepth = 256;
+    ShadowStackEntry _shadowStack[ShadowStackMaxDepth]{};
+    int _shadowStackTop = 0;
+    bool ShadowStackEnabled = false;
+
+    inline void ShadowPush(uint32_t callPC, uint32_t targetPC, uint32_t returnPC, uint8_t kind = 0) {
+        if (!ShadowStackEnabled) return;
+        if (_shadowStackTop < ShadowStackMaxDepth)
+            _shadowStack[_shadowStackTop++] = { callPC, targetPC, returnPC, A[7], kind };
+    }
+
+    inline void ShadowPop() {
+        if (!ShadowStackEnabled || _shadowStackTop == 0) return;
+        --_shadowStackTop;
+        // Unwind mismatched frames (e.g. longjmp skipped intermediate returns)
+        while (_shadowStackTop > 0 && A[7] > _shadowStack[_shadowStackTop - 1].sp)
+            --_shadowStackTop;
+    }
+
+    inline void ShadowStackClear() { _shadowStackTop = 0; }
+
+    // ========================================================================
     // Callbacks / Events
     // ========================================================================
 

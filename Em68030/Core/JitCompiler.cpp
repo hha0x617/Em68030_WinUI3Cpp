@@ -784,6 +784,7 @@ JitExecResult CompiledBlock::Execute(MC68030& cpu) const
                     uint32_t pa = cpu._dataPagePA + (sp & cpu._dataPageMask);
                     uint32_t retAddr = cpu.GetMemory().ReadLong(pa);
                     cpu.A[7] = sp + 4;
+                    cpu.ShadowPop();
                     cpu.SetCCRByte(ccr);
                     return { retAddr, i + 1, CumulativeCycles[i + 1] };
                 }

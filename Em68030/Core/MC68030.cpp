@@ -77,6 +77,7 @@ void MC68030::Reset()
     InstructionCount = 0;
     _stopTimingActive = false;
     _totalStopDuration = std::chrono::steady_clock::duration{};
+    ShadowStackClear();
 }
 
 // ============================================================================
@@ -774,7 +775,9 @@ void MC68030::RaiseException(int vector)
 
     // Read vector address from vector table (supervisor data mode, through MMU)
     uint32_t vectorAddr = VBR + static_cast<uint32_t>(vector * 4);
+    uint32_t oldPC = PC;
     PC = ReadLong(vectorAddr);
+    ShadowPush(oldPC, PC, oldPC, 1); // kind=1 (Exception)
 
     if (ExceptionOccurred)
         ExceptionOccurred(std::format("Exception vector {} at ${:08X}, new PC=${:08X}", vector, vectorAddr, PC));
@@ -1012,7 +1015,9 @@ void MC68030::ProcessInterrupt(int level)
     PushWord(oldSR);
 
     uint32_t vectorAddr = VBR + static_cast<uint32_t>(vector * 4);
+    uint32_t oldPC = PC;
     PC = ReadLong(vectorAddr);
+    ShadowPush(oldPC, PC, oldPC, 2); // kind=2 (Interrupt)
 }
 
 // ============================================================================
