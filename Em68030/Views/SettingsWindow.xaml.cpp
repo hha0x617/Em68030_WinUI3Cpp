@@ -137,6 +137,7 @@ namespace winrt::Em68030::implementation
         JitEnabledBox(FindName(L"JitEnabledBox").try_as<Controls::CheckBox>());
         JitMinBlockLengthBox(FindName(L"JitMinBlockLengthBox").try_as<Controls::TextBox>());
         JitCompileThresholdBox(FindName(L"JitCompileThresholdBox").try_as<Controls::TextBox>());
+        CallStackModeBox(FindName(L"CallStackModeBox").try_as<Controls::ComboBox>());
         EnableTraceButtonBox(FindName(L"EnableTraceButtonBox").try_as<Controls::CheckBox>());
         AddScsiDiskBtn(FindName(L"AddScsiDiskBtn").try_as<Controls::Button>());
         BootPartitionBox(FindName(L"BootPartitionBox").try_as<Controls::ComboBox>());
@@ -256,10 +257,24 @@ namespace winrt::Em68030::implementation
             tb.Text(ResourceHelper::GetString(L"Settings_HddImage"));
         if (auto tb = FindName(L"LblPerformance").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_Performance"));
+        if (auto tb = FindName(L"LblCallStack").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_CallStack"));
+        if (auto tb = FindName(L"LblCallStackMode").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_CallStackMode"));
+        if (auto tb = FindName(L"LblCallStackDescription").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_CallStackDescription"));
+        if (auto item = FindName(L"CallStackModeShadowItem").try_as<Controls::ComboBoxItem>())
+            item.Content(winrt::box_value(ResourceHelper::GetString(L"Settings_CallStackModeShadow")));
+        if (auto item = FindName(L"CallStackModeA6Item").try_as<Controls::ComboBoxItem>())
+            item.Content(winrt::box_value(ResourceHelper::GetString(L"Settings_CallStackModeA6")));
         if (auto tb = FindName(L"LblFramebuffer").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_Framebuffer"));
         if (auto tb = FindName(L"LblDisplay").try_as<Controls::TextBlock>())
             tb.Text(ResourceHelper::GetString(L"Settings_Display"));
+        if (auto tb = FindName(L"LblDebug").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_Debug"));
+        if (auto tb = FindName(L"LblTraceDescription").try_as<Controls::TextBlock>())
+            tb.Text(ResourceHelper::GetString(L"Settings_TraceDescription"));
 
         // Field labels
         if (auto tb = FindName(L"LblBoard").try_as<Controls::TextBlock>())
@@ -597,7 +612,8 @@ namespace winrt::Em68030::implementation
     // LoadConfig / SaveConfig
     // ========================================================================
 
-    void SettingsWindow::LoadConfig(const ::Em68030::Config::EmulatorConfig& config)
+    void SettingsWindow::LoadConfig(const ::Em68030::Config::EmulatorConfig& config,
+                                    const ::Em68030::Config::EmulatorConfig& applied)
     {
         // Board type
         SelectItemByText(BoardTypeBox(), config.BoardType);
@@ -705,6 +721,10 @@ namespace winrt::Em68030::implementation
         if (JitCompileThresholdBox())
             JitCompileThresholdBox().Text(winrt::to_hstring(std::to_string(config.JitCompileThreshold)));
 
+        // Call Stack mode
+        if (CallStackModeBox())
+            CallStackModeBox().SelectedIndex(config.CallStackMode == "A6Chain" ? 1 : 0);
+
         // Debug
         if (EnableTraceButtonBox())
             EnableTraceButtonBox().IsChecked(config.EnableTraceButton);
@@ -712,6 +732,95 @@ namespace winrt::Em68030::implementation
         // Display
         FontFamilyBox().Text(winrt::to_hstring(config.FontFamily));
         FontSizeBox().Text(winrt::to_hstring(std::to_string(config.FontSize)));
+
+        // -----------------------------------------------------------------
+        // Pending-field visualization (UX proposal B)
+        //
+        // Compare each "cold" (non-hot-swappable) field between the loaded
+        // config and the snapshot currently applied to live hardware.
+        // If they differ, mark the corresponding label in orange so the user
+        // can see at a glance that the value will not take effect until the
+        // CPU is stopped and Settings is applied again.
+        // -----------------------------------------------------------------
+        using ::winrt::Microsoft::UI::Xaml::Media::SolidColorBrush;
+        using ::winrt::Windows::UI::Color;
+        auto defaultBrush = SolidColorBrush(Color{ 0xFF, 0xD4, 0xD4, 0xD4 }); // #FFD4D4D4
+        auto pendingBrush = SolidColorBrush(Color{ 0xFF, 0xFF, 0xA5, 0x00 }); // orange
+
+        auto mark = [&](wchar_t const* name, bool isPending)
+        {
+            if (auto tb = FindName(name).try_as<Controls::TextBlock>())
+                tb.Foreground(isPending ? pendingBrush : defaultBrush);
+        };
+        auto markCb = [&](wchar_t const* name, bool isPending)
+        {
+            if (auto cb = FindName(name).try_as<Controls::CheckBox>())
+                cb.Foreground(isPending ? pendingBrush : defaultBrush);
+        };
+        auto markSection = [&](wchar_t const* name, bool isPending)
+        {
+            // Section headers use their own Foreground; orange overrides it.
+            if (auto tb = FindName(name).try_as<Controls::TextBlock>())
+                tb.Foreground(isPending ? pendingBrush
+                                        : SolidColorBrush(Color{ 0xFF, 0x9B, 0x9B, 0x9B }));
+        };
+
+        bool anyPending = false;
+        auto diff = [&](bool d) { if (d) anyPending = true; return d; };
+
+        // General tab
+        mark(L"LblBoard",            diff(config.BoardType != applied.BoardType));
+        mark(L"LblMemorySizeMB",     diff(config.MemorySize != applied.MemorySize));
+        markCb(L"ConsoleEnabledBox", diff(config.ConsoleEnabled != applied.ConsoleEnabled));
+        mark(L"LblConsoleBaseAddr",  diff(config.ConsoleBaseAddress != applied.ConsoleBaseAddress));
+        mark(L"LblTerminalSize",     diff(config.ConsoleColumns != applied.ConsoleColumns
+                                      || config.ConsoleRows != applied.ConsoleRows));
+        markCb(L"HddEnabledBox",     diff(config.HddEnabled != applied.HddEnabled));
+        mark(L"LblHddBaseAddr",      diff(config.HddBaseAddress != applied.HddBaseAddress));
+        mark(L"LblImageFile",        diff(config.HddImagePath != applied.HddImagePath));
+
+        // MVME147 tab
+        mark(L"LblRomImage",          diff(config.Mvme147RomPath != applied.Mvme147RomPath));
+        mark(L"LblOperatingSystem",   diff(config.TargetOS != applied.TargetOS));
+        mark(L"LblNetBsdKernelImage", diff(config.NetBsdKernelImagePath != applied.NetBsdKernelImagePath));
+        mark(L"LblLinuxKernelImage",  diff(config.LinuxKernelImagePath != applied.LinuxKernelImagePath));
+        mark(L"LblCommandLine",       diff(config.LinuxCommandLine != applied.LinuxCommandLine));
+        mark(L"LblBootPartition",     diff(config.Mvme147BootPartition != applied.Mvme147BootPartition));
+
+        // SCSI disks list comparison (section-level marking)
+        bool scsiDisksDiffer = false;
+        if (config.Mvme147ScsiDisks.size() != applied.Mvme147ScsiDisks.size())
+            scsiDisksDiffer = true;
+        else for (size_t i = 0; i < config.Mvme147ScsiDisks.size(); ++i)
+            if (config.Mvme147ScsiDisks[i].Path != applied.Mvme147ScsiDisks[i].Path ||
+                config.Mvme147ScsiDisks[i].ScsiId != applied.Mvme147ScsiDisks[i].ScsiId)
+            { scsiDisksDiffer = true; break; }
+        markSection(L"LblScsiDisks", diff(scsiDisksDiffer));
+
+        mark(L"LblScsiCdromId",       diff(config.Mvme147ScsiCdromId != applied.Mvme147ScsiCdromId));
+        mark(L"LblNetworkMode",       diff(config.NetworkMode != applied.NetworkMode));
+        mark(L"LblTapAdapter",        diff(config.TapAdapterGuid != applied.TapAdapterGuid));
+        mark(L"LblGatewayIP",         diff(config.NatGatewayIp != applied.NatGatewayIp));
+        mark(L"LblGatewayMAC",        diff(config.NatGatewayMac != applied.NatGatewayMac));
+
+        // Framebuffer (combine all 4 framebuffer fields onto the section header)
+        bool fbDiffer = config.FramebufferEnabled != applied.FramebufferEnabled
+                     || config.FramebufferWidth != applied.FramebufferWidth
+                     || config.FramebufferHeight != applied.FramebufferHeight
+                     || config.FramebufferBpp != applied.FramebufferBpp;
+        markCb(L"FramebufferEnabledBox", diff(config.FramebufferEnabled != applied.FramebufferEnabled));
+        mark(L"LblFbResolution",      diff(config.FramebufferWidth != applied.FramebufferWidth
+                                        || config.FramebufferHeight != applied.FramebufferHeight));
+        mark(L"LblFbBpp",             diff(config.FramebufferBpp != applied.FramebufferBpp));
+        markSection(L"LblFramebuffer", fbDiffer);
+
+        // Legend visibility + text
+        if (auto legend = FindName(L"PendingLegendText").try_as<Controls::TextBlock>())
+        {
+            legend.Text(ResourceHelper::GetString(L"Settings_PendingLegend"));
+            legend.Visibility(anyPending ? Microsoft::UI::Xaml::Visibility::Visible
+                                         : Microsoft::UI::Xaml::Visibility::Collapsed);
+        }
     }
 
     bool SettingsWindow::SaveConfig(::Em68030::Config::EmulatorConfig& config)
@@ -842,6 +951,16 @@ namespace winrt::Em68030::implementation
         {
             try { config.JitCompileThreshold = std::clamp(std::stoi(winrt::to_string(JitCompileThresholdBox().Text())), 1, 255); }
             catch (...) { /* keep previous */ }
+        }
+
+        // Call Stack mode
+        if (CallStackModeBox())
+        {
+            if (auto item = CallStackModeBox().SelectedItem().try_as<Controls::ComboBoxItem>())
+            {
+                auto tag = winrt::unbox_value_or<winrt::hstring>(item.Tag(), L"ShadowStack");
+                config.CallStackMode = winrt::to_string(tag);
+            }
         }
 
         // Debug

@@ -674,8 +674,49 @@ NetBSD ディスク イメージに対してのみ使用してください。</v
 範囲: ${1}-${2}
 {3} セグメントをロード</value>
   </data>
+  <data name="Settings_Debug" xml:space="preserve">
+    <value>デバッグ</value>
+  </data>
+  <data name="Settings_PendingChangesTitle" xml:space="preserve">
+    <value>設定変更の保留</value>
+  </data>
+  <data name="Settings_PendingChangesMessage" xml:space="preserve">
+    <value>CPU が実行中です。今変更した設定のうち、いくつか (Target OS、メモリサイズ、SCSI ディスク、ネットワークモード、フレームバッファ、コンソール/HDD デバイスアドレス等) は、CPU 実行中には反映できません。
+
+変更内容は設定ファイルに保存されますが、ハードウェアの再構成は **CPU を停止して設定を再適用するまで行われません**。すべての変更を即座に反映するには、先に CPU を停止してから Settings を開き直してください。
+
+保留した状態で設定を保存しますか?</value>
+  </data>
+  <data name="Settings_PendingChangesSaveButton" xml:space="preserve">
+    <value>保存 (次回停止時に反映)</value>
+  </data>
+  <data name="Settings_PendingChangesCancelButton" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="Settings_PendingLegend" xml:space="preserve">
+    <value>⚠ オレンジのラベルは「保存済みだが未反映」の設定を示します。これらの変更は、CPU 停止後に Settings を再度開いて保存したときに反映されます。</value>
+  </data>
   <data name="Settings_EnableTraceButton" xml:space="preserve">
     <value>Trace ボタンを表示</value>
+  </data>
+  <data name="Settings_TraceDescription" xml:space="preserve">
+    <value>有効にすると、ツールバーに Trace ボタンが表示されます。クリックすると命令トレースのログファイル出力が切り替わります。</value>
+  </data>
+  <data name="Settings_CallStack" xml:space="preserve">
+    <value>コールスタック</value>
+  </data>
+  <data name="Settings_CallStackMode" xml:space="preserve">
+    <value>方式:</value>
+  </data>
+  <data name="Settings_CallStackModeShadow" xml:space="preserve">
+    <value>シャドウスタック (デフォルト)</value>
+  </data>
+  <data name="Settings_CallStackModeA6" xml:space="preserve">
+    <value>A6 フレームポインタチェーン</value>
+  </data>
+  <data name="Settings_CallStackDescription" xml:space="preserve">
+    <value>シャドウスタック: BSR/JSR/RTS を実行時に追跡します。フレームポインタを使わないコードや手書きアセンブリでも正確に取得できます。コールスタックウィンドウを開いている間のみわずかな実行時コストがかかります。
+A6 チェーン: LINK A6/UNLK A6 で構築された A6 フレームポインタチェーンを走査し、加えてスタックをヒューリスティックにスキャンします。OS を使わないベアメタルプログラムや A6 規約に従う手書きコードに適しています。実行時コストはありません。</value>
   </data>
   <data name="Settings_KernelImage" xml:space="preserve">
     <value>カーネルイメージ:</value>

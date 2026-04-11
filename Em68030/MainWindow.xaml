@@ -148,24 +148,28 @@
 
         <!-- Menu Bar -->
         <MenuBar Grid.Row="0" Background="#FF2D2D30">
-            <MenuBarItem x:Name="MenuBarFile" Title="File">
-                <MenuFlyoutItem x:Name="MenuOpenElf" Text="Open ELF...">
+            <MenuBarItem x:Name="MenuBarFile" Title="File" AccessKey="F" IsAccessKeyScope="True">
+                <MenuFlyoutItem x:Name="MenuOpenElf" Text="Open ELF..."
+                                AccessKey="E" AccessKeyScopeOwner="{x:Bind MenuBarFile}">
                     <MenuFlyoutItem.KeyboardAccelerators>
                         <KeyboardAccelerator Key="E" Modifiers="Control" />
                     </MenuFlyoutItem.KeyboardAccelerators>
                 </MenuFlyoutItem>
-                <MenuFlyoutItem x:Name="MenuOpenBinary" Text="Open Binary...">
+                <MenuFlyoutItem x:Name="MenuOpenBinary" Text="Open Binary..."
+                                AccessKey="O" AccessKeyScopeOwner="{x:Bind MenuBarFile}">
                     <MenuFlyoutItem.KeyboardAccelerators>
                         <KeyboardAccelerator Key="O" Modifiers="Control" />
                     </MenuFlyoutItem.KeyboardAccelerators>
                 </MenuFlyoutItem>
-                <MenuFlyoutItem x:Name="MenuOpenSRecord" Text="Open S-Record...">
+                <MenuFlyoutItem x:Name="MenuOpenSRecord" Text="Open S-Record..."
+                                AccessKey="S" AccessKeyScopeOwner="{x:Bind MenuBarFile}">
                     <MenuFlyoutItem.KeyboardAccelerators>
                         <KeyboardAccelerator Key="S" Modifiers="Control" />
                     </MenuFlyoutItem.KeyboardAccelerators>
                 </MenuFlyoutItem>
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem x:Name="MenuExit" Text="Exit">
+                <MenuFlyoutItem x:Name="MenuExit" Text="Exit"
+                                AccessKey="X" AccessKeyScopeOwner="{x:Bind MenuBarFile}">
                     <MenuFlyoutItem.KeyboardAccelerators>
                         <KeyboardAccelerator Key="F4" Modifiers="Menu" />
                     </MenuFlyoutItem.KeyboardAccelerators>

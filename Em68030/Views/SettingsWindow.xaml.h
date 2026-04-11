@@ -35,8 +35,12 @@ namespace winrt::Em68030::implementation
     {
         SettingsWindow();
 
-        /// Load settings from config into the dialog controls.
-        void LoadConfig(const ::Em68030::Config::EmulatorConfig& config);
+        /// Load settings from `config` into the dialog controls. `applied` is the
+        /// snapshot of settings currently reflected in live hardware; fields that
+        /// differ between `config` and `applied` are highlighted in orange as
+        /// "pending" (saved but not yet applied to hardware).
+        void LoadConfig(const ::Em68030::Config::EmulatorConfig& config,
+                        const ::Em68030::Config::EmulatorConfig& applied);
 
         /// Read settings from dialog controls into the config.
         /// Returns true if all values parsed successfully.

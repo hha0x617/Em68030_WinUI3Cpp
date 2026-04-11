@@ -84,7 +84,7 @@ public:
     std::string TargetOS = "NetBSD";
 
     // Linux kernel command line (used when TargetOS == "Linux")
-    std::string LinuxCommandLine = "root=/dev/sda1 earlyprintk";
+    std::string LinuxCommandLine = "root=/dev/sda1 console=ttyS0";
 
     // Network mode: "Virtual" (internal echo server) or "NAT" (host network via user-mode NAT)
     std::string NetworkMode = "Virtual";
@@ -122,6 +122,13 @@ public:
     int JitMinBlockLength = 3;
     int JitCompileThreshold = 32;
 
+    // Call stack inspection mode.
+    // "ShadowStack" : track BSR/JSR/RTS at runtime (accurate, OS-aware, default).
+    // "A6Chain"     : walk the A6 frame pointer chain + scan stack heuristically
+    //                 (works for code that uses LINK A6/UNLK A6, e.g. bare-metal
+    //                 programs without an OS).
+    std::string CallStackMode = "ShadowStack";
+
     // Debug
     bool EnableTraceButton = false;
 
@@ -135,7 +142,7 @@ public:
     // Deep-copy via JSON round-trip.
     EmulatorConfig Clone() const;
 
-    // User-writable data directory (%LOCALAPPDATA%\Em68030\).
+    // User-writable data directory (%LOCALAPPDATA%\Em68030_WinUI3Cpp\).
     // Falls back to exe directory if LOCALAPPDATA is unavailable.
     static std::filesystem::path GetDataDirectory();
 

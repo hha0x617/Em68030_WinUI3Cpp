@@ -230,6 +230,17 @@ namespace winrt::Em68030::implementation
 
         void UnmountAllScsiDisks();
         void ApplyConfig(::Em68030::Config::EmulatorConfig const& newConfig);
+
+        /// Returns true if newConfig contains changes that cannot be applied while
+        /// the CPU is running (hardware reconfiguration, SCSI bus, TargetOS, memory
+        /// size, framebuffer, network backend, etc.). The caller should warn the
+        /// user that these changes will be saved but not take effect until the CPU
+        /// is stopped and settings are reapplied.
+        ///
+        /// Hot-swappable fields (do NOT trigger warning): JIT settings,
+        /// CD-ROM ISO path (media swap), CallStackMode, UI font/scrollback/labels.
+        bool HasPendingHardwareChanges(::Em68030::Config::EmulatorConfig const& newConfig) const;
+
         void ToggleMhzDisplayMode();
         void ToggleTrace();
         void ResetDisasmFollowPC();
@@ -281,6 +292,17 @@ namespace winrt::Em68030::implementation
         /// The UI must close and reopen the framebuffer window to pick up new device pointers.
         std::function<void()> OnFramebufferDeviceReset;
         ::Em68030::Config::EmulatorConfig& Config() { return m_config; }
+
+        /// Snapshot of the configuration values that are currently reflected in
+        /// the live hardware. Differs from Config() when the user edited
+        /// non-hot-swappable settings (Memory, SCSI disks, TargetOS, network, etc.)
+        /// while the CPU was running: those changes are saved to Config() but do
+        /// not take effect until the CPU is stopped and Settings is applied again.
+        ///
+        /// SettingsWindow uses this to highlight "pending" fields (saved but not
+        /// yet applied) in orange so the user can see them at a glance.
+        const ::Em68030::Config::EmulatorConfig& AppliedConfig() const { return m_appliedConfig; }
+
         std::unordered_set<uint32_t>& EnabledBreakpoints() { return m_enabledBreakpoints; }
 
         // Console input callback setters (for View layer)
@@ -376,6 +398,12 @@ namespace winrt::Em68030::implementation
 
         // Config
         ::Em68030::Config::EmulatorConfig m_config;
+
+        // Snapshot of the config values currently reflected in the live hardware.
+        // m_config may temporarily contain newer values (edited while CPU running)
+        // that have not yet been applied; SettingsWindow uses m_appliedConfig to
+        // mark differing fields as "pending" (orange labels).
+        ::Em68030::Config::EmulatorConfig m_appliedConfig;
 
         // ==================================================================
         // Emulation thread state

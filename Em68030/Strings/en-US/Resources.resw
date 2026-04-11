@@ -673,8 +673,49 @@ Entry: ${0}
 Range: ${1}-${2}
 {3} segments loaded</value>
   </data>
+  <data name="Settings_Debug" xml:space="preserve">
+    <value>Debug</value>
+  </data>
+  <data name="Settings_PendingChangesTitle" xml:space="preserve">
+    <value>Settings changes pending</value>
+  </data>
+  <data name="Settings_PendingChangesMessage" xml:space="preserve">
+    <value>The CPU is currently running. Some of the settings you just changed (such as Target OS, memory size, SCSI disks, network mode, framebuffer, or console/HDD device addresses) cannot take effect while the CPU is running.
+
+Your changes will be saved to the configuration file, but the hardware will not be reconfigured until the CPU is stopped and the settings are reapplied. To apply all changes immediately, Stop the CPU first and then open Settings again.
+
+Save these pending changes?</value>
+  </data>
+  <data name="Settings_PendingChangesSaveButton" xml:space="preserve">
+    <value>Save (apply on next stop)</value>
+  </data>
+  <data name="Settings_PendingChangesCancelButton" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Settings_PendingLegend" xml:space="preserve">
+    <value>⚠ Orange labels indicate settings that are saved but have not yet been applied to the hardware. These changes will take effect when the CPU is stopped and Settings is reopened and saved.</value>
+  </data>
   <data name="Settings_EnableTraceButton" xml:space="preserve">
     <value>Show Trace Button</value>
+  </data>
+  <data name="Settings_TraceDescription" xml:space="preserve">
+    <value>When enabled, a Trace button appears on the toolbar. Clicking it toggles verbose instruction tracing to a log file.</value>
+  </data>
+  <data name="Settings_CallStack" xml:space="preserve">
+    <value>Call Stack</value>
+  </data>
+  <data name="Settings_CallStackMode" xml:space="preserve">
+    <value>Mode:</value>
+  </data>
+  <data name="Settings_CallStackModeShadow" xml:space="preserve">
+    <value>Shadow Stack (default)</value>
+  </data>
+  <data name="Settings_CallStackModeA6" xml:space="preserve">
+    <value>A6 Frame Pointer Chain</value>
+  </data>
+  <data name="Settings_CallStackDescription" xml:space="preserve">
+    <value>Shadow Stack: tracks BSR/JSR/RTS at runtime. Accurate for any code, including hand-written assembly and code that does not use a frame pointer. Adds a small runtime cost while the Call Stack window is open.
+A6 Chain: walks the A6 frame pointer chain set up by LINK A6/UNLK A6, plus a heuristic stack scan. Use this for bare-metal programs or hand-written code that follows the A6 calling convention. No runtime cost.</value>
   </data>
   <data name="Settings_KernelImage" xml:space="preserve">
     <value>Kernel Image:</value>

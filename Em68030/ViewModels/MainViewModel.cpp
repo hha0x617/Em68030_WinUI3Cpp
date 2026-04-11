@@ -81,6 +81,9 @@ namespace winrt::Em68030::implementation
         m_memoryDumpRows = winrt::single_threaded_observable_vector<Em68030::MemoryDumpRow>();
 
         m_config = ::Em68030::Config::EmulatorConfig::Load();
+        // At startup, the loaded config is what the hardware will be initialized
+        // with, so applied == saved until the user edits it at runtime.
+        m_appliedConfig = m_config;
 
         // Initialize console and HDD devices with defaults (may be replaced by SetupGeneric)
         m_consoleDevice = std::make_unique<::Em68030::IO::ConsoleDevice>(m_config.ConsoleBaseAddress);
@@ -1050,6 +1053,74 @@ namespace winrt::Em68030::implementation
         std::vector<CallStackEntry> stack;
         if (!m_cpu) return stack;
 
+        // A6 chain mode: walk the frame pointer chain + heuristically scan the
+        // stack for return-address-shaped longwords. Useful for bare-metal code
+        // that uses LINK A6/UNLK A6 (no OS, no shadow stack tracking).
+        if (m_config.CallStackMode == "A6Chain")
+        {
+            uint32_t memSize = m_cpu->GetMemory().GetSize();
+
+            // Helper: check if an address looks like a valid code address.
+            auto isCodeAddress = [&](uint32_t addr) -> bool {
+                if (addr == 0 || addr >= memSize || (addr & 1) != 0) return false;
+                if (m_programStartAddress < m_programEndAddress)
+                    return addr >= m_programStartAddress && addr < m_programEndAddress;
+                return addr >= 0x1000;
+            };
+
+            // Frame 0: current PC
+            stack.push_back({ m_cpu->PC, m_cpu->A[6], "<current>" });
+
+            // Walk A6 frame pointer chain.
+            // MC68030 LINK A6 creates: [A6] = saved A6, [A6+4] = return address
+            uint32_t fp = m_cpu->A[6];
+            for (int i = 0; i < maxDepth && fp != 0; i++)
+            {
+                if (fp + 4 >= memSize || fp < 0x1000 || (fp & 1) != 0)
+                    break;
+                try
+                {
+                    uint32_t retAddr = m_cpu->GetMemory().ReadLong(fp + 4);
+                    uint32_t savedFp = m_cpu->GetMemory().ReadLong(fp);
+                    if (!isCodeAddress(retAddr))
+                        break;
+                    stack.push_back({ retAddr, savedFp, "" });
+                    if (savedFp == 0 || savedFp == fp || savedFp <= fp)
+                        break;
+                    fp = savedFp;
+                }
+                catch (...) { break; }
+            }
+
+            // Heuristic stack scan: catches frames from -fomit-frame-pointer code,
+            // hand-written assembly, interrupt frames, and broken A6 chains.
+            // Deduplicate against addresses already found via the A6 chain.
+            {
+                std::unordered_set<uint32_t> knownAddrs;
+                for (const auto& e : stack) knownAddrs.insert(e.address);
+
+                uint32_t sp = m_cpu->A[7];
+                constexpr uint32_t ScanBytes = 4096;
+                for (uint32_t offset = 0; offset < ScanBytes && sp + offset + 3 < memSize; offset += 2)
+                {
+                    try
+                    {
+                        uint32_t val = m_cpu->GetMemory().ReadLong(sp + offset);
+                        if (isCodeAddress(val) && knownAddrs.find(val) == knownAddrs.end())
+                        {
+                            stack.push_back({ val, 0, "?" });
+                            knownAddrs.insert(val);
+                            if (static_cast<int>(stack.size()) >= maxDepth) break;
+                        }
+                    }
+                    catch (...) { break; }
+                }
+            }
+
+            return stack;
+        }
+
+        // Default mode: shadow call stack (BSR/JSR/RTS tracked at runtime).
         // Frame 0: current PC
         stack.push_back({ m_cpu->PC, 0, "<current>" });
 
@@ -1705,6 +1776,50 @@ namespace winrt::Em68030::implementation
             m_scsiCdrom->UnmountImage();
     }
 
+    bool MainViewModel::HasPendingHardwareChanges(::Em68030::Config::EmulatorConfig const& n) const
+    {
+        const auto& c = m_config;
+        // Board-level fields
+        if (c.BoardType != n.BoardType) return true;
+        if (c.MemorySize != n.MemorySize) return true;
+        if (c.TargetOS != n.TargetOS) return true;
+        // Kernel image paths and Linux command line
+        if (c.NetBsdKernelImagePath != n.NetBsdKernelImagePath) return true;
+        if (c.LinuxKernelImagePath != n.LinuxKernelImagePath) return true;
+        if (c.LinuxCommandLine != n.LinuxCommandLine) return true;
+        // MVME147 board-specific
+        if (c.Mvme147RomPath != n.Mvme147RomPath) return true;
+        if (c.Mvme147BootPartition != n.Mvme147BootPartition) return true;
+        if (c.Mvme147ScsiCdromId != n.Mvme147ScsiCdromId) return true;
+        // SCSI disks list (path or ID changes)
+        if (c.Mvme147ScsiDisks.size() != n.Mvme147ScsiDisks.size()) return true;
+        for (size_t i = 0; i < c.Mvme147ScsiDisks.size(); ++i) {
+            if (c.Mvme147ScsiDisks[i].Path != n.Mvme147ScsiDisks[i].Path) return true;
+            if (c.Mvme147ScsiDisks[i].ScsiId != n.Mvme147ScsiDisks[i].ScsiId) return true;
+        }
+        // Network backend
+        if (c.NetworkMode != n.NetworkMode) return true;
+        if (c.NatGatewayIp != n.NatGatewayIp) return true;
+        if (c.NatGatewayMac != n.NatGatewayMac) return true;
+        if (c.TapAdapterGuid != n.TapAdapterGuid) return true;
+        // Generic board I/O devices
+        if (c.ConsoleEnabled != n.ConsoleEnabled) return true;
+        if (c.ConsoleBaseAddress != n.ConsoleBaseAddress) return true;
+        if (c.ConsoleColumns != n.ConsoleColumns) return true;
+        if (c.ConsoleRows != n.ConsoleRows) return true;
+        if (c.HddEnabled != n.HddEnabled) return true;
+        if (c.HddBaseAddress != n.HddBaseAddress) return true;
+        if (c.HddImagePath != n.HddImagePath) return true;
+        // Framebuffer
+        if (c.FramebufferEnabled != n.FramebufferEnabled) return true;
+        if (c.FramebufferWidth != n.FramebufferWidth) return true;
+        if (c.FramebufferHeight != n.FramebufferHeight) return true;
+        if (c.FramebufferBpp != n.FramebufferBpp) return true;
+        // All changed fields are hot-swappable (JIT / CD-ROM media /
+        // CallStackMode / UI-only) — no hardware reconfiguration needed.
+        return false;
+    }
+
     void MainViewModel::ApplyConfig(::Em68030::Config::EmulatorConfig const& newConfig)
     {
         // Hardware configuration changes (memory map, SCSI bus, UART, boot stub) are
@@ -1734,6 +1849,21 @@ namespace winrt::Em68030::implementation
                 else
                     m_scsiCdrom->UnmountImage();
             }
+
+            // Update m_appliedConfig only for the fields that were actually applied
+            // to the live hardware. All other fields remain "pending" and will be
+            // shown with orange labels in SettingsWindow until the next stopped-path
+            // ApplyConfig.
+            m_appliedConfig.JitEnabled = m_config.JitEnabled;
+            m_appliedConfig.JitMinBlockLength = m_config.JitMinBlockLength;
+            m_appliedConfig.JitCompileThreshold = m_config.JitCompileThreshold;
+            m_appliedConfig.Mvme147ScsiCdromPath = m_config.Mvme147ScsiCdromPath;
+            // UI-only fields (don't cause "pending" state)
+            m_appliedConfig.EnableTraceButton = m_config.EnableTraceButton;
+            m_appliedConfig.CallStackMode = m_config.CallStackMode;
+            m_appliedConfig.FontFamily = m_config.FontFamily;
+            m_appliedConfig.FontSize = m_config.FontSize;
+            m_appliedConfig.ConsoleScrollbackLines = m_config.ConsoleScrollbackLines;
 
             m_config.Save();
             RaisePropertyChanged(L"Config");
@@ -1866,6 +1996,9 @@ namespace winrt::Em68030::implementation
             if (!m_config.JitEnabled)
                 m_cpu->InvalidateJitCache();
         }
+
+        // Full hardware reconfiguration completed: all fields are now applied.
+        m_appliedConfig = m_config;
 
         m_config.Save();
         RaisePropertyChanged(L"Config");

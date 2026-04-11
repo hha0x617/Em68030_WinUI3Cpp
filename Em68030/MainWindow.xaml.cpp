@@ -954,8 +954,11 @@ namespace winrt::Em68030::implementation
         settingsDialog.as<implementation::SettingsWindow>()->SetUnmountCallback(
             [vmImpl]() { vmImpl->UnmountAllScsiDisks(); });
 
-        // Load current config into dialog
-        settingsDialog.as<implementation::SettingsWindow>()->LoadConfig(vmImpl->Config());
+        // Load current config + applied-config snapshot into dialog. The latter
+        // is used to mark fields that are saved but not yet applied to live
+        // hardware in orange (UX proposal B).
+        settingsDialog.as<implementation::SettingsWindow>()->LoadConfig(
+            vmImpl->Config(), vmImpl->AppliedConfig());
 
         auto result = co_await settingsDialog.ShowAsync(this->Content());
         if (result == ContentDialogResult::Primary)
@@ -964,6 +967,11 @@ namespace winrt::Em68030::implementation
             auto config = vmImpl->Config();
             if (settingsDialog.as<implementation::SettingsWindow>()->SaveConfig(config))
             {
+                // UX proposal B: no warning dialog. Non-hot-swappable changes are
+                // always saved and will take effect on the next stopped-path
+                // ApplyConfig. SettingsWindow visually marks pending fields in
+                // orange when the dialog is opened while they differ from
+                // AppliedConfig.
                 vmImpl->ApplyConfig(config);
                 UpdateStatusBar();
                 UpdateToolbarInfo();
@@ -977,6 +985,10 @@ namespace winrt::Em68030::implementation
                     consoleImpl->SetScrollbackLines(config.ConsoleScrollbackLines);
                     consoleImpl->SetTerminalSize(config.ConsoleColumns, config.ConsoleRows);
                 }
+                // Re-render the Call Stack window in case CallStackMode changed.
+                // Without this, the open window would keep the old mode's view
+                // until the next Step / Stop / breakpoint hit triggers a refresh.
+                RefreshCallStackWindow();
             }
         }
     }

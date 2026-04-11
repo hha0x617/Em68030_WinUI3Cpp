@@ -56,6 +56,14 @@
 
     <StackPanel>
     <Border BorderBrush="#FF3F3F46" BorderThickness="0,0,0,1" Margin="0,0,0,8" />
+    <!-- Pending-changes legend: shown only when at least one field differs from AppliedConfig. -->
+    <TextBlock x:Name="PendingLegendText"
+               Text=""
+               Foreground="#FFFFA500"
+               FontSize="11"
+               TextWrapping="Wrap"
+               Margin="0,0,0,8"
+               Visibility="Collapsed" />
     <TabView x:Name="SettingsTabs" IsAddTabButtonVisible="False"
              CanDragTabs="False" CanReorderTabs="False"
              TabWidthMode="SizeToContent">
@@ -412,6 +420,22 @@
                         <TextBlock x:Name="LblCompileThreshold" Text="Compile Threshold:" Style="{StaticResource SettingLabelStyle}" />
                         <TextBox x:Name="JitCompileThresholdBox" Grid.Column="1" Style="{StaticResource SettingTextBoxStyle}" />
                     </Grid>
+
+                    <!-- Call Stack -->
+                    <TextBlock x:Name="LblCallStack" Text="Call Stack" Style="{StaticResource SectionHeaderStyle}" />
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180" /><ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="LblCallStackMode" Text="Mode:" Style="{StaticResource SettingLabelStyle}" />
+                        <ComboBox x:Name="CallStackModeBox" Grid.Column="1" MinWidth="240">
+                            <ComboBoxItem x:Name="CallStackModeShadowItem" Content="Shadow Stack (default)" Tag="ShadowStack" />
+                            <ComboBoxItem x:Name="CallStackModeA6Item" Content="A6 Frame Pointer Chain" Tag="A6Chain" />
+                        </ComboBox>
+                    </Grid>
+                    <TextBlock x:Name="LblCallStackDescription"
+                               Text="Shadow Stack: tracks BSR/JSR/RTS at runtime. A6 Chain: walks the A6 frame pointer chain (for bare-metal code that uses LINK A6/UNLK A6)."
+                               Foreground="#FF808080" FontSize="11" TextWrapping="Wrap" Margin="24,4,0,4" />
 
                     <!-- Debug -->
                     <TextBlock x:Name="LblDebug" Text="Debug" Style="{StaticResource SectionHeaderStyle}" />
