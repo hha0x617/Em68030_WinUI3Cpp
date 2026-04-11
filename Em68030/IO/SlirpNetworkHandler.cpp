@@ -76,8 +76,13 @@ std::array<uint8_t, 6> SlirpNetworkHandler::ParseMacAddress(const std::string& s
 SlirpNetworkHandler::~SlirpNetworkHandler()
 {
     m_disposed = true;
+    // Close all sockets to unblock detached threads waiting in recv/recvfrom
     CleanupUdpSessions(true);
     CleanupTcpSessions(true);
+    // Wait for detached threads to observe m_disposed and exit.
+    // UDP recvfrom has 5s timeout, TCP recv returns error on closesocket,
+    // ICMP IcmpSendEcho has 5s timeout.
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     if (m_wsaInitialized)
         WSACleanup();
 }
@@ -279,6 +284,8 @@ void SlirpNetworkHandler::HandleIcmp(const uint8_t* frame, int length, int ipHea
             const_cast<uint8_t*>(payload.data()), static_cast<WORD>(payload.size()),
             nullptr, replyBuf.data(), replyBufSize, 5000);
 
+        if (m_disposed) { IcmpCloseHandle(hIcmp); return; }
+
         if (ret > 0)
         {
             auto* echoReply = reinterpret_cast<ICMP_ECHO_REPLY*>(replyBuf.data());
@@ -423,19 +430,19 @@ void SlirpNetworkHandler::HandleUdp(const uint8_t* frame, int length, int ipHead
                reinterpret_cast<const sockaddr*>(&dest), sizeof(dest));
 
         // Wait for reply
-        char recvBuf[65536];
+        auto recvBuf = std::make_unique<char[]>(65536);
         sockaddr_in from{};
         int fromLen = sizeof(from);
-        int recvLen = recvfrom(sock, recvBuf, sizeof(recvBuf), 0,
+        int recvLen = recvfrom(sock, recvBuf.get(), 65536, 0,
                                reinterpret_cast<sockaddr*>(&from), &fromLen);
 
-        if (recvLen > 0)
+        if (recvLen > 0 && !m_disposed)
         {
             BuildUdpReply(destIpArr.data(), dstPort, srcPort,
-                          reinterpret_cast<const uint8_t*>(recvBuf), recvLen);
+                          reinterpret_cast<const uint8_t*>(recvBuf.get()), recvLen);
         }
 
-        CleanupUdpSessions(false);
+        if (!m_disposed) CleanupUdpSessions(false);
     }).detach();
 }
 

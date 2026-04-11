@@ -66,8 +66,8 @@ private:
     struct UdpSession {
         uintptr_t Socket = ~(uintptr_t)0; // SOCKET as uintptr_t to avoid winsock header
         std::chrono::steady_clock::time_point LastActivity;
-        uint16_t GuestPort;
-        std::array<uint8_t, 4> DestIp;
+        uint16_t GuestPort = 0;
+        std::array<uint8_t, 4> DestIp{};
     };
 
     struct TcpSession {
@@ -77,7 +77,7 @@ private:
         uint32_t TheirSeq = 0;
         uint16_t GuestSrcPort = 0;
         uint16_t GuestDstPort = 0;
-        std::array<uint8_t, 4> DestIp;
+        std::array<uint8_t, 4> DestIp{};
         std::chrono::steady_clock::time_point LastActivity;
         std::atomic<bool> ReceiveLoopRunning{ false };
         std::atomic<bool> Cancelled{ false };
