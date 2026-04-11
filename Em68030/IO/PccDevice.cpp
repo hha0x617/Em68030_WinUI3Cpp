@@ -252,7 +252,6 @@ uint8_t PccDevice::ReadByte(uint32_t address)
         case 0x2D: return m_vectorBase;
         case 0x2E: return m_soft2Icr;
         case 0x2F: return m_revision;
-        case 0x30: return m_scsiIcr; // SCSI ICR alias (real HW offset; Linux uses this)
         default: return 0;
     }
 }
@@ -332,7 +331,6 @@ void PccDevice::WriteByte(uint32_t address, uint8_t value)
         case 0x2D: m_vectorBase = value; break;
         case 0x2E: WriteSoftIcr(m_soft2Icr, value); break;
         case 0x2F: m_revision = value; break;
-        case 0x30: WriteDeviceIcr(m_scsiIcr, value, m_scsiDeviceActive); break; // SCSI ICR alias (real HW offset; Linux uses this)
     }
 }
 

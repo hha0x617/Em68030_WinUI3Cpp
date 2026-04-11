@@ -44,7 +44,6 @@ protected:
     static constexpr uint32_t SccIcr        = Base + 0x26;
     static constexpr uint32_t LanceIcr      = Base + 0x28;
     static constexpr uint32_t ScsiIcr       = Base + 0x2A;
-    static constexpr uint32_t ScsiIcrAlias  = Base + 0x30;
     static constexpr uint32_t Soft1Icr      = Base + 0x2C;
     static constexpr uint32_t VectorBase    = Base + 0x2D;
     static constexpr uint32_t Soft2Icr      = Base + 0x2E;
@@ -133,24 +132,6 @@ TEST_F(PccDeviceTest, SetDeviceInterrupt_Deassert_ClearsInt)
 
     pcc.SetDeviceInterrupt("scc", false);
     EXPECT_EQ(pcc.ReadByte(SccIcr) & 0x80, 0x00);
-}
-
-// ============================================================================
-// SCSI ICR alias at offset 0x30 (Linux uses this)
-// ============================================================================
-
-TEST_F(PccDeviceTest, ScsiIcrAlias_ReadsFromSameRegister)
-{
-    pcc.SetDeviceInterrupt("scsi", true);
-    pcc.WriteByte(ScsiIcr, 0x0D); // IEN=1, level=5 (INT re-latches)
-    EXPECT_EQ(pcc.ReadByte(ScsiIcrAlias), pcc.ReadByte(ScsiIcr));
-}
-
-TEST_F(PccDeviceTest, ScsiIcrAlias_WritesAffectSameRegister)
-{
-    pcc.SetDeviceInterrupt("scsi", true);
-    pcc.WriteByte(ScsiIcrAlias, 0x0D); // IEN=1, level=5 via alias
-    EXPECT_EQ(pcc.ReadByte(ScsiIcr) & 0x0F, 0x0D);
 }
 
 // ============================================================================
