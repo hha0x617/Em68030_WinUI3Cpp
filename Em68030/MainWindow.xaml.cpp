@@ -647,6 +647,11 @@ namespace winrt::Em68030::implementation
                 m_breakpointsWindow.Close();
                 m_breakpointsWindow = nullptr;
             }
+            if (m_callStackWindow)
+            {
+                m_callStackWindow.Close();
+                m_callStackWindow = nullptr;
+            }
         });
 
         // Set window title and default size
