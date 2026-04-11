@@ -400,13 +400,13 @@ instruction. Blocks that bail out too frequently (>64 times) are blacklisted and
 - Pre-decoded `JitOp` struct array + switch dispatch
 - Dead flag elimination pass skips flag calculations overwritten by subsequent instructions
 - Deferred register snapshot: eager memcpy only on JIT block hit
-- Sampling at TickInterval (256), threshold = 16 hits to compile
+- Sampling at TickInterval (256), threshold = 32 hits to compile
 
 #### Tuning Parameters
 
 The following parameters are configurable via Settings → Performance → JIT:
 
-- **Compile Threshold** (default: 16): The number of times a basic block must be sampled
+- **Compile Threshold** (default: 32): The number of times a basic block must be sampled
   at the hot-block detection point before it is compiled. The emulator samples the current PC
   every TickInterval (256) instructions; when the same block address accumulates this many hits,
   compilation is triggered. A lower value compiles more aggressively (more blocks compiled sooner,
@@ -428,7 +428,7 @@ The following parameters are configurable via Settings → Performance → JIT:
 - Bailout mechanism: `JitExecResult { nextPC, executedCount, executedCycles }` return struct
   enables partial block execution. Memory access instructions check data page cache; on miss,
   execution returns to interpreter. Blocks exceeding 64 bailouts are blacklisted.
-- Tests: 335 total (including JIT-specific tests in CpuTests/JitCompilerTests.cpp)
+- Tests: 772 total (including JIT-specific tests in CpuTests/JitCompilerTests.cpp)
 
 ### Performance
 
