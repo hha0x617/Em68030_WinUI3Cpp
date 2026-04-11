@@ -1,6 +1,6 @@
 # Em68030 - MC68030 Emulator (C++ / WinUI 3)
 
-[Motorola MC68030](https://en.wikipedia.org/wiki/Motorola_68030) マイクロプロセッサのエミュレータです。MC68030 は 1980 年代後半にワークステーションや組み込みシステムで広く使われた 32-bit CPU です。本エミュレータは MC68030 を搭載した VMEbus シングルボードコンピュータ [MVME147](https://en.wikipedia.org/wiki/MVME147) をエミュレートし、NetBSD の mvme68k ポートである [NetBSD/mvme68k](https://www.netbsd.org/ports/mvme68k/) を起動できます。
+[Motorola MC68030](https://en.wikipedia.org/wiki/Motorola_68030) マイクロプロセッサのエミュレータです。MC68030 は 1980 年代後半にワークステーションや組み込みシステムで広く使われた 32-bit CPU です。本エミュレータは MC68030 を搭載した VMEbus シングルボードコンピュータ [MVME147](https://en.wikipedia.org/wiki/MVME147) をエミュレートし、MC68030 ELF バイナリ、[NetBSD/mvme68k](https://www.netbsd.org/ports/mvme68k/)、[Linux/m68k](https://www.debian.org/ports/m68k/) を実行できます。
 
 [C# WPF 版](https://github.com/hha0x617/Em68030_CsWPF) を C++/WinRT + WinUI 3 へポーティングした高速版です。[Claude Code](https://docs.anthropic.com/en/docs/claude-code) との vibe coding により開発されました。アプリケーションアイコンは [Claude](https://claude.ai/) で生成しました。
 
@@ -127,12 +127,18 @@ vstest.console.exe Em68030\x64\Release\Em68030.Tests.exe
 | `JitMinBlockLength` | JIT コンパイル対象の最小命令数 | 3 |
 | `JitCompileThreshold` | コンパイルまでの実行回数しきい値 | 32 |
 
-## NetBSD の起動
+## MC68030 バイナリの実行
 
-1. NetBSD/mvme68k のディスクイメージを用意する
-2. Settings で `BoardType` を `MVME147` に設定し、SCSI ディスクイメージのパスを指定
-3. File > Open ELF から NetBSD カーネル (`netbsd-GENERIC`) を読み込む
-4. Run (F5) で実行開始
+1. **File > Open ELF** から MC68030 ELF バイナリを読み込む
+2. **Run** (F5) で実行開始
+
+MVME147 ボードエミュレーション（SCSI、ネットワーク、シリアルコンソール）を使用する場合は、Settings で `BoardType` を `MVME147` に設定し、SCSI ディスクイメージを指定してください。
+
+各ゲスト OS の詳細なセットアップ手順:
+- [NetBSD をはじめる](docs/getting_started_netbsd_ja.md)
+- [Debian をはじめる](docs/getting_started_debian_ja.md)
+- [Gentoo をはじめる](docs/getting_started_gentoo_ja.md)
+- [ユーザーガイド](docs/user_guide_ja.md)
 
 ## プロジェクト構成
 
@@ -174,7 +180,7 @@ Em68030_WinUI3Cpp/
 
 ### ボード
 - VMEbus は未実装です
-- ROM イメージなしでも NetBSD カーネルを直接ロード・実行できます (ブートスタブ内蔵)
+- ROM イメージ不要。カーネルや ELF バイナリを直接ロード・実行できます (ブートスタブ内蔵)
 
 ## 今後の予定
 
