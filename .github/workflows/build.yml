@@ -48,6 +48,16 @@ jobs:
       - name: Test
         run: Em68030/x64/Release/Em68030.Tests.exe
 
+      - name: Code Analysis
+        run: >
+          msbuild Em68030/Em68030.vcxproj
+          -p:Configuration=Release
+          -p:Platform=x64
+          -p:RunCodeAnalysis=true
+          -p:CAExcludePath="$(ProjectDir)ThirdParty"
+          -v:quiet
+          -nologo
+
       - name: Prepare release artifacts
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
