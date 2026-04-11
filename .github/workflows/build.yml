@@ -49,6 +49,7 @@ jobs:
         run: Em68030/x64/Release/Em68030.Tests.exe
 
       - name: Code Analysis
+        shell: cmd
         run: >
           msbuild Em68030/Em68030.vcxproj
           -p:Configuration=Release
