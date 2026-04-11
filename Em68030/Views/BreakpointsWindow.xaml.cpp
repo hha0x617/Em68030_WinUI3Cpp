@@ -12,6 +12,7 @@
 // limitations under the License.
 
 #include "pch.h"
+#pragma warning(disable: 26813) // WatchpointType/WatchpointSize are exclusive enums, not flags
 #include "Views/BreakpointsWindow.xaml.h"
 #if __has_include("BreakpointsWindow.g.cpp")
 #include "BreakpointsWindow.g.cpp"

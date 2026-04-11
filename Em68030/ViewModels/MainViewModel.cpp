@@ -12,6 +12,7 @@
 // limitations under the License.
 
 #include "pch.h"
+#pragma warning(disable: 26813) // WatchpointType/WatchpointSize are exclusive enums, not flags
 #include "MainViewModel.h"
 #if __has_include("MainViewModel.g.cpp")
 #include "MainViewModel.g.cpp"

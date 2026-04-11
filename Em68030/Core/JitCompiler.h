@@ -115,11 +115,11 @@ struct JitExecResult {
 // Compiled basic block
 class CompiledBlock {
 public:
-    uint32_t PhysicalAddress;
-    int InstructionCount;
-    int TotalCycles;
-    int ByteLength;
-    uint32_t FallthroughPC;  // next PC after block end (no branch)
+    uint32_t PhysicalAddress = 0;
+    int InstructionCount = 0;
+    int TotalCycles = 0;
+    int ByteLength = 0;
+    uint32_t FallthroughPC = 0;  // next PC after block end (no branch)
     std::vector<JitOp> Ops;
     std::vector<int> CumulativeCycles;  // CumulativeCycles[i] = sum of cycles for ops 0..i-1
     uint16_t BailoutCount = 0;  // tracks bailout frequency for blacklisting
