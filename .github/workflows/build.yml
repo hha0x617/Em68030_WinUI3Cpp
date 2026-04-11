@@ -54,6 +54,7 @@ jobs:
           msbuild Em68030/Em68030.vcxproj
           -p:Configuration=Release
           -p:Platform=x64
+          -p:PlatformToolset=v143
           -p:RunCodeAnalysis=true
           -p:CAExcludePath="$(ProjectDir)ThirdParty"
           -v:quiet
