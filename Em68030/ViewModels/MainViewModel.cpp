@@ -1024,6 +1024,7 @@ namespace winrt::Em68030::implementation
         m_loadedFileName = to_hstring_from_std(fsPath.filename().string());
         RaisePropertyChanged(L"LoadedFileName");
 
+        CheckForLstFile(path);
         m_config.LastOpenedFile = path;
         m_config.Save();
         RefreshAll();
@@ -2087,6 +2088,15 @@ namespace winrt::Em68030::implementation
 
     void MainViewModel::UpdateDisassembly()
     {
+        // LST mode takes precedence: replace the disassembly view with the
+        // contents of the loaded .lst file. Bypasses both the "full program
+        // disassembled" cache and the per-PC sliding window.
+        if (m_showLst && m_hasLstLines)
+        {
+            UpdateDisassemblyFromLst();
+            return;
+        }
+
         if (m_disasmFollowPC)
         {
             if (m_fullProgramDisassembled)
@@ -2145,6 +2155,40 @@ namespace winrt::Em68030::implementation
                 impl->IsCallStackFrame(callStackAddrs.count(impl->Address()) > 0);
             }
             if (isCurrent) pcIndex = static_cast<int>(i);
+        }
+        if (pcIndex >= 0 && m_disasmFollowPC)
+            m_scrollToLineRequested(*this, pcIndex);
+    }
+
+    // Replace the disassembly view with the entire loaded .lst file
+    // (Motorola listing format). Each line becomes one DisasmLineViewModel
+    // regardless of whether it has an address. Lines that match m_cpu->PC are
+    // marked as the current PC line so the existing scroll/highlight logic works.
+    void MainViewModel::UpdateDisassemblyFromLst()
+    {
+        m_disassemblyLines.Clear();
+        if (!m_hasLstLines) return;
+
+        int pcIndex = -1;
+        for (int i = 0; i < static_cast<int>(m_lstLines.size()); i++)
+        {
+            auto& lstLine = m_lstLines[i];
+            auto vm = winrt::make<implementation::DisasmLineViewModel>();
+            auto impl = vm.as<implementation::DisasmLineViewModel>();
+            impl->Address(lstLine.Address);
+            impl->HasAddress(lstLine.HasAddress);
+            impl->Text(to_hstring_from_std(lstLine.RawText));
+            bool isCurrent = lstLine.HasAddress && lstLine.Address == m_cpu->PC;
+            impl->IsCurrentPC(isCurrent);
+            if (isCurrent) pcIndex = i;
+            if (lstLine.HasAddress)
+            {
+                auto bpIt = m_breakpoints.find(lstLine.Address);
+                bool hasBp = bpIt != m_breakpoints.end();
+                impl->HasBreakpoint(hasBp);
+                impl->HasDisabledBreakpoint(hasBp && !bpIt->second.enabled);
+            }
+            m_disassemblyLines.Append(vm);
         }
         if (pcIndex >= 0 && m_disasmFollowPC)
             m_scrollToLineRequested(*this, pcIndex);
@@ -2705,6 +2749,10 @@ namespace winrt::Em68030::implementation
     void MainViewModel::ShowLst(bool value) {
         m_showLst = value;
         RaisePropertyChanged(L"ShowLst");
+        // Toggling LST mode replaces the disassembly view contents (LST text
+        // vs. disassembled instructions). Invalidate the "full program
+        // disassembled" cache so the next UpdateDisassembly() rebuilds.
+        m_fullProgramDisassembled = false;
         UpdateDisassembly();
     }
 

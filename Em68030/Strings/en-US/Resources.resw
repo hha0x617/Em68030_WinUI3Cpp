@@ -664,6 +664,9 @@ This overwrites the first sector of the image with a NetBSD-format partition tab
   <data name="Status_TraceOn" xml:space="preserve">
     <value>[TRACE ON]</value>
   </data>
+  <data name="Status_BoardFormat" xml:space="preserve">
+    <value>Board: {0}</value>
+  </data>
   <data name="Status_NetFormat" xml:space="preserve">
     <value>Net: {0}</value>
   </data>
@@ -703,6 +706,12 @@ Save these pending changes?</value>
   </data>
   <data name="Settings_CallStack" xml:space="preserve">
     <value>Call Stack</value>
+  </data>
+  <data name="CallStack_TitleModeShadow" xml:space="preserve">
+    <value>Shadow Stack</value>
+  </data>
+  <data name="CallStack_TitleModeA6" xml:space="preserve">
+    <value>A6 Frame Chain</value>
   </data>
   <data name="Settings_CallStackMode" xml:space="preserve">
     <value>Mode:</value>

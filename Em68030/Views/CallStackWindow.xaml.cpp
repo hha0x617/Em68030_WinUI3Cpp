@@ -72,6 +72,7 @@ namespace winrt::Em68030::implementation
 
         Title(ResourceHelper::GetString(L"Window_CallStack"));
         AppWindow().Resize({ 420, 400 });
+        // Title will be refined by MainWindow calling SetMode() right after construction.
 
         // Double-click to navigate to address
         if (CallStackList())
@@ -92,6 +93,17 @@ namespace winrt::Em68030::implementation
                 }
             });
         }
+    }
+
+    void CallStackWindow::SetMode(const std::string& callStackMode)
+    {
+        // Append the active mode to the window title so the user can see at
+        // a glance which algorithm the Call Stack window is using.
+        auto base = ResourceHelper::GetString(L"Window_CallStack");
+        auto modeLabel = (callStackMode == "A6Chain")
+            ? ResourceHelper::GetString(L"CallStack_TitleModeA6")
+            : ResourceHelper::GetString(L"CallStack_TitleModeShadow");
+        Title(winrt::hstring(std::wstring(base) + L"  [" + std::wstring(modeLabel) + L"]"));
     }
 
     void CallStackWindow::RefreshList(const std::vector<CallStackEntry>& entries, bool isRunning)

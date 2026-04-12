@@ -364,6 +364,7 @@ namespace winrt::Em68030::implementation
         void UpdatePCHighlight();
         void UpdateDisassemblyAt(uint32_t startAddress);
         void UpdateDisassemblyRange(uint32_t startAddress, uint32_t endAddress);
+        void UpdateDisassemblyFromLst();
 
         // ==================================================================
         // Raise commands can-execute changed

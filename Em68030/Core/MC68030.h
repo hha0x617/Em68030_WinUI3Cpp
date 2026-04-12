@@ -144,7 +144,11 @@ public:
     static constexpr int ShadowStackMaxDepth = 256;
     ShadowStackEntry _shadowStack[ShadowStackMaxDepth]{};
     int _shadowStackTop = 0;
-    bool ShadowStackEnabled = false;
+    // Shadow stack tracking is always on: BSR/JSR/RTS push/pop overhead is
+    // a couple of extra ops per call and the alternative ("enable only when
+    // the Call Stack window is open") loses all historical frames whenever
+    // the user opens the window mid-run or closes and reopens it.
+    bool ShadowStackEnabled = true;
 
     inline void ShadowPush(uint32_t callPC, uint32_t targetPC, uint32_t returnPC, uint8_t kind = 0) {
         if (!ShadowStackEnabled) return;

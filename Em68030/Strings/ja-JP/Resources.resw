@@ -665,6 +665,9 @@ NetBSD ディスク イメージに対してのみ使用してください。</v
   <data name="Status_TraceOn" xml:space="preserve">
     <value>[トレース ON]</value>
   </data>
+  <data name="Status_BoardFormat" xml:space="preserve">
+    <value>ボード: {0}</value>
+  </data>
   <data name="Status_NetFormat" xml:space="preserve">
     <value>Net: {0}</value>
   </data>
@@ -704,6 +707,12 @@ NetBSD ディスク イメージに対してのみ使用してください。</v
   </data>
   <data name="Settings_CallStack" xml:space="preserve">
     <value>コールスタック</value>
+  </data>
+  <data name="CallStack_TitleModeShadow" xml:space="preserve">
+    <value>シャドウスタック</value>
+  </data>
+  <data name="CallStack_TitleModeA6" xml:space="preserve">
+    <value>A6 フレームチェーン</value>
   </data>
   <data name="Settings_CallStackMode" xml:space="preserve">
     <value>方式:</value>

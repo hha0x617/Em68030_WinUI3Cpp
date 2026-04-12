@@ -30,6 +30,11 @@ namespace winrt::Em68030::implementation
 
         void RefreshList(const std::vector<struct CallStackEntry>& entries, bool isRunning);
 
+        /// Update the title bar to reflect the current Call Stack mode
+        /// ("ShadowStack" or "A6Chain"). Called from MainWindow when the
+        /// window is created and whenever Settings applies a mode change.
+        void SetMode(const std::string& callStackMode);
+
         // Callback: navigate disassembly to address
         std::function<void(uint32_t)> OnNavigateToAddress;
     };

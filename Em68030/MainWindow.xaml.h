@@ -176,6 +176,7 @@ namespace winrt::Em68030::implementation
         winrt::event_token m_consoleStringToken;
 
         // Status bar
+        winrt::Microsoft::UI::Xaml::Controls::TextBlock m_boardTypeText{ nullptr };
         winrt::Microsoft::UI::Xaml::Controls::TextBlock m_networkModeText{ nullptr };
         winrt::Microsoft::UI::Xaml::Controls::TextBlock m_jitStatusText{ nullptr };
 

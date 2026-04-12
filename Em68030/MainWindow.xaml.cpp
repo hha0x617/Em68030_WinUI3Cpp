@@ -198,6 +198,7 @@ namespace winrt::Em68030::implementation
 
             // Status bar
             StatusText(root.FindName(L"StatusText").try_as<Controls::TextBlock>());
+            m_boardTypeText = root.FindName(L"BoardTypeText").try_as<Controls::TextBlock>();
             m_networkModeText = root.FindName(L"NetworkModeText").try_as<Controls::TextBlock>();
             m_jitStatusText = root.FindName(L"JitStatusText").try_as<Controls::TextBlock>();
             TraceStatusText(root.FindName(L"TraceStatusText").try_as<Controls::TextBlock>());
@@ -493,11 +494,18 @@ namespace winrt::Em68030::implementation
             }
             else if (name == L"HasLstFile")
             {
+                auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
+                bool has = vmImpl->HasLstFile();
                 if (LstButton())
                 {
-                    auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
-                    LstButton().Visibility(vmImpl->HasLstFile()
-                        ? Visibility::Visible : Visibility::Collapsed);
+                    LstButton().Visibility(has ? Visibility::Visible : Visibility::Collapsed);
+                    LstButton().IsEnabled(has);
+                }
+                // Mirror to the View > Toggle LST View menu item.
+                if (auto root = this->Content().try_as<FrameworkElement>())
+                {
+                    if (auto mi = root.FindName(L"MenuToggleLst").try_as<Controls::MenuFlyoutItem>())
+                        mi.IsEnabled(has);
                 }
             }
         });
@@ -1969,6 +1977,12 @@ namespace winrt::Em68030::implementation
             else
                 StatusText().Text(ResourceHelper::GetString(L"Status_NotRunning"));
         }
+        if (m_boardTypeText)
+        {
+            auto board = vmImpl->Config().BoardType;
+            auto wboard = std::wstring(board.begin(), board.end());
+            m_boardTypeText.Text(winrt::hstring(ResourceHelper::Format(L"Status_BoardFormat", wboard)));
+        }
         if (m_networkModeText)
         {
             auto mode = vmImpl->Config().NetworkMode;
@@ -2506,14 +2520,11 @@ namespace winrt::Em68030::implementation
                 }
             };
 
-            // Enable shadow call stack tracking
-            vmImpl->Cpu().ShadowStackEnabled = true;
-            vmImpl->Cpu().ShadowStackClear();
-
+            // Shadow stack tracking is always on (see MC68030::ShadowStackEnabled).
+            // Do NOT clear here: clearing would throw away frames accumulated
+            // before the user first opened the Call Stack window.
             m_callStackWindow.Closed([this](auto&&, auto&&)
             {
-                auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
-                vmImpl->Cpu().ShadowStackEnabled = false;
                 m_callStackWindow = nullptr;
             });
         }
@@ -2529,6 +2540,11 @@ namespace winrt::Em68030::implementation
         auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
         bool isRunning = vmImpl->IsRunning();
         auto stack = isRunning ? std::vector<CallStackEntry>{} : vmImpl->GetCallStack();
+        // Keep the window title in sync with the currently active mode
+        // (Shadow Stack vs A6 Frame Chain). Settings_Click already calls
+        // RefreshCallStackWindow() on apply, so this covers both first-open
+        // and runtime mode toggles.
+        csImpl->SetMode(vmImpl->Config().CallStackMode);
         csImpl->RefreshList(stack, isRunning);
     }
 
