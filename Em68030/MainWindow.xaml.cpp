@@ -1973,6 +1973,7 @@ namespace winrt::Em68030::implementation
         if (!rows || rows.Size() == 0) return;
 
         auto normalFg = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
+        auto normalBg = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeWindowBg");
 
         m_memEditPopulating = true;
         for (uint32_t r = 0; r < rows.Size() && r < 16; r++)
@@ -1983,7 +1984,10 @@ namespace winrt::Em68030::implementation
             wchar_t buf[16];
             swprintf_s(buf, L"%08X", rowImpl->Address());
             if (r < m_memAddrLabels.size() && m_memAddrLabels[r])
+            {
                 m_memAddrLabels[r].Text(buf);
+                m_memAddrLabels[r].Foreground(normalFg);
+            }
 
             for (uint32_t c = 0; c < cells.Size() && c < 16; c++)
             {
@@ -1993,9 +1997,12 @@ namespace winrt::Em68030::implementation
                     swprintf_s(buf, L"%02X", static_cast<unsigned>(cellImpl->OriginalValue()));
                     m_memCellBoxes[r][c].Text(buf);
                     m_memCellBoxes[r][c].Foreground(normalFg);
+                    m_memCellBoxes[r][c].Background(normalBg);
                 }
             }
             UpdateMemEditAscii(static_cast<int>(r));
+            if (r < m_memAsciiLabels.size() && m_memAsciiLabels[r])
+                m_memAsciiLabels[r].Foreground(normalFg);
         }
         m_memEditPopulating = false;
     }
@@ -2665,11 +2672,12 @@ namespace winrt::Em68030::implementation
         }
         ::Em68030::ResourceHelper::SetCurrentTheme(effectiveTheme);
 
-        auto theme = Microsoft::UI::Xaml::ElementTheme::Dark;
-        if (themeName == "Light") theme = Microsoft::UI::Xaml::ElementTheme::Light;
-        else if (themeName == "System") theme = Microsoft::UI::Xaml::ElementTheme::Default;
-
+        // Use the resolved effective theme (not Default) so that WinUI3
+        // ThemeResource resolution and our GetThemeBrush stay in sync.
+        // ElementTheme::Default can cause timing mismatches with code-behind.
         bool isDark = (effectiveTheme != "Light");
+        auto theme = isDark ? Microsoft::UI::Xaml::ElementTheme::Dark
+                            : Microsoft::UI::Xaml::ElementTheme::Light;
 
         // Apply RequestedTheme + DWM title bar to all windows
         auto applyToWindow = [theme, isDark](const winrt::Microsoft::UI::Xaml::Window& w) {
