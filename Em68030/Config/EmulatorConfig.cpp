@@ -81,6 +81,7 @@ void to_json(nlohmann::json& j, const EmulatorConfig& c)
         {"FontSize",                c.FontSize},
         {"LastOpenedFile",           c.LastOpenedFile},
         {"LastLoadAddress",          c.LastLoadAddress},
+        {"Theme",                   c.Theme},
         {"BoardType",               c.BoardType},
         {"Mvme147RomPath",          c.Mvme147RomPath},
         {"Mvme147ScsiDisks",        c.Mvme147ScsiDisks},
@@ -123,6 +124,7 @@ void from_json(const nlohmann::json& j, EmulatorConfig& c)
     if (j.contains("FontSize"))               j.at("FontSize").get_to(c.FontSize);
     if (j.contains("LastOpenedFile"))          j.at("LastOpenedFile").get_to(c.LastOpenedFile);
     if (j.contains("LastLoadAddress"))         j.at("LastLoadAddress").get_to(c.LastLoadAddress);
+    if (j.contains("Theme"))                  j.at("Theme").get_to(c.Theme);
     if (j.contains("BoardType"))              j.at("BoardType").get_to(c.BoardType);
     // Backward compat: old configs may have "Mvme147RamSize" instead of "MemorySize"
     if (j.contains("Mvme147RamSize") && !j.contains("MemorySize"))

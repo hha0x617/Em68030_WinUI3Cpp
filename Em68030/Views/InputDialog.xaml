@@ -20,14 +20,14 @@
     CloseButtonText="Cancel"
     DefaultButton="Primary"
     MinWidth="350"
-    RequestedTheme="Dark">
+    >
 
     <StackPanel Spacing="8">
-        <TextBlock x:Name="PromptText" Text="Enter value:" Foreground="#FFD4D4D4" />
+        <TextBlock x:Name="PromptText" Text="Enter value:" Foreground="{ThemeResource ThemeForeground}" />
         <TextBox x:Name="InputTextBox"
                  FontFamily="Consolas" FontSize="14"
-                 Background="#FF2D2D30" Foreground="#FFD4D4D4"
-                 BorderBrush="#FF3F3F46"
+                 Background="{ThemeResource ThemeInputBg}" Foreground="{ThemeResource ThemeForeground}"
+                 BorderBrush="{ThemeResource ThemeBorder}"
                  Padding="4" />
     </StackPanel>
 </ContentDialog>

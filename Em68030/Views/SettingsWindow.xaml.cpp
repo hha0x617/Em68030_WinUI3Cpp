@@ -615,6 +615,10 @@ namespace winrt::Em68030::implementation
     void SettingsWindow::LoadConfig(const ::Em68030::Config::EmulatorConfig& config,
                                     const ::Em68030::Config::EmulatorConfig& applied)
     {
+        // Theme
+        if (auto themeBox = FindName(L"ThemeBox").try_as<Controls::ComboBox>())
+            SelectItemByText(themeBox, config.Theme);
+
         // Board type
         SelectItemByText(BoardTypeBox(), config.BoardType);
         Mvme147RomBox().Text(winrt::to_hstring(config.Mvme147RomPath));
@@ -825,6 +829,10 @@ namespace winrt::Em68030::implementation
 
     bool SettingsWindow::SaveConfig(::Em68030::Config::EmulatorConfig& config)
     {
+        // Theme
+        if (auto themeBox = FindName(L"ThemeBox").try_as<Controls::ComboBox>())
+            config.Theme = GetSelectedItemText(themeBox);
+
         // Board type
         config.BoardType = GetSelectedItemText(BoardTypeBox());
 

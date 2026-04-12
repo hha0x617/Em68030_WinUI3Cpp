@@ -17,9 +17,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Call Stack">
 
-    <Grid Background="#FF1E1E1E">
+    <Grid Background="{ThemeResource ThemeWindowBg}">
         <ListView x:Name="CallStackList"
-                  Background="#FF1E1E1E" BorderThickness="0"
+                  Background="{ThemeResource ThemeWindowBg}" BorderThickness="0"
                   SelectionMode="Single">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">

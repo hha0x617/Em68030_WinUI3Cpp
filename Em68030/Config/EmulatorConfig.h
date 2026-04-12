@@ -65,6 +65,9 @@ public:
     std::string LastOpenedFile;
     uint32_t LastLoadAddress = 0x1000;
 
+    // Theme: "Dark", "Light", or "System"
+    std::string Theme = "Dark";
+
     // Board type: "Generic" or "MVME147"
     std::string BoardType = "Generic";
 

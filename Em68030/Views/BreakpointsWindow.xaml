@@ -17,7 +17,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Breakpoints">
 
-    <Grid Background="#FF1E1E1E">
+    <Grid Background="{ThemeResource ThemeWindowBg}">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -25,7 +25,7 @@
 
         <!-- Breakpoint and watchpoint list -->
         <ListView x:Name="BreakpointList" Grid.Row="0"
-                  Background="#FF1E1E1E" BorderThickness="0"
+                  Background="{ThemeResource ThemeWindowBg}" BorderThickness="0"
                   SelectionMode="Single">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
@@ -37,14 +37,14 @@
         </ListView>
 
         <!-- Bottom toolbar -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#FF2D2D30" Padding="4,4">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource ThemePanelBg}" Padding="4,4">
             <Button x:Name="AddWatchpointButton" Content="Add Watchpoint"
-                    Background="#FF3E3E42" Foreground="#FFD4D4D4"
-                    BorderBrush="#FF555555" Padding="8,3" Margin="4"
+                    Background="{ThemeResource ThemeControlBg}" Foreground="{ThemeResource ThemeForeground}"
+                    BorderBrush="{ThemeResource ThemeButtonBorder}" Padding="8,3" Margin="4"
                     FontFamily="Segoe UI" FontSize="12" />
             <Button x:Name="ClearAllButton" Content="Clear All"
-                    Background="#FF3E3E42" Foreground="#FFD4D4D4"
-                    BorderBrush="#FF555555" Padding="8,3" Margin="4"
+                    Background="{ThemeResource ThemeControlBg}" Foreground="{ThemeResource ThemeForeground}"
+                    BorderBrush="{ThemeResource ThemeButtonBorder}" Padding="8,3" Margin="4"
                     FontFamily="Segoe UI" FontSize="12" />
         </StackPanel>
     </Grid>

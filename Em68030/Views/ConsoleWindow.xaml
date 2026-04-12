@@ -17,7 +17,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Console">
 
-    <Grid Background="#FF0C0C0C">
+    <Grid Background="{ThemeResource ThemeConsoleBg}">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -29,21 +29,21 @@
                  AcceptsReturn="True"
                  IsReadOnly="True"
                  FontFamily="Consolas" FontSize="14"
-                 Background="#FF0C0C0C" Foreground="#FF00FF00"
+                 Background="{ThemeResource ThemeConsoleBg}" Foreground="{ThemeResource ThemeConsoleFg}"
                  BorderThickness="0"
                  Padding="4"
                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <TextBox.Resources>
-                <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FF00FF00" />
-                <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FF00FF00" />
-                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FF0C0C0C" />
-                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FF0C0C0C" />
+                <StaticResource x:Key="TextControlForegroundFocused" ResourceKey="ThemeConsoleFg" />
+                <StaticResource x:Key="TextControlForegroundPointerOver" ResourceKey="ThemeConsoleFg" />
+                <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="ThemeConsoleBg" />
+                <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="ThemeConsoleBg" />
             </TextBox.Resources>
         </TextBox>
 
         <!-- Search bar (hidden by default, shown at bottom) -->
-        <Grid x:Name="SearchBar" Grid.Row="1" Background="#FF2D2D30"
+        <Grid x:Name="SearchBar" Grid.Row="1" Background="{ThemeResource ThemePanelBg}"
               Padding="4" Visibility="Collapsed">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -56,11 +56,11 @@
             </Grid.ColumnDefinitions>
             <TextBox x:Name="SearchBox" Grid.Column="0"
                      FontFamily="Consolas" FontSize="13"
-                     Background="#FF1E1E1E" Foreground="#FFD4D4D4"
-                     BorderBrush="#FF3F3F46" Padding="4,2"
+                     Background="{ThemeResource ThemeWindowBg}" Foreground="{ThemeResource ThemeForeground}"
+                     BorderBrush="{ThemeResource ThemeBorder}" Padding="4,2"
                      PlaceholderText="Search..." />
             <TextBlock x:Name="SearchStatus" Grid.Column="1"
-                       Foreground="#FF808080" FontSize="12"
+                       Foreground="{ThemeResource ThemeDimFg}" FontSize="12"
                        VerticalAlignment="Center" Margin="8,0" />
             <ToggleButton x:Name="CaseSensitiveToggle" Grid.Column="2" Content="Aa"
                     FontFamily="Consolas" FontSize="12"

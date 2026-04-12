@@ -116,6 +116,18 @@ namespace winrt::Em68030::implementation
         InitializeComponent();
 
         // ==================================================================
+        // Apply theme from config
+        // ==================================================================
+        {
+            auto config = ::Em68030::Config::EmulatorConfig::Load();
+            auto theme = Microsoft::UI::Xaml::ElementTheme::Dark;
+            if (config.Theme == "Light") theme = Microsoft::UI::Xaml::ElementTheme::Light;
+            else if (config.Theme == "System") theme = Microsoft::UI::Xaml::ElementTheme::Default;
+            if (auto root = Content().try_as<Microsoft::UI::Xaml::FrameworkElement>())
+                root.RequestedTheme(theme);
+        }
+
+        // ==================================================================
         // Create the ViewModel (initializes CPU, Memory, Disassembler, etc.)
         // ==================================================================
         m_dispatcherQueue = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
@@ -981,6 +993,16 @@ namespace winrt::Em68030::implementation
                 // orange when the dialog is opened while they differ from
                 // AppliedConfig.
                 vmImpl->ApplyConfig(config);
+
+                // Apply theme change
+                {
+                    auto theme = Microsoft::UI::Xaml::ElementTheme::Dark;
+                    if (config.Theme == "Light") theme = Microsoft::UI::Xaml::ElementTheme::Light;
+                    else if (config.Theme == "System") theme = Microsoft::UI::Xaml::ElementTheme::Default;
+                    if (auto root = Content().try_as<Microsoft::UI::Xaml::FrameworkElement>())
+                        root.RequestedTheme(theme);
+                }
+
                 UpdateStatusBar();
                 UpdateToolbarInfo();
                 if (BtnTrace())
