@@ -204,3 +204,70 @@ Runtime (Settings dialog):
 XAML `{ThemeResource}` bindings update automatically when
 `FrameworkElement.RequestedTheme` changes. Code-behind brushes
 must be re-resolved via `GetThemeBrush()` after theme change.
+
+## Known Pitfalls
+
+### Do NOT use `ElementTheme::Default` for runtime theme switching
+
+When the user selects "System" theme, resolve the effective theme
+(Dark or Light) from the registry and use `ElementTheme::Dark` or
+`ElementTheme::Light` explicitly:
+
+```cpp
+// WRONG: causes timing mismatch between ThemeResource and GetThemeBrush
+root.RequestedTheme(ElementTheme::Default);
+
+// CORRECT: resolve system theme, then use explicit Dark/Light
+bool isDark = (effectiveTheme != "Light");
+root.RequestedTheme(isDark ? ElementTheme::Dark : ElementTheme::Light);
+```
+
+`ElementTheme::Default` defers resolution to the WinUI3 framework,
+which may not have completed by the time code-behind calls
+`GetThemeBrush()`. This causes stale colors on dynamically created
+controls (e.g., memory dump cells showing light background on a dark
+window).
+
+### Use `BorderBrush` toggle, not `BorderThickness`, for visual changes
+
+Changing `BorderThickness` between 0 and 1 causes layout shifts
+(row height changes). Instead, keep `BorderThickness` constant and
+toggle `BorderBrush` between `Transparent` and `ThemeBorder`:
+
+```cpp
+// WRONG: causes layout shift
+box.BorderThickness(ThicknessHelper::FromUniformLength(0)); // hide
+box.BorderThickness(ThicknessHelper::FromUniformLength(1)); // show
+
+// CORRECT: no layout shift
+box.BorderBrush(SolidColorBrush(Color{0,0,0,0}));          // hide
+box.BorderBrush(GetThemeBrush(L"ThemeBorder"));             // show
+```
+
+### Always set both Foreground AND Background on dynamic controls
+
+When refreshing dynamic content (memory dump, disasm list) after a
+theme change, setting only `Foreground` leaves `Background` with the
+previous theme's color. Always update both:
+
+```cpp
+auto fg = ResourceHelper::GetThemeBrush(L"ThemeForeground");
+auto bg = ResourceHelper::GetThemeBrush(L"ThemeWindowBg");
+cell.Foreground(fg);
+cell.Background(bg);  // Don't forget this!
+```
+
+### Disable interaction on read-only grid cells
+
+For grid cells that should not be interactive in normal (non-edit)
+mode, set both `IsTabStop` and `IsHitTestVisible` to false. Setting
+only `IsReadOnly` still allows focus, which triggers visual state
+changes (hover highlight, focus border) that corrupt the display:
+
+```cpp
+cell.IsTabStop(false);
+cell.IsHitTestVisible(false);  // prevents click focus
+// Re-enable in edit mode:
+cell.IsTabStop(true);
+cell.IsHitTestVisible(true);
+```

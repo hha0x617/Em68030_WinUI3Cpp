@@ -199,3 +199,68 @@ WinUI3 のファイルダイアログは起動時の `Application.RequestedTheme
 XAML の `{ThemeResource}` バインディングは `FrameworkElement.RequestedTheme`
 の変更時に自動更新されます。コード behind のブラシはテーマ変更後に
 `GetThemeBrush()` で再解決する必要があります。
+
+## 既知の落とし穴
+
+### ランタイムテーマ切替で `ElementTheme::Default` を使わない
+
+ユーザーが "System" を選択した場合、レジストリから実効テーマ (Dark/Light)
+を判定し、`ElementTheme::Dark` または `ElementTheme::Light` を明示的に
+使用してください:
+
+```cpp
+// NG: ThemeResource と GetThemeBrush のタイミング不整合が発生
+root.RequestedTheme(ElementTheme::Default);
+
+// OK: システムテーマを判定してから明示的に設定
+bool isDark = (effectiveTheme != "Light");
+root.RequestedTheme(isDark ? ElementTheme::Dark : ElementTheme::Light);
+```
+
+`ElementTheme::Default` はテーマ解決を WinUI3 フレームワークに委ねるため、
+コード behind の `GetThemeBrush()` 実行時にテーマ解決が完了していない
+場合があります。これにより動的生成コントロール（メモリダンプセル等）に
+前テーマの色が残ります。
+
+### `BorderThickness` ではなく `BorderBrush` で表示切替
+
+`BorderThickness` を 0 ↔ 1 で切り替えるとレイアウトがシフト（行の高さ
+が変化）します。`BorderThickness` は固定のまま `BorderBrush` を
+Transparent ↔ ThemeBorder で切り替えてください:
+
+```cpp
+// NG: レイアウトシフトが発生
+box.BorderThickness(ThicknessHelper::FromUniformLength(0)); // 非表示
+box.BorderThickness(ThicknessHelper::FromUniformLength(1)); // 表示
+
+// OK: レイアウトシフトなし
+box.BorderBrush(SolidColorBrush(Color{0,0,0,0}));          // 非表示
+box.BorderBrush(GetThemeBrush(L"ThemeBorder"));             // 表示
+```
+
+### 動的コントロールは Foreground と Background の両方を設定
+
+テーマ変更後に動的コンテンツ（メモリダンプ、逆アセンブリリスト）を
+更新する際、`Foreground` だけ設定すると `Background` が前テーマの色の
+まま残ります。必ず両方を更新してください:
+
+```cpp
+auto fg = ResourceHelper::GetThemeBrush(L"ThemeForeground");
+auto bg = ResourceHelper::GetThemeBrush(L"ThemeWindowBg");
+cell.Foreground(fg);
+cell.Background(bg);  // 忘れずに設定！
+```
+
+### 読み取り専用グリッドセルのインタラクション無効化
+
+通常（非編集）モードのグリッドセルは `IsTabStop` と `IsHitTestVisible`
+の両方を false に設定してください。`IsReadOnly` だけではフォーカスが
+可能なままで、ホバーハイライトやフォーカス枠が描画され表示が壊れます:
+
+```cpp
+cell.IsTabStop(false);
+cell.IsHitTestVisible(false);  // クリックによるフォーカスを防止
+// 編集モード開始時に有効化:
+cell.IsTabStop(true);
+cell.IsHitTestVisible(true);
+```
