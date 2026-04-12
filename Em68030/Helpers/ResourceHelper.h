@@ -11,6 +11,32 @@ namespace Em68030
     class ResourceHelper
     {
     public:
+        /// Resolve a brush from Application ThemeDictionaries based on
+        /// the current effective theme.
+        static winrt::Microsoft::UI::Xaml::Media::Brush GetThemeBrush(const wchar_t* key)
+        {
+            auto app = winrt::Microsoft::UI::Xaml::Application::Current();
+            auto appRes = app.Resources();
+            auto themeDicts = appRes.ThemeDictionaries();
+            auto& theme = GetCurrentTheme();
+            auto themeKey = (theme == "Light") ? L"Light" : L"Dark";
+            auto dict = themeDicts.Lookup(winrt::box_value(winrt::hstring(themeKey)))
+                .as<winrt::Microsoft::UI::Xaml::ResourceDictionary>();
+            return dict.Lookup(winrt::box_value(winrt::hstring(key)))
+                .as<winrt::Microsoft::UI::Xaml::Media::Brush>();
+        }
+
+        /// Set the current theme name for GetThemeBrush resolution.
+        static void SetCurrentTheme(const std::string& theme) { GetCurrentTheme() = theme; }
+
+    private:
+        static std::string& GetCurrentTheme()
+        {
+            static std::string s_theme = "Dark";
+            return s_theme;
+        }
+    public:
+
         /// Set UI language override (must be called before any GetString calls).
         static void SetLanguageOverride(const std::wstring& lang)
         {

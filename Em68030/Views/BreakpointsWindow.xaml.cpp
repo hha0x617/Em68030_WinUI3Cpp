@@ -145,17 +145,16 @@ namespace winrt::Em68030::implementation
         auto items = BreakpointList().Items();
         items.Clear();
 
+        auto res = [](const wchar_t* key) -> Microsoft::UI::Xaml::Media::Brush {
+            return ::Em68030::ResourceHelper::GetThemeBrush(key);
+        };
+
         auto consolasFont = Microsoft::UI::Xaml::Media::FontFamily(L"Consolas");
-        auto normalFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
-        auto condFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xB0, 0xB0, 0x80 });
-        auto deleteFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xFF, 0x60, 0x60 });
-        auto headerFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x80, 0xB0, 0xFF });
-        auto watchFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xFF, 0xB0, 0x60 });
+        auto normalFg = res(L"ThemeForeground");
+        auto condFg = res(L"ThemeConditionFg");
+        auto deleteFg = res(L"ThemeDeleteFg");
+        auto headerFg = res(L"ThemeFpInfoFg");
+        auto watchFg = res(L"ThemeWatchpointFg");
 
         // ---- Breakpoints section ----
         if (!breakpoints.empty())
@@ -175,12 +174,9 @@ namespace winrt::Em68030::implementation
         std::sort(sortedBP.begin(), sortedBP.end(),
             [](const auto& a, const auto& b) { return a.first < b.first; });
 
-        auto editFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x80, 0xC0, 0xFF });
-        auto btnBg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x3E, 0x3E, 0x42 });
-        auto btnBorder = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x55, 0x55, 0x55 });
+        auto editFg = res(L"ThemeEditLinkFg");
+        auto btnBg = res(L"ThemeControlBg");
+        auto btnBorder = res(L"ThemeButtonBorder");
 
         for (const auto& [addr, bp] : sortedBP)
         {
@@ -409,8 +405,10 @@ namespace winrt::Em68030::implementation
         panel.Background(Microsoft::UI::Xaml::Media::SolidColorBrush(
             Windows::UI::Color{ 0x00, 0x00, 0x00, 0x00 }));
 
-        auto normalFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
+        auto resB = [](const wchar_t* key) -> Microsoft::UI::Xaml::Media::Brush {
+            return ::Em68030::ResourceHelper::GetThemeBrush(key);
+        };
+        auto normalFg = resB(L"ThemeForeground");
 
         // Address input
         TextBlock addrLabel;
@@ -514,8 +512,10 @@ namespace winrt::Em68030::implementation
 
     winrt::fire_and_forget BreakpointsWindow::ShowEditConditionDialog(uint32_t addr, std::string currentCondition)
     {
-        auto normalFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
+        auto resB = [](const wchar_t* key) -> Microsoft::UI::Xaml::Media::Brush {
+            return ::Em68030::ResourceHelper::GetThemeBrush(key);
+        };
+        auto normalFg = resB(L"ThemeForeground");
 
         StackPanel panel;
         panel.Spacing(8);
@@ -529,8 +529,7 @@ namespace winrt::Em68030::implementation
 
         TextBlock hint;
         hint.Text(ResourceHelper::GetString(L"Breakpoints_ConditionHint"));
-        hint.Foreground(Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x90, 0x90, 0x90 }));
+        hint.Foreground(resB(L"ThemeDisabledFg"));
         hint.FontSize(11);
         hint.TextWrapping(TextWrapping::Wrap);
         panel.Children().Append(hint);
@@ -565,8 +564,10 @@ namespace winrt::Em68030::implementation
     winrt::fire_and_forget BreakpointsWindow::ShowEditWatchpointDialog(
         uint32_t oldAddr, WatchpointSize oldSize, WatchpointType oldType, std::string oldCondition)
     {
-        auto normalFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
+        auto resB = [](const wchar_t* key) -> Microsoft::UI::Xaml::Media::Brush {
+            return ::Em68030::ResourceHelper::GetThemeBrush(key);
+        };
+        auto normalFg = resB(L"ThemeForeground");
 
         StackPanel panel;
         panel.Spacing(8);

@@ -746,10 +746,9 @@ namespace winrt::Em68030::implementation
         // can see at a glance that the value will not take effect until the
         // CPU is stopped and Settings is applied again.
         // -----------------------------------------------------------------
-        using ::winrt::Microsoft::UI::Xaml::Media::SolidColorBrush;
-        using ::winrt::Windows::UI::Color;
-        auto defaultBrush = SolidColorBrush(Color{ 0xFF, 0xD4, 0xD4, 0xD4 }); // #FFD4D4D4
-        auto pendingBrush = SolidColorBrush(Color{ 0xFF, 0xFF, 0xA5, 0x00 }); // orange
+        auto defaultBrush = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
+        auto pendingBrush = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeWarningFg");
+        auto accentBrush = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeAccent");
 
         auto mark = [&](wchar_t const* name, bool isPending)
         {
@@ -763,10 +762,8 @@ namespace winrt::Em68030::implementation
         };
         auto markSection = [&](wchar_t const* name, bool isPending)
         {
-            // Section headers use their own Foreground; orange overrides it.
             if (auto tb = FindName(name).try_as<Controls::TextBlock>())
-                tb.Foreground(isPending ? pendingBrush
-                                        : SolidColorBrush(Color{ 0xFF, 0x9B, 0x9B, 0x9B }));
+                tb.Foreground(isPending ? pendingBrush : accentBrush);
         };
 
         bool anyPending = false;

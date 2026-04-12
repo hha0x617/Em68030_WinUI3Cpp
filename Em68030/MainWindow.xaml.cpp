@@ -18,6 +18,8 @@
 #endif
 
 #include <sstream>
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi.lib")
 #include <microsoft.ui.xaml.window.h>
 #include <shobjidl_core.h>
 #include <winrt/Windows.Storage.Pickers.h>
@@ -120,11 +122,7 @@ namespace winrt::Em68030::implementation
         // ==================================================================
         {
             auto config = ::Em68030::Config::EmulatorConfig::Load();
-            auto theme = Microsoft::UI::Xaml::ElementTheme::Dark;
-            if (config.Theme == "Light") theme = Microsoft::UI::Xaml::ElementTheme::Light;
-            else if (config.Theme == "System") theme = Microsoft::UI::Xaml::ElementTheme::Default;
-            if (auto root = Content().try_as<Microsoft::UI::Xaml::FrameworkElement>())
-                root.RequestedTheme(theme);
+            ApplyThemeToAllWindows(config.Theme);
         }
 
         // ==================================================================
@@ -980,6 +978,15 @@ namespace winrt::Em68030::implementation
         settingsDialog.as<implementation::SettingsWindow>()->LoadConfig(
             vmImpl->Config(), vmImpl->AppliedConfig());
 
+        // Apply current theme to dialog
+        {
+            auto theme = Microsoft::UI::Xaml::ElementTheme::Dark;
+            auto& t = vmImpl->Config().Theme;
+            if (t == "Light") theme = Microsoft::UI::Xaml::ElementTheme::Light;
+            else if (t == "System") theme = Microsoft::UI::Xaml::ElementTheme::Default;
+            settingsDialog.RequestedTheme(theme);
+        }
+
         auto result = co_await settingsDialog.ShowAsync(this->Content());
         if (result == ContentDialogResult::Primary)
         {
@@ -995,13 +1002,7 @@ namespace winrt::Em68030::implementation
                 vmImpl->ApplyConfig(config);
 
                 // Apply theme change
-                {
-                    auto theme = Microsoft::UI::Xaml::ElementTheme::Dark;
-                    if (config.Theme == "Light") theme = Microsoft::UI::Xaml::ElementTheme::Light;
-                    else if (config.Theme == "System") theme = Microsoft::UI::Xaml::ElementTheme::Default;
-                    if (auto root = Content().try_as<Microsoft::UI::Xaml::FrameworkElement>())
-                        root.RequestedTheme(theme);
-                }
+                ApplyThemeToAllWindows(config.Theme);
 
                 UpdateStatusBar();
                 UpdateToolbarInfo();
@@ -1037,6 +1038,15 @@ namespace winrt::Em68030::implementation
     {
         auto aboutDialog = winrt::make<Em68030::implementation::AboutDialog>();
         aboutDialog.XamlRoot(this->Content().XamlRoot());
+        // Apply current theme to dialog
+        {
+            auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
+            auto theme = Microsoft::UI::Xaml::ElementTheme::Dark;
+            auto& t = vmImpl->Config().Theme;
+            if (t == "Light") theme = Microsoft::UI::Xaml::ElementTheme::Light;
+            else if (t == "System") theme = Microsoft::UI::Xaml::ElementTheme::Default;
+            aboutDialog.as<ContentDialog>().RequestedTheme(theme);
+        }
         co_await aboutDialog.as<ContentDialog>().ShowAsync();
     }
 
@@ -1391,8 +1401,7 @@ namespace winrt::Em68030::implementation
 
         // Populate cells from ViewModel data
         auto rows = vmImpl->MemoryDumpRows();
-        auto normalFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
+        auto normalFg = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
 
         m_memEditPopulating = true;
         for (uint32_t r = 0; r < rows.Size() && r < 16; r++)
@@ -1496,8 +1505,8 @@ namespace winrt::Em68030::implementation
                             .as<Microsoft::UI::Xaml::Style>();
 
         auto consolasFont = Microsoft::UI::Xaml::Media::FontFamily(L"Consolas");
-        auto fgBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
+        auto addrBrush = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
+        auto asciiBrush = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
 
         m_memCellBoxes.resize(16);
         m_memAsciiLabels.resize(16, nullptr);
@@ -1515,7 +1524,7 @@ namespace winrt::Em68030::implementation
             Controls::TextBlock addrLabel;
             addrLabel.FontFamily(consolasFont);
             addrLabel.FontSize(13);
-            addrLabel.Foreground(fgBrush);
+            addrLabel.Foreground(addrBrush);
             addrLabel.Width(75);
             addrLabel.VerticalAlignment(VerticalAlignment::Center);
             addrLabel.Text(L"00000000:");
@@ -1573,7 +1582,7 @@ namespace winrt::Em68030::implementation
             Controls::TextBlock asciiLabel;
             asciiLabel.FontFamily(consolasFont);
             asciiLabel.FontSize(13);
-            asciiLabel.Foreground(fgBrush);
+            asciiLabel.Foreground(asciiBrush);
             asciiLabel.VerticalAlignment(VerticalAlignment::Center);
             asciiLabel.Text(L"................");
             m_memAsciiLabels[r] = asciiLabel;
@@ -1695,9 +1704,8 @@ namespace winrt::Em68030::implementation
                     }
                     catch (...) {}
                 }
-                box.Foreground(Microsoft::UI::Xaml::Media::SolidColorBrush(
-                    modified ? Windows::UI::Color{ 0xFF, 0xFF, 0xFF, 0x00 }   // Yellow
-                             : Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 })); // Normal
+                box.Foreground(::Em68030::ResourceHelper::GetThemeBrush(
+                    modified ? L"ThemeHighlightedFg" : L"ThemeForeground"));
             }
         }
 
@@ -1775,8 +1783,7 @@ namespace winrt::Em68030::implementation
         setEditable(RegFPCR()); setEditable(RegFPSR()); setEditable(RegFPIAR());
 
         // Change border to indicate edit mode
-        auto editBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x56, 0x9C, 0xD6 });
+        auto editBrush = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeAccent");
         auto setBorder = [&editBrush](Controls::TextBox const& box) {
             if (box) box.BorderBrush(editBrush);
         };
@@ -1856,8 +1863,7 @@ namespace winrt::Em68030::implementation
         setReadOnly(RegFPCR()); setReadOnly(RegFPSR()); setReadOnly(RegFPIAR());
 
         // Restore normal border
-        auto normalBrush = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x3F, 0x3F, 0x46 });
+        auto normalBrush = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeBorder");
         auto setBorder = [&normalBrush](Controls::TextBox const& box) {
             if (box) box.BorderBrush(normalBrush);
         };
@@ -2244,19 +2250,17 @@ namespace winrt::Em68030::implementation
 
     void MainWindow::EnsureDisasmBrushes()
     {
-        if (m_brYellow) return; // already initialized
-        m_brYellow = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xFF, 0xFF, 0x00 });
-        m_brRed = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xFF, 0x00, 0x00 });
-        m_brGray = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x80, 0x80, 0x80 });
-        m_brNormal = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
-        m_brGreen = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x60, 0xC0, 0x60 });
-        m_brPcBg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x26, 0x4F, 0x78 });
+        // Re-resolve from theme resources (theme may have changed)
+        auto res = [](const wchar_t* key) -> Microsoft::UI::Xaml::Media::SolidColorBrush {
+            return ::Em68030::ResourceHelper::GetThemeBrush(key)
+                .as<Microsoft::UI::Xaml::Media::SolidColorBrush>();
+        };
+        m_brYellow = res(L"ThemeHighlightedFg");
+        m_brRed = res(L"ThemeBreakpointFg");
+        m_brGray = res(L"ThemeDimFg");
+        m_brNormal = res(L"ThemeForeground");
+        m_brGreen = res(L"ThemeCallStackFg");
+        m_brPcBg = res(L"ThemeCheckedBg");
         m_brTransparent = Microsoft::UI::Xaml::Media::SolidColorBrush(
             Windows::UI::Color{ 0x01, 0x00, 0x00, 0x00 });
     }
@@ -2358,6 +2362,15 @@ namespace winrt::Em68030::implementation
                 consoleImpl->OnCharInput = [vmImpl](uint8_t ch) {
                     vmImpl->SendConsoleChar(ch);
                 };
+            }
+
+            // Apply current theme to new window
+            {
+                auto theme = Microsoft::UI::Xaml::ElementTheme::Dark;
+                if (cfg.Theme == "Light") theme = Microsoft::UI::Xaml::ElementTheme::Light;
+                else if (cfg.Theme == "System") theme = Microsoft::UI::Xaml::ElementTheme::Default;
+                if (auto r = m_consoleWindow.Content().try_as<Microsoft::UI::Xaml::FrameworkElement>())
+                    r.RequestedTheme(theme);
             }
 
             // Clear reference when the console window is closed so we can
@@ -2496,6 +2509,16 @@ namespace winrt::Em68030::implementation
                 }
             };
 
+            // Apply current theme
+            {
+                auto vmImpl2 = m_viewModel.as<implementation::MainViewModel>();
+                auto theme = Microsoft::UI::Xaml::ElementTheme::Dark;
+                if (vmImpl2->Config().Theme == "Light") theme = Microsoft::UI::Xaml::ElementTheme::Light;
+                else if (vmImpl2->Config().Theme == "System") theme = Microsoft::UI::Xaml::ElementTheme::Default;
+                if (auto r = m_breakpointsWindow.Content().try_as<Microsoft::UI::Xaml::FrameworkElement>())
+                    r.RequestedTheme(theme);
+            }
+
             m_breakpointsWindow.Closed([this](auto&&, auto&&)
             {
                 m_breakpointsWindow = nullptr;
@@ -2545,6 +2568,15 @@ namespace winrt::Em68030::implementation
             // Shadow stack tracking is always on (see MC68030::ShadowStackEnabled).
             // Do NOT clear here: clearing would throw away frames accumulated
             // before the user first opened the Call Stack window.
+            // Apply current theme
+            {
+                auto theme = Microsoft::UI::Xaml::ElementTheme::Dark;
+                if (vmImpl->Config().Theme == "Light") theme = Microsoft::UI::Xaml::ElementTheme::Light;
+                else if (vmImpl->Config().Theme == "System") theme = Microsoft::UI::Xaml::ElementTheme::Default;
+                if (auto r = m_callStackWindow.Content().try_as<Microsoft::UI::Xaml::FrameworkElement>())
+                    r.RequestedTheme(theme);
+            }
+
             m_callStackWindow.Closed([this](auto&&, auto&&)
             {
                 m_callStackWindow = nullptr;
@@ -2604,5 +2636,78 @@ namespace winrt::Em68030::implementation
         dialog.CloseButtonText(L"OK");
         dialog.DefaultButton(ContentDialogButton::Close);
         co_await dialog.ShowAsync();
+    }
+
+    void MainWindow::ApplyThemeToAllWindows(const std::string& themeName)
+    {
+        // Update ResourceHelper so GetThemeBrush resolves the correct dictionary
+        std::string effectiveTheme = themeName;
+        if (themeName == "System")
+        {
+            // Detect system theme from registry
+            DWORD useLightTheme = 0;
+            DWORD size = sizeof(useLightTheme);
+            if (RegGetValueW(HKEY_CURRENT_USER,
+                L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                L"AppsUseLightTheme", RRF_RT_DWORD, nullptr, &useLightTheme, &size) == ERROR_SUCCESS)
+                effectiveTheme = useLightTheme ? "Light" : "Dark";
+            else
+                effectiveTheme = "Dark";
+        }
+        ::Em68030::ResourceHelper::SetCurrentTheme(effectiveTheme);
+
+        auto theme = Microsoft::UI::Xaml::ElementTheme::Dark;
+        if (themeName == "Light") theme = Microsoft::UI::Xaml::ElementTheme::Light;
+        else if (themeName == "System") theme = Microsoft::UI::Xaml::ElementTheme::Default;
+
+        bool isDark = (effectiveTheme != "Light");
+
+        // Apply RequestedTheme + DWM title bar to all windows
+        auto applyToWindow = [theme, isDark](const winrt::Microsoft::UI::Xaml::Window& w) {
+            if (!w) return;
+            if (auto r = w.Content().try_as<Microsoft::UI::Xaml::FrameworkElement>())
+                r.RequestedTheme(theme);
+            // DWM dark title bar
+            if (auto n = w.try_as<::IWindowNative>())
+            {
+                HWND hwnd = nullptr;
+                n->get_WindowHandle(&hwnd);
+                if (hwnd)
+                {
+                    BOOL mode = isDark ? TRUE : FALSE;
+                    ::DwmSetWindowAttribute(hwnd, 20 /*DWMWA_USE_IMMERSIVE_DARK_MODE*/,
+                        &mode, sizeof(mode));
+                }
+            }
+        };
+
+        applyToWindow(*this);
+        applyToWindow(m_consoleWindow);
+        applyToWindow(m_breakpointsWindow);
+        applyToWindow(m_callStackWindow);
+
+        // Re-resolve code-behind brushes and refresh dynamic content
+        EnsureDisasmBrushes();
+        UpdateDisasmListAppearance();
+        RefreshBreakpointsWindow();
+        RefreshCallStackWindow();
+
+        // Update memory edit grid colors if built
+        if (m_memEditGridBuilt)
+        {
+            auto addrBrush = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
+            auto asciiBrush = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
+            auto cellFg = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
+            for (size_t r = 0; r < m_memAddrLabels.size(); r++)
+            {
+                if (m_memAddrLabels[r]) m_memAddrLabels[r].Foreground(addrBrush);
+                if (m_memAsciiLabels[r]) m_memAsciiLabels[r].Foreground(asciiBrush);
+                if (r < m_memCellBoxes.size())
+                {
+                    for (size_t c = 0; c < m_memCellBoxes[r].size(); c++)
+                        if (m_memCellBoxes[r][c]) m_memCellBoxes[r][c].Foreground(cellFg);
+                }
+            }
+        }
     }
 }

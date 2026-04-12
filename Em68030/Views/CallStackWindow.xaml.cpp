@@ -113,12 +113,15 @@ namespace winrt::Em68030::implementation
         auto items = CallStackList().Items();
         items.Clear();
 
+        auto res = [](const wchar_t* key) -> Microsoft::UI::Xaml::Media::Brush {
+            return ::Em68030::ResourceHelper::GetThemeBrush(key);
+        };
+
         if (isRunning)
         {
             TextBlock runText;
             runText.Text(ResourceHelper::GetString(L"CallStack_Running"));
-            runText.Foreground(Microsoft::UI::Xaml::Media::SolidColorBrush(
-                Windows::UI::Color{ 0xFF, 0x90, 0x90, 0x90 }));
+            runText.Foreground(res(L"ThemeDisabledFg"));
             runText.FontSize(13);
             runText.Margin(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(8, 8, 0, 0));
             items.Append(runText);
@@ -129,8 +132,7 @@ namespace winrt::Em68030::implementation
         {
             TextBlock emptyText;
             emptyText.Text(ResourceHelper::GetString(L"CallStack_Empty"));
-            emptyText.Foreground(Microsoft::UI::Xaml::Media::SolidColorBrush(
-                Windows::UI::Color{ 0xFF, 0x90, 0x90, 0x90 }));
+            emptyText.Foreground(res(L"ThemeDisabledFg"));
             emptyText.FontSize(13);
             emptyText.Margin(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(8, 8, 0, 0));
             items.Append(emptyText);
@@ -138,14 +140,10 @@ namespace winrt::Em68030::implementation
         }
 
         auto consolasFont = Microsoft::UI::Xaml::Media::FontFamily(L"Consolas");
-        auto addrFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xD4, 0xD4, 0xD4 });
-        auto currentFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xFF, 0xFF, 0x80 });
-        auto fpFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0x80, 0xB0, 0xFF });
-        auto heuristicFg = Microsoft::UI::Xaml::Media::SolidColorBrush(
-            Windows::UI::Color{ 0xFF, 0xA0, 0xA0, 0xA0 });
+        auto addrFg = res(L"ThemeForeground");
+        auto currentFg = res(L"ThemeCurrentLineFg");
+        auto fpFg = res(L"ThemeFpInfoFg");
+        auto heuristicFg = res(L"ThemeHeuristicFg");
 
         for (size_t idx = 0; idx < entries.size(); idx++)
         {

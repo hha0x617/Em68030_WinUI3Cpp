@@ -538,7 +538,8 @@
                                      IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
                                      FontFamily="Consolas" FontSize="13"
                                      Background="{ThemeResource ThemeWindowBg}" Foreground="{ThemeResource ThemeForeground}"
-                                     BorderThickness="0" />
+                                     BorderThickness="0"
+                                     Style="{StaticResource RegisterTextBoxStyle}" />
                             <StackPanel x:Name="MemoryEditPanel" Visibility="Collapsed" />
                         </Grid>
                     </ScrollViewer>

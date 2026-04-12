@@ -156,6 +156,8 @@ namespace winrt::Em68030::implementation
         winrt::fire_and_forget ShowAboutDialog();
         winrt::fire_and_forget ShowMessageDialog(winrt::hstring title, winrt::hstring message);
 
+        void ApplyThemeToAllWindows(const std::string& themeName);
+
         // ViewModel
         winrt::Em68030::MainViewModel m_viewModel{ nullptr };
 

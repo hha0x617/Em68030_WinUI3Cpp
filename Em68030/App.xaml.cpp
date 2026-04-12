@@ -19,6 +19,7 @@
 #include "MainWindow.xaml.h"
 #include <winnls.h>
 #include "Helpers/ResourceHelper.h"
+#include "Config/EmulatorConfig.h"
 
 // Activation entry point required by the WinUI runtime
 void* winrt_make_Em68030_App()
@@ -59,8 +60,17 @@ namespace winrt::Em68030::implementation
 {
     App::App()
     {
-        // Xaml objects should not call InitializeComponent during construction.
-        // See https://github.com/microsoft/cppwinrt/tree/master/nuget#initializecomponent
+        // Set application-wide theme BEFORE any XAML is loaded.
+        // Application.RequestedTheme can only be set in the constructor.
+        {
+            auto config = ::Em68030::Config::EmulatorConfig::Load();
+            if (config.Theme == "Light")
+                RequestedTheme(ApplicationTheme::Light);
+            else if (config.Theme == "Dark")
+                RequestedTheme(ApplicationTheme::Dark);
+            // "System" → don't set, let WinUI3 follow OS theme
+            ::Em68030::ResourceHelper::SetCurrentTheme(config.Theme);
+        }
 
 #if defined _DEBUG && !defined DISABLE_XAML_GENERATED_BREAK_ON_UNHANDLED_EXCEPTION
         UnhandledException([](IInspectable const&, UnhandledExceptionEventArgs const& e)
