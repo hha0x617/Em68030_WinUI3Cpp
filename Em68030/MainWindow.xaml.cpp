@@ -1397,39 +1397,11 @@ namespace winrt::Em68030::implementation
         vmImpl->EnterMemoryEditMode();
         UpdateButtonStates();
 
-        BuildMemoryEditGrid();
+        // Enable focus on cells for edit mode
+        for (auto& row : m_memCellBoxes)
+            for (auto& box : row)
+                if (box) { box.IsTabStop(true); box.IsHitTestVisible(true); }
 
-        // Populate cells from ViewModel data
-        auto rows = vmImpl->MemoryDumpRows();
-        auto normalFg = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
-
-        m_memEditPopulating = true;
-        for (uint32_t r = 0; r < rows.Size() && r < 16; r++)
-        {
-            auto rowImpl = rows.GetAt(r).as<implementation::MemoryDumpRow>();
-            auto cells = rowImpl->Cells();
-
-            // Update address label
-            wchar_t buf[16];
-            swprintf_s(buf, L"%08X:", rowImpl->Address());
-            m_memAddrLabels[r].Text(buf);
-
-            for (uint32_t c = 0; c < cells.Size() && c < 16; c++)
-            {
-                auto cellImpl = cells.GetAt(c).as<implementation::MemoryByteCell>();
-                swprintf_s(buf, L"%02X", static_cast<unsigned>(cellImpl->OriginalValue()));
-                m_memCellBoxes[r][c].Text(buf);
-                m_memCellBoxes[r][c].Foreground(normalFg);
-            }
-            UpdateMemEditAscii(static_cast<int>(r));
-        }
-        m_memEditPopulating = false;
-
-        // Toggle visibility
-        if (MemoryDumpText()) MemoryDumpText().Visibility(Visibility::Collapsed);
-        if (m_memEditPanel) m_memEditPanel.Visibility(Visibility::Visible);
-
-        // Focus first cell
         SelectMemoryCell(0, 0);
     }
 
@@ -1465,12 +1437,15 @@ namespace winrt::Em68030::implementation
             }
         }
 
-        // Exit edit mode and refresh display
+        // Exit edit mode: disable focus on cells and refresh
         vmImpl->IsMemoryEditMode(false);
+        for (auto& cellRow : m_memCellBoxes)
+            for (auto& box : cellRow)
+                if (box) { box.IsTabStop(false); box.IsHitTestVisible(false); box.IsReadOnly(true);
+                           box.BorderBrush(Microsoft::UI::Xaml::Media::SolidColorBrush(
+                               Windows::UI::Color{0x00, 0x00, 0x00, 0x00}));
+                           box.Background(::Em68030::ResourceHelper::GetThemeBrush(L"ThemeWindowBg")); }
         vmImpl->UpdateMemoryDump();
-
-        if (m_memEditPanel) m_memEditPanel.Visibility(Visibility::Collapsed);
-        if (MemoryDumpText()) MemoryDumpText().Visibility(Visibility::Visible);
         UpdateMemoryDumpDisplay();
         UpdateButtonStates();
     }
@@ -1482,8 +1457,13 @@ namespace winrt::Em68030::implementation
         if (vmImpl->IsMemoryEditMode())
             vmImpl->CancelMemoryEdits();
 
-        if (m_memEditPanel) m_memEditPanel.Visibility(Visibility::Collapsed);
-        if (MemoryDumpText()) MemoryDumpText().Visibility(Visibility::Visible);
+        // Disable focus on cells
+        for (auto& cellRow : m_memCellBoxes)
+            for (auto& box : cellRow)
+                if (box) { box.IsTabStop(false); box.IsHitTestVisible(false); box.IsReadOnly(true);
+                           box.BorderBrush(Microsoft::UI::Xaml::Media::SolidColorBrush(
+                               Windows::UI::Color{0x00, 0x00, 0x00, 0x00}));
+                           box.Background(::Em68030::ResourceHelper::GetThemeBrush(L"ThemeWindowBg")); }
         UpdateMemoryDumpDisplay();
         UpdateButtonStates();
     }
@@ -1519,17 +1499,26 @@ namespace winrt::Em68030::implementation
             Controls::StackPanel rowPanel;
             rowPanel.Orientation(Controls::Orientation::Horizontal);
             rowPanel.Spacing(1);
+            rowPanel.Margin(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(4, 1, 0, 0));
 
-            // Address label
+            // Address label + colon (separate elements, matching C# WPF layout)
             Controls::TextBlock addrLabel;
             addrLabel.FontFamily(consolasFont);
             addrLabel.FontSize(13);
             addrLabel.Foreground(addrBrush);
-            addrLabel.Width(75);
+            addrLabel.Width(68);
             addrLabel.VerticalAlignment(VerticalAlignment::Center);
-            addrLabel.Text(L"00000000:");
+            addrLabel.Text(L"00000000");
             m_memAddrLabels[r] = addrLabel;
             rowPanel.Children().Append(addrLabel);
+
+            Controls::TextBlock colonLabel;
+            colonLabel.FontFamily(consolasFont);
+            colonLabel.FontSize(13);
+            colonLabel.Foreground(::Em68030::ResourceHelper::GetThemeBrush(L"ThemeDimFg"));
+            colonLabel.VerticalAlignment(VerticalAlignment::Center);
+            colonLabel.Text(L": ");
+            rowPanel.Children().Append(colonLabel);
 
             // 16 byte cells
             for (int c = 0; c < 16; c++)
@@ -1541,7 +1530,12 @@ namespace winrt::Em68030::implementation
                 cell.FontFamily(consolasFont);
                 cell.FontSize(13);
                 cell.Padding(Microsoft::UI::Xaml::ThicknessHelper::FromLengths(2, 2, 2, 2));
-                cell.IsReadOnly(false);
+                cell.Background(::Em68030::ResourceHelper::GetThemeBrush(L"ThemeWindowBg"));
+                cell.BorderBrush(Microsoft::UI::Xaml::Media::SolidColorBrush(
+                    Windows::UI::Color{0x00, 0x00, 0x00, 0x00}));
+                cell.IsReadOnly(true);
+                cell.IsTabStop(false);
+                cell.IsHitTestVisible(false);
                 cell.TextAlignment(Microsoft::UI::Xaml::TextAlignment::Center);
 
                 // Wire handlers -- capture row/col by value
@@ -1553,11 +1547,33 @@ namespace winrt::Em68030::implementation
                     OnMemCellTextChanged(row, col);
                 });
                 cell.GotFocus([this, row, col](IInspectable const&, RoutedEventArgs const&) {
+                    auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
+                    if (!vmImpl->IsMemoryEditMode()) return;
                     if (row < static_cast<int>(m_memCellBoxes.size()) &&
                         col < static_cast<int>(m_memCellBoxes[row].size()))
                     {
                         auto box = m_memCellBoxes[row][col];
-                        if (box) box.SelectAll();
+                        if (box)
+                        {
+                            box.IsReadOnly(false);
+                            box.Background(::Em68030::ResourceHelper::GetThemeBrush(L"ThemeInputBg"));
+                            box.BorderBrush(::Em68030::ResourceHelper::GetThemeBrush(L"ThemeBorder"));
+                            box.SelectAll();
+                        }
+                    }
+                });
+                cell.LostFocus([this, row, col](IInspectable const&, RoutedEventArgs const&) {
+                    if (row < static_cast<int>(m_memCellBoxes.size()) &&
+                        col < static_cast<int>(m_memCellBoxes[row].size()))
+                    {
+                        auto box = m_memCellBoxes[row][col];
+                        if (box)
+                        {
+                            box.IsReadOnly(true);
+                            box.Background(::Em68030::ResourceHelper::GetThemeBrush(L"ThemeWindowBg"));
+                            box.BorderBrush(Microsoft::UI::Xaml::Media::SolidColorBrush(
+                                Windows::UI::Color{0x00, 0x00, 0x00, 0x00}));
+                        }
                     }
                 });
 
@@ -1946,49 +1962,42 @@ namespace winrt::Em68030::implementation
     {
         auto vmImpl = m_viewModel.as<implementation::MainViewModel>();
         auto rows = vmImpl->MemoryDumpRows();
-        if (!rows || rows.Size() == 0)
-        {
-            if (MemoryDumpText()) MemoryDumpText().Text(L"");
-            return;
-        }
 
-        std::wstring text;
-        text.reserve(rows.Size() * 80);
+        // Always use the cell grid (same layout for normal and edit modes)
+        BuildMemoryEditGrid();
 
-        for (uint32_t r = 0; r < rows.Size(); r++)
+        // Hide the old TextBox, show the grid
+        if (MemoryDumpText()) MemoryDumpText().Visibility(Visibility::Collapsed);
+        if (m_memEditPanel) m_memEditPanel.Visibility(Visibility::Visible);
+
+        if (!rows || rows.Size() == 0) return;
+
+        auto normalFg = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
+
+        m_memEditPopulating = true;
+        for (uint32_t r = 0; r < rows.Size() && r < 16; r++)
         {
-            auto row = rows.GetAt(r);
-            auto rowImpl = row.as<implementation::MemoryDumpRow>();
+            auto rowImpl = rows.GetAt(r).as<implementation::MemoryDumpRow>();
             auto cells = rowImpl->Cells();
 
-            // Address
             wchar_t buf[16];
-            swprintf_s(buf, L"%08X: ", rowImpl->Address());
-            text += buf;
+            swprintf_s(buf, L"%08X", rowImpl->Address());
+            if (r < m_memAddrLabels.size() && m_memAddrLabels[r])
+                m_memAddrLabels[r].Text(buf);
 
-            // Hex bytes
-            for (uint32_t c = 0; c < cells.Size(); c++)
+            for (uint32_t c = 0; c < cells.Size() && c < 16; c++)
             {
-                auto cell = cells.GetAt(c);
-                auto cellImpl = cell.as<implementation::MemoryByteCell>();
-                swprintf_s(buf, L"%02X ", static_cast<unsigned>(cellImpl->OriginalValue()));
-                text += buf;
-                if (c == 7) text += L" ";
+                if (r < m_memCellBoxes.size() && c < m_memCellBoxes[r].size() && m_memCellBoxes[r][c])
+                {
+                    auto cellImpl = cells.GetAt(c).as<implementation::MemoryByteCell>();
+                    swprintf_s(buf, L"%02X", static_cast<unsigned>(cellImpl->OriginalValue()));
+                    m_memCellBoxes[r][c].Text(buf);
+                    m_memCellBoxes[r][c].Foreground(normalFg);
+                }
             }
-
-            // ASCII
-            text += L" ";
-            text += std::wstring(rowImpl->AsciiText());
-
-            if (r + 1 < rows.Size()) text += L"\r\n";
+            UpdateMemEditAscii(static_cast<int>(r));
         }
-
-        if (MemoryDumpText())
-        {
-            winrt::hstring newText(text);
-            if (MemoryDumpText().Text() != newText)
-                MemoryDumpText().Text(newText);
-        }
+        m_memEditPopulating = false;
     }
 
     void MainWindow::UpdateStatusBar()
@@ -2695,17 +2704,39 @@ namespace winrt::Em68030::implementation
         // Update memory edit grid colors if built
         if (m_memEditGridBuilt)
         {
-            auto addrBrush = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
-            auto asciiBrush = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
             auto cellFg = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeForeground");
+            auto cellBg = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeWindowBg");
+            auto dimFg = ::Em68030::ResourceHelper::GetThemeBrush(L"ThemeDimFg");
             for (size_t r = 0; r < m_memAddrLabels.size(); r++)
             {
-                if (m_memAddrLabels[r]) m_memAddrLabels[r].Foreground(addrBrush);
-                if (m_memAsciiLabels[r]) m_memAsciiLabels[r].Foreground(asciiBrush);
+                if (m_memAddrLabels[r]) m_memAddrLabels[r].Foreground(cellFg);
+                if (m_memAsciiLabels[r]) m_memAsciiLabels[r].Foreground(cellFg);
                 if (r < m_memCellBoxes.size())
                 {
                     for (size_t c = 0; c < m_memCellBoxes[r].size(); c++)
-                        if (m_memCellBoxes[r][c]) m_memCellBoxes[r][c].Foreground(cellFg);
+                    {
+                        if (m_memCellBoxes[r][c])
+                        {
+                            m_memCellBoxes[r][c].Foreground(cellFg);
+                            m_memCellBoxes[r][c].Background(cellBg);
+                        }
+                    }
+                }
+            }
+            // Update colon labels (child index 1 in each row StackPanel)
+            if (m_memEditPanel)
+            {
+                for (uint32_t r = 0; r < m_memEditPanel.Children().Size(); r++)
+                {
+                    if (auto rowPanel = m_memEditPanel.Children().GetAt(r).try_as<Controls::StackPanel>())
+                    {
+                        // Colon label is the second child (index 1)
+                        if (rowPanel.Children().Size() > 1)
+                        {
+                            if (auto colonTb = rowPanel.Children().GetAt(1).try_as<Controls::TextBlock>())
+                                colonTb.Foreground(dimFg);
+                        }
+                    }
                 }
             }
         }
