@@ -56,6 +56,13 @@ public:
     /// Push a received character into the RX FIFO.
     void ReceiveChar(uint8_t ch);
 
+    /// Number of additional bytes the RX FIFO can accept right now.
+    /// Zero means full; callers pushing via ReceiveChar should wait for
+    /// the guest to drain before pushing more, otherwise the extra bytes
+    /// are silently dropped.  Used by the emfe plugin's
+    /// \c emfe_console_tx_space query so pasted text can be throttled.
+    size_t GetRxFifoFreeSpace();
+
     /// Interrupt output callback (active high).
     std::function<void(bool)> InterruptOutput;
 

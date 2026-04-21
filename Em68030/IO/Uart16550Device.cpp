@@ -181,6 +181,12 @@ void Uart16550Device::ReceiveChar(uint8_t ch)
     UpdateInterrupt();
 }
 
+size_t Uart16550Device::GetRxFifoFreeSpace()
+{
+    std::lock_guard lock(m_rxMutex);
+    return m_rxFifo.size() >= 64 ? 0u : 64u - m_rxFifo.size();
+}
+
 uint8_t Uart16550Device::ComputeIIR() const
 {
     uint8_t fifoFlag = m_fifoEnabled ? IIR_FIFO_MASK : 0;
