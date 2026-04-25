@@ -67,16 +67,24 @@ TEST(MemoryRegionTests, ReadWrite_BigEndian)
     EXPECT_EQ(0x0304, mem.ReadWord(0x12));
 }
 
-TEST(MemoryRegionTests, UnmappedAddress_ThrowsBusError)
+TEST(MemoryRegionTests, UnmappedAddress_RaisesBusErrorFlag)
 {
     Memory mem; // Empty memory, no regions
 
-    EXPECT_THROW(mem.ReadByte(0x00000000), BusErrorException);
-    EXPECT_THROW(mem.ReadWord(0x00000000), BusErrorException);
-    EXPECT_THROW(mem.ReadLong(0x00000000), BusErrorException);
-    EXPECT_THROW(mem.WriteByte(0x00000000, 0), BusErrorException);
-    EXPECT_THROW(mem.WriteWord(0x00000000, 0), BusErrorException);
-    EXPECT_THROW(mem.WriteLong(0x00000000, 0), BusErrorException);
+    auto check = [&](auto call, bool expectWrite) {
+        mem.LastFaultRaised = false;
+        call();
+        EXPECT_TRUE(mem.LastFaultRaised);
+        EXPECT_EQ(0x00000000u, mem.LastFaultAddress);
+        EXPECT_EQ(expectWrite, mem.LastFaultIsWrite);
+    };
+
+    check([&]{ (void)mem.ReadByte(0x00000000); }, false);
+    check([&]{ (void)mem.ReadWord(0x00000000); }, false);
+    check([&]{ (void)mem.ReadLong(0x00000000); }, false);
+    check([&]{ mem.WriteByte(0x00000000, 0); }, true);
+    check([&]{ mem.WriteWord(0x00000000, 0); }, true);
+    check([&]{ mem.WriteLong(0x00000000, 0); }, true);
 }
 
 TEST(MemoryRegionTests, Rom_WriteIgnored)

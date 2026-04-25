@@ -60,13 +60,15 @@ TEST_F(MmusrPreservationTests, Translate_WriteProtect_PreservesMmusr)
     FlushAtc();
     Mmu.MMUSR = 0x5678;
 
-    // Write to WP page should throw BusErrorException but preserve MMUSR
-    try {
-        Mmu.Translate(0x20000000, true, true, 5);
-        FAIL() << "Expected BusErrorException";
-    } catch (const BusErrorException& ex) {
-        EXPECT_TRUE(ex.IsWrite);
-    }
+    // Write to WP page should set BusErrorPending and record IsWrite=true.
+    // MMUSR behavior is preserved by the Mmu/test contract: this call takes
+    // the ATC-hit-WP path (no MMUSR update) or the TableWalk WP path
+    // (MMUSR updated with fault bits) — whichever, the *caller's* 0x5678
+    // must not be silently wiped before the fault is reported. The test
+    // retains its EXPECT_EQ to detect regressions in either path.
+    Mmu.LastFaultIsWrite = false;
+    (void)Mmu.Translate(0x20000000, true, true, 5);
+    EXPECT_TRUE(Mmu.LastFaultIsWrite);
 
     EXPECT_EQ(0x5678, Mmu.MMUSR);
 }

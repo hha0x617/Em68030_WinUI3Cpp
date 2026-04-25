@@ -29,6 +29,15 @@ public:
     // instead of throwing. Set once by MC68030's constructor.
     void SetCpu(MC68030* cpu) { m_cpu = cpu; }
 
+    // Last fault info — mirrors what was sent to the CPU's SetBusError.
+    // Set unconditionally (even when no CPU is attached) so unit tests that
+    // drive Mmu directly can inspect SSW / FC / address after a failing
+    // Translate call.
+    uint32_t LastFaultAddress      = 0;
+    bool     LastFaultIsWrite      = false;
+    uint8_t  LastFaultFunctionCode = 0;
+    uint16_t LastFaultSSW          = 0;
+
     void Reset();
 
     // --- MMU Registers ---

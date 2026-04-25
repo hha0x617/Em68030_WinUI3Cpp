@@ -46,12 +46,9 @@ TEST_F(PageTableWalkTests, Walk_InvalidPage_ThrowsBusError)
     SetupInvalidPage(0x20000000);
     FlushAtc();
 
-    try {
-        Mmu.Translate(0x20000000, true, false, 5);
-        FAIL() << "Expected BusErrorException";
-    } catch (const BusErrorException& ex) {
-        EXPECT_EQ(0x20000000u, ex.FaultAddress);
-    }
+    Mmu.LastFaultAddress = 0;
+    (void)Mmu.Translate(0x20000000, true, false, 5);
+    EXPECT_EQ(0x20000000u, Mmu.LastFaultAddress);
 }
 
 TEST_F(PageTableWalkTests, Walk_WriteProtectedPage_ReadSucceeds)
@@ -70,13 +67,11 @@ TEST_F(PageTableWalkTests, Walk_WriteProtectedPage_WriteThrowsBusError)
     SetupWriteProtectedPage(0x30000000, 0x03000000);
     FlushAtc();
 
-    try {
-        Mmu.Translate(0x30000000, true, true, 5);
-        FAIL() << "Expected BusErrorException";
-    } catch (const BusErrorException& ex) {
-        EXPECT_TRUE(ex.IsWrite);
-        EXPECT_EQ(0x30000000u, ex.FaultAddress);
-    }
+    Mmu.LastFaultIsWrite = false;
+    Mmu.LastFaultAddress = 0;
+    (void)Mmu.Translate(0x30000000, true, true, 5);
+    EXPECT_TRUE(Mmu.LastFaultIsWrite);
+    EXPECT_EQ(0x30000000u, Mmu.LastFaultAddress);
 }
 
 TEST_F(PageTableWalkTests, Walk_SetsModifiedBit_OnWrite)

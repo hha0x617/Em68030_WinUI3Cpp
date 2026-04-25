@@ -23,6 +23,10 @@ using namespace Em68030::Core;
 
 class SswEncodingTests : public Em68030::Tests::MmuTestFixture {
 protected:
+    // Trigger a page-walk fault and return a synthetic BusErrorException built
+    // from the Mmu's LastFault* fields. The fixture doesn't wire a CPU, so
+    // Mmu::Translate can't call SetBusError, but the fault info is mirrored
+    // on the Mmu itself for exactly this kind of test-time inspection.
     BusErrorException TriggerBusError(uint8_t functionCode, bool isWrite)
     {
         if (isWrite)
@@ -35,17 +39,18 @@ protected:
         }
         FlushAtc();
 
-        try
-        {
-            Mmu.Translate(0x40000000, (functionCode & 4) != 0, isWrite, functionCode);
-        }
-        catch (const BusErrorException& ex)
-        {
-            return ex;
-        }
-        // Should not reach here
-        ADD_FAILURE() << "Expected BusErrorException was not thrown";
-        return BusErrorException(0, false, 0, 0);
+        Mmu.LastFaultAddress = 0;
+        Mmu.LastFaultIsWrite = false;
+        Mmu.LastFaultFunctionCode = 0;
+        Mmu.LastFaultSSW = 0;
+
+        Mmu.Translate(0x40000000, (functionCode & 4) != 0, isWrite, functionCode);
+
+        return BusErrorException(
+            Mmu.LastFaultAddress,
+            Mmu.LastFaultIsWrite,
+            Mmu.LastFaultFunctionCode,
+            Mmu.LastFaultSSW);
     }
 };
 

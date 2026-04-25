@@ -79,7 +79,9 @@ TEST_F(TransparentTranslationTests, TT_FCMatch_Works)
     FlushAtc();
 
     // FC=1 should go through page table walk, not TT
-    EXPECT_THROW(Mmu.Translate(0xFF000000, false, false, 1), BusErrorException);
+    Mmu.LastFaultSSW = 0;
+    (void)Mmu.Translate(0xFF000000, false, false, 1);
+    EXPECT_NE(0u, Mmu.LastFaultSSW) << "Non-TT access should have raised a fault";
 }
 
 // R/W=1, RWM=0 → read のみ透過
@@ -93,7 +95,9 @@ TEST_F(TransparentTranslationTests, TT_RW_ReadOnly)
     EXPECT_EQ(0xFF000000u, pa);
 
     // Write should NOT be transparent → bus error (no page table entry)
-    EXPECT_THROW(Mmu.Translate(0xFF000000, true, true, 5), BusErrorException);
+    Mmu.LastFaultSSW = 0;
+    (void)Mmu.Translate(0xFF000000, true, true, 5);
+    EXPECT_NE(0u, Mmu.LastFaultSSW) << "Non-TT access should have raised a fault";
 }
 
 // R/W=0, RWM=0 → write のみ透過
@@ -107,7 +111,9 @@ TEST_F(TransparentTranslationTests, TT_RW_WriteOnly)
     EXPECT_EQ(0xFF000000u, pa);
 
     // Read should NOT be transparent → bus error (no page table entry)
-    EXPECT_THROW(Mmu.Translate(0xFF000000, true, false, 5), BusErrorException);
+    Mmu.LastFaultSSW = 0;
+    (void)Mmu.Translate(0xFF000000, true, false, 5);
+    EXPECT_NE(0u, Mmu.LastFaultSSW) << "Non-TT access should have raised a fault";
 }
 
 // RWM=1 → read/write 両方透過

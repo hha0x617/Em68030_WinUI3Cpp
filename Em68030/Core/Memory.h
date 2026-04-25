@@ -75,6 +75,14 @@ public:
     // faults via MC68030::SetBusError instead of throwing.
     void SetCpu(MC68030* cpu) { m_cpu = cpu; }
 
+    // Last fault info — mirrors what was sent to the CPU's SetBusError.
+    // Set unconditionally (even when no CPU is attached) so unit tests that
+    // drive Memory directly can assert "the access raised a fault" without
+    // catching an exception.
+    uint32_t LastFaultAddress = 0;
+    bool     LastFaultIsWrite = false;
+    bool     LastFaultRaised  = false;  // cleared only by tests; set on every fault
+
     // ========================================================================
     // Read/Write -- CPU execution (sets CPU bus error flag on unmapped access)
     // ========================================================================

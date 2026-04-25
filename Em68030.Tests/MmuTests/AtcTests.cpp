@@ -52,7 +52,9 @@ TEST_F(AtcTests, Atc_PFlush_InvalidatesAll)
     // After flush, the next translate will do a table walk and find invalid
     Mmu.FlushAll();
 
-    EXPECT_THROW(Mmu.Translate(0x10000000, true, false, 5), BusErrorException);
+    Mmu.LastFaultSSW = 0;
+    (void)Mmu.Translate(0x10000000, true, false, 5);
+    EXPECT_NE(0u, Mmu.LastFaultSSW) << "Translate should have raised a fault";
 }
 
 TEST_F(AtcTests, Atc_DifferentFC_DifferentEntries)
@@ -79,7 +81,9 @@ TEST_F(AtcTests, Atc_DifferentFC_DifferentEntries)
     Memory.WriteLong(levelBTableAddr, 0x00000000); // invalid
 
     // FC=5 should fail (flushed, table walk finds invalid)
-    EXPECT_THROW(Mmu.Translate(0x10000000, true, false, 5), BusErrorException);
+    Mmu.LastFaultSSW = 0;
+    (void)Mmu.Translate(0x10000000, true, false, 5);
+    EXPECT_NE(0u, Mmu.LastFaultSSW) << "Translate should have raised a fault";
 }
 
 TEST_F(AtcTests, Atc_WriteProtect_Cached)
@@ -92,5 +96,7 @@ TEST_F(AtcTests, Atc_WriteProtect_Cached)
     EXPECT_EQ(0x03000000u, pa);
 
     // Second access (write) should hit ATC and still enforce write-protect
-    EXPECT_THROW(Mmu.Translate(0x30000000, true, true, 5), BusErrorException);
+    Mmu.LastFaultSSW = 0;
+    (void)Mmu.Translate(0x30000000, true, true, 5);
+    EXPECT_NE(0u, Mmu.LastFaultSSW) << "Write to WP page should have raised a fault";
 }

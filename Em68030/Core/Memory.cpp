@@ -160,10 +160,14 @@ inline void WriteUInt32BigEndian(uint8_t* ptr, uint32_t value)
 // ============================================================================
 
 // Helper: report an unmapped-physical-address fault on the attached CPU and
-// return a benign default. If no CPU is attached (e.g., early boot / tests),
-// the access silently returns 0 / no-op.
+// return a benign default. If no CPU is attached (e.g., unit tests driving
+// Memory directly), the LastFault* fields still record it so tests can
+// EXPECT it without catching an exception.
 void Memory::RaisePhysicalBusError(uint32_t address, bool isWrite)
 {
+    LastFaultAddress = address;
+    LastFaultIsWrite = isWrite;
+    LastFaultRaised  = true;
     if (m_cpu) m_cpu->SetBusError(address, isWrite, 0, 0);
 }
 

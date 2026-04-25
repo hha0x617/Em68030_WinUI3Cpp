@@ -161,6 +161,10 @@ uint32_t Mmu::Translate(uint32_t logicalAddress, bool supervisorMode, bool write
         if (write && (entry.Flags & ATC_FLAG_WRITE_PROTECTED))
         {
             uint16_t ssw = BuildSSW(functionCode, /*isRead=*/false);
+            LastFaultAddress = logicalAddress;
+            LastFaultIsWrite = true;
+            LastFaultFunctionCode = functionCode;
+            LastFaultSSW = ssw;
             if (m_cpu) m_cpu->SetBusError(logicalAddress, true, functionCode, ssw);
             return 0;
         }
@@ -265,6 +269,10 @@ uint32_t Mmu::TableWalk(uint32_t logicalAddress, bool supervisorMode, bool write
     {
         MMUSR = 0x0400; // I (Invalid) - bit 10
         uint16_t ssw = BuildSSW(functionCode, /*isRead=*/!write);
+        LastFaultAddress = logicalAddress;
+        LastFaultIsWrite = write;
+        LastFaultFunctionCode = functionCode;
+        LastFaultSSW = ssw;
         if (m_cpu) m_cpu->SetBusError(logicalAddress, write, functionCode, ssw);
         return 0;
     }
@@ -317,6 +325,10 @@ uint32_t Mmu::TableWalk(uint32_t logicalAddress, bool supervisorMode, bool write
                     0x0400                   // I (Invalid, bit 10)
                 );
                 uint16_t ssw = BuildSSW(functionCode, /*isRead=*/!write);
+                LastFaultAddress = logicalAddress;
+                LastFaultIsWrite = write;
+                LastFaultFunctionCode = functionCode;
+                LastFaultSSW = ssw;
                 if (m_cpu) m_cpu->SetBusError(logicalAddress, write, functionCode, ssw);
                 return 0;
             }
@@ -356,7 +368,11 @@ uint32_t Mmu::TableWalk(uint32_t logicalAddress, bool supervisorMode, bool write
                         (m ? 0x0200 : 0)                 // M (Modified, bit 9)
                     );
                     uint16_t ssw = BuildSSW(functionCode, /*isRead=*/false);
-                    if (m_cpu) m_cpu->SetBusError(logicalAddress, true, functionCode, ssw);
+                    LastFaultAddress = logicalAddress;
+            LastFaultIsWrite = true;
+            LastFaultFunctionCode = functionCode;
+            LastFaultSSW = ssw;
+            if (m_cpu) m_cpu->SetBusError(logicalAddress, true, functionCode, ssw);
                     return 0;
                 }
 
@@ -447,6 +463,10 @@ uint32_t Mmu::TableWalk(uint32_t logicalAddress, bool supervisorMode, bool write
     // If we get here without finding a page descriptor, it's invalid
     MMUSR = static_cast<uint16_t>((levelsSearched & 7) | 0x0400);
     uint16_t sswFinal = BuildSSW(functionCode, /*isRead=*/!write);
+    LastFaultAddress = logicalAddress;
+    LastFaultIsWrite = write;
+    LastFaultFunctionCode = functionCode;
+    LastFaultSSW = sswFinal;
     if (m_cpu) m_cpu->SetBusError(logicalAddress, write, functionCode, sswFinal);
     return 0;
 }
