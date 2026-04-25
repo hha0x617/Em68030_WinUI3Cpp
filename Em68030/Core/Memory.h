@@ -57,6 +57,8 @@ private:
 // Memory
 // ============================================================================
 
+class MC68030;  // forward — for SetBusError back-ref
+
 class Memory {
 public:
     Memory();
@@ -69,8 +71,12 @@ public:
     void RegisterDevice(uint32_t baseAddress, uint32_t size, IO::IMemoryMappedDevice* device);
     void UnregisterDevice(uint32_t baseAddress, uint32_t size);
 
+    // Owning CPU — set by MC68030's ctor. Used to report unmapped-address
+    // faults via MC68030::SetBusError instead of throwing.
+    void SetCpu(MC68030* cpu) { m_cpu = cpu; }
+
     // ========================================================================
-    // Read/Write -- CPU execution (bus error on unmapped access)
+    // Read/Write -- CPU execution (sets CPU bus error flag on unmapped access)
     // ========================================================================
 
     uint8_t ReadByte(uint32_t address);
@@ -105,6 +111,8 @@ private:
     MemoryRegion* FindRegion(uint32_t address);
     IO::IMemoryMappedDevice* FindDevice(uint32_t address);
 
+    void RaisePhysicalBusError(uint32_t address, bool isWrite);
+
     std::vector<MemoryRegion> m_regions;
     std::unordered_map<uint32_t, IO::IMemoryMappedDevice*> m_deviceMap;
 
@@ -120,6 +128,8 @@ private:
 
     // Last-hit region cache for non-fastRAM accesses (e.g., ROM at $FF800000)
     MemoryRegion* m_lastRegion = nullptr;
+
+    MC68030* m_cpu = nullptr;  // for SetBusError on unmapped-address fault
 
 public:
     /// Direct access to the base-0 RAM array for the framebuffer renderer.

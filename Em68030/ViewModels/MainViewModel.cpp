@@ -1268,18 +1268,15 @@ namespace winrt::Em68030::implementation
                     int loopDetectCount = 0;
                     for (int i = 0; i < BatchSize; i++)
                     {
-                        try
+                        // Bus errors are surfaced via the CPU's BusErrorPending
+                        // flag and consumed inside ExecuteNextFast* — no outer
+                        // try/catch needed (the exception-based path was removed
+                        // because the CRT unwinder misbehaved under some hosts).
+                        if (!(m_cpu.get()->*execFn)())
                         {
-                            if (!(m_cpu.get()->*execFn)())
-                            {
-                                if (m_cpu->Halted || (!m_cpu->HasExternalDevices() && m_cpu->Stopped))
-                                { RequestStopOnUI(); return; }
-                                continue;
-                            }
-                        }
-                        catch (const ::Em68030::Core::BusErrorException& ex)
-                        {
-                            m_cpu->HandleBusError(ex);
+                            if (m_cpu->Halted || (!m_cpu->HasExternalDevices() && m_cpu->Stopped))
+                            { RequestStopOnUI(); return; }
+                            continue;
                         }
                         if (m_cpu->Halted) { RequestStopOnUI(); return; }
                         // Infinite loop detection (e.g. kernel panic for(;;);)
@@ -1308,18 +1305,11 @@ namespace winrt::Em68030::implementation
                     int loopDetectCount = 0;
                     for (int i = 0; i < BatchSize; i++)
                     {
-                        try
+                        if (!(m_cpu.get()->*execFn)())
                         {
-                            if (!(m_cpu.get()->*execFn)())
-                            {
-                                if (m_cpu->Halted || (!m_cpu->HasExternalDevices() && m_cpu->Stopped))
-                                { RequestStopOnUI(); return; }
-                                continue;
-                            }
-                        }
-                        catch (const ::Em68030::Core::BusErrorException& ex)
-                        {
-                            m_cpu->HandleBusError(ex);
+                            if (m_cpu->Halted || (!m_cpu->HasExternalDevices() && m_cpu->Stopped))
+                            { RequestStopOnUI(); return; }
+                            continue;
                         }
 
                         if (m_cpu->Halted) { RequestStopOnUI(); return; }

@@ -101,6 +101,42 @@ public:
     int64_t CycleCount = 0;
     int64_t InstructionCount = 0;
 
+    // ========================================================================
+    // Bus error (return-code based, replaces the old BusErrorException throw/catch)
+    // ========================================================================
+    // Set by Mmu::Translate / Memory::Read*/Write* / Memory::WriteByte when an
+    // access fails. The outer execution loop (ExecuteStep / ExecuteNextFast /
+    // ExecuteNextFastJit) checks BusErrorPending after each instruction and
+    // routes to HandleBusError which rolls back register state and invokes
+    // RaiseBusError (push exception frame + jump to vector 2).
+    //
+    // While BusErrorPending is true, every MC68030 Read/Write wrapper
+    // short-circuits (returns 0 / no-op) so the rest of the current
+    // instruction's decoder path completes safely without further accesses.
+    bool BusErrorPending = false;
+    uint32_t BusErrorFaultAddress = 0;
+    bool     BusErrorIsWrite = false;
+    uint8_t  BusErrorFunctionCode = 0;
+    uint16_t BusErrorSSW = 0;
+
+    inline void SetBusError(uint32_t faultAddr, bool isWrite, uint8_t fc, uint16_t ssw) {
+        // Preserve the first fault — subsequent accesses during the same
+        // instruction should not overwrite the original fault info.
+        if (BusErrorPending) return;
+        BusErrorPending = true;
+        BusErrorFaultAddress = faultAddr;
+        BusErrorIsWrite = isWrite;
+        BusErrorFunctionCode = fc;
+        BusErrorSSW = ssw;
+    }
+    inline void ClearBusError() {
+        BusErrorPending = false;
+        BusErrorFaultAddress = 0;
+        BusErrorIsWrite = false;
+        BusErrorFunctionCode = 0;
+        BusErrorSSW = 0;
+    }
+
     // STOP idle time tracking — accumulated wall-clock time spent in STOP state
     std::chrono::steady_clock::time_point _stopEnteredTime{};
     std::chrono::steady_clock::duration _totalStopDuration{};
@@ -255,7 +291,11 @@ public:
     bool ExecuteNextFast();
     bool ExecuteNextFastJit();
 
-    void HandleBusError(const BusErrorException& ex);
+    // Process a pending bus error that was signalled via SetBusError on a
+    // Read/Write/Fetch. Rolls back register state, builds a stack frame
+    // and jumps to the exception vector (via RaiseBusError). Safe to call
+    // unconditionally — no-op when BusErrorPending is false.
+    void HandleBusError();
 
     // Take the deferred register snapshot (called by group decoders before register modification)
     inline void EnsureRegSnapshot() {
@@ -342,13 +382,9 @@ private:
     // Write a longword to user virtual address via MMU (FC=1 user data). Returns false on fault.
     bool WriteUserLong(uint32_t virtualAddr, uint32_t value);
 
-    struct FixupResult {
-        uint32_t faultAddress;
-        bool isWrite;
-        uint8_t functionCode;
-        uint16_t ssw;
-    };
-    FixupResult FixupPhysicalBusError(const BusErrorException& ex);
+    // FixupPhysicalBusError is gone — Memory::Read*/Write* now sink the fault
+    // directly onto the CPU via SetBusError, and HandleBusError fixes up FC/SSW
+    // in place from the CPU's supervisor-mode state when Memory reported 0/0.
 
     void ProcessInterrupt(int level);
 

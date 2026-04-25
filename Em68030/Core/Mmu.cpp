@@ -15,6 +15,7 @@
 
 #include "Mmu.h"
 #include "Memory.h"
+#include "MC68030.h"
 #include "BusErrorException.h"
 
 #include <cstring>
@@ -160,7 +161,8 @@ uint32_t Mmu::Translate(uint32_t logicalAddress, bool supervisorMode, bool write
         if (write && (entry.Flags & ATC_FLAG_WRITE_PROTECTED))
         {
             uint16_t ssw = BuildSSW(functionCode, /*isRead=*/false);
-            throw BusErrorException(logicalAddress, true, functionCode, ssw);
+            if (m_cpu) m_cpu->SetBusError(logicalAddress, true, functionCode, ssw);
+            return 0;
         }
 
         // If write and not yet modified, invalidate ATC and re-walk
@@ -263,7 +265,8 @@ uint32_t Mmu::TableWalk(uint32_t logicalAddress, bool supervisorMode, bool write
     {
         MMUSR = 0x0400; // I (Invalid) - bit 10
         uint16_t ssw = BuildSSW(functionCode, /*isRead=*/!write);
-        throw BusErrorException(logicalAddress, write, functionCode, ssw);
+        if (m_cpu) m_cpu->SetBusError(logicalAddress, write, functionCode, ssw);
+        return 0;
     }
 
     int shift = 32 - m_initialShiftCached;
@@ -314,7 +317,8 @@ uint32_t Mmu::TableWalk(uint32_t logicalAddress, bool supervisorMode, bool write
                     0x0400                   // I (Invalid, bit 10)
                 );
                 uint16_t ssw = BuildSSW(functionCode, /*isRead=*/!write);
-                throw BusErrorException(logicalAddress, write, functionCode, ssw);
+                if (m_cpu) m_cpu->SetBusError(logicalAddress, write, functionCode, ssw);
+                return 0;
             }
 
             case 1: // Page descriptor (early termination)
@@ -352,7 +356,8 @@ uint32_t Mmu::TableWalk(uint32_t logicalAddress, bool supervisorMode, bool write
                         (m ? 0x0200 : 0)                 // M (Modified, bit 9)
                     );
                     uint16_t ssw = BuildSSW(functionCode, /*isRead=*/false);
-                    throw BusErrorException(logicalAddress, true, functionCode, ssw);
+                    if (m_cpu) m_cpu->SetBusError(logicalAddress, true, functionCode, ssw);
+                    return 0;
                 }
 
                 // Set Modified bit on write
@@ -442,7 +447,8 @@ uint32_t Mmu::TableWalk(uint32_t logicalAddress, bool supervisorMode, bool write
     // If we get here without finding a page descriptor, it's invalid
     MMUSR = static_cast<uint16_t>((levelsSearched & 7) | 0x0400);
     uint16_t sswFinal = BuildSSW(functionCode, /*isRead=*/!write);
-    throw BusErrorException(logicalAddress, write, functionCode, sswFinal);
+    if (m_cpu) m_cpu->SetBusError(logicalAddress, write, functionCode, sswFinal);
+    return 0;
 }
 
 // ============================================================================
@@ -531,17 +537,37 @@ void Mmu::PLoad(uint32_t logicalAddress, bool supervisorMode, bool write)
 
 void Mmu::PLoad(uint32_t logicalAddress, bool supervisorMode, bool write, uint8_t functionCode)
 {
-    // Per MC68030 UM: "The PLOAD instruction does not alter the MMUSR."
+    // Per MC68030 UM: "The PLOAD instruction does not alter the MMUSR" and
+    // "does not generate bus error exceptions." Save/restore both MMUSR and
+    // the CPU's bus-error flag around the walk so a faulting translation is
+    // suppressed to the caller.
     uint16_t savedMMUSR = MMUSR;
-    try
+    bool     savedPending = false;
+    uint32_t savedAddr = 0;
+    bool     savedWrite = false;
+    uint8_t  savedFc    = 0;
+    uint16_t savedSsw   = 0;
+    if (m_cpu)
     {
-        TableWalk(logicalAddress, supervisorMode, write, functionCode);
+        savedPending = m_cpu->BusErrorPending;
+        savedAddr    = m_cpu->BusErrorFaultAddress;
+        savedWrite   = m_cpu->BusErrorIsWrite;
+        savedFc      = m_cpu->BusErrorFunctionCode;
+        savedSsw     = m_cpu->BusErrorSSW;
+        m_cpu->ClearBusError();
     }
-    catch (const BusErrorException&)
-    {
-        // PLOAD does not generate bus error exceptions
-    }
+
+    TableWalk(logicalAddress, supervisorMode, write, functionCode);
+
     MMUSR = savedMMUSR;
+    if (m_cpu)
+    {
+        m_cpu->BusErrorPending      = savedPending;
+        m_cpu->BusErrorFaultAddress = savedAddr;
+        m_cpu->BusErrorIsWrite      = savedWrite;
+        m_cpu->BusErrorFunctionCode = savedFc;
+        m_cpu->BusErrorSSW          = savedSsw;
+    }
 }
 
 // ============================================================================

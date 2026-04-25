@@ -933,18 +933,19 @@ void InstructionDecoder::DecodeMOVES(uint16_t opcode)
     // MOVES uses DFC for writes to memory and SFC for reads from memory.
     // Invalidate data page cache before FC override (cache entry is for current FC)
     _cpu.InvalidateDataCache();
-    try
+    if (toMem)
     {
-        if (toMem)
+        _cpu.FunctionCodeOverride = static_cast<int>(_cpu.DFC & 7);
+        uint32_t val = rn < 8 ? _cpu.D[rn] : _cpu.A[rn - 8];
+        EffectiveAddress::WriteValue(_cpu, eaMode, eaR, size, val);
+    }
+    else
+    {
+        _cpu.FunctionCodeOverride = static_cast<int>(_cpu.SFC & 7);
+        uint32_t val = EffectiveAddress::ReadValue(_cpu, eaMode, eaR, size);
+        // Skip destination register commit if the read itself faulted.
+        if (!_cpu.BusErrorPending)
         {
-            _cpu.FunctionCodeOverride = static_cast<int>(_cpu.DFC & 7);
-            uint32_t val = rn < 8 ? _cpu.D[rn] : _cpu.A[rn - 8];
-            EffectiveAddress::WriteValue(_cpu, eaMode, eaR, size, val);
-        }
-        else
-        {
-            _cpu.FunctionCodeOverride = static_cast<int>(_cpu.SFC & 7);
-            uint32_t val = EffectiveAddress::ReadValue(_cpu, eaMode, eaR, size);
             if (rn < 8)
             {
                 switch (size)
@@ -961,11 +962,7 @@ void InstructionDecoder::DecodeMOVES(uint16_t opcode)
             }
         }
     }
-    catch (const BusErrorException&)
-    {
-        _cpu.FunctionCodeOverride = -1;
-        throw;
-    }
+    // Always reset — this path replaces the prior try/catch-as-finally.
     _cpu.FunctionCodeOverride = -1;
 }
 

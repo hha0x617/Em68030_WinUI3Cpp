@@ -18,11 +18,16 @@
 
 namespace Em68030::Core {
 
-class Memory;  // Forward declaration
+class Memory;    // Forward declaration
+class MC68030;   // Forward declaration — for SetBusError back-ref
 
 class Mmu {
 public:
     explicit Mmu(Memory& physicalMemory);
+
+    // Owning CPU. Used to report page-walk faults via MC68030::SetBusError
+    // instead of throwing. Set once by MC68030's constructor.
+    void SetCpu(MC68030* cpu) { m_cpu = cpu; }
 
     void Reset();
 
@@ -160,6 +165,7 @@ private:
     uint32_t m_atcDescAddr[AtcSize] = {}; // Parallel: descriptor address for M-bit writeback
 
     Memory& m_physicalMemory;
+    MC68030* m_cpu = nullptr;  // for SetBusError on fault
 };
 
 } // namespace Em68030::Core

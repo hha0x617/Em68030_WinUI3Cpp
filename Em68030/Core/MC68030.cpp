@@ -31,6 +31,11 @@ MC68030::MC68030(Memory& memory)
     , m_mmu(memory)
     , m_fpu()
 {
+    // Wire the bus-error back-reference so Mmu / Memory report faults via
+    // SetBusError (flag) instead of throwing C++ exceptions.
+    m_memory.SetCpu(this);
+    m_mmu.SetCpu(this);
+
     m_mmu.OnFlush = [this]() {
         _fetchCacheValid = false;
         _dataCacheValid = false;
@@ -144,6 +149,11 @@ uint32_t MC68030::TranslateAddress(uint32_t logicalAddr)
 
 uint8_t MC68030::ReadByte(uint32_t addr)
 {
+    // Short-circuit when a prior access in the same instruction already
+    // faulted. The outer execution loop will process the pending bus error
+    // after the current instruction returns; we just need to stop doing
+    // more work (and stop touching the data page cache with stale info).
+    if (BusErrorPending) return 0;
     // Data page cache fast path (read-only; MOVES invalidates cache before overriding FC)
     if (_dataCacheValid && (addr & ~_dataPageMask) == _dataPageVA)
     {
@@ -152,6 +162,7 @@ uint8_t MC68030::ReadByte(uint32_t addr)
         return val;
     }
     uint32_t pa = TranslateRead(addr);
+    if (BusErrorPending) return 0;  // translation faulted — don't touch memory with pa=0
     if (m_mmu.GetEnabled()) {
         _dataPageMask = m_mmu.CachedPageMask;
         _dataPageVA = addr & ~_dataPageMask;
@@ -165,6 +176,7 @@ uint8_t MC68030::ReadByte(uint32_t addr)
 
 uint16_t MC68030::ReadWord(uint32_t addr)
 {
+    if (BusErrorPending) return 0;
     // Data page cache fast path (read-only; MOVES invalidates cache before overriding FC)
     if (_dataCacheValid && (addr & ~_dataPageMask) == _dataPageVA
         && (addr & _dataPageMask) + 1 < _dataPageMask)
@@ -176,13 +188,18 @@ uint16_t MC68030::ReadWord(uint32_t addr)
     // A word read can cross a page boundary when addr is at the last byte of a page.
     if (m_mmu.GetEnabled() && (addr & m_mmu.CachedPageMask) == m_mmu.CachedPageMask)
     {
-        uint8_t hi = m_memory.ReadByte(TranslateRead(addr));
-        uint8_t lo = m_memory.ReadByte(TranslateRead(addr + 1));
+        uint32_t paHi = TranslateRead(addr);
+        if (BusErrorPending) return 0;
+        uint8_t hi = m_memory.ReadByte(paHi);
+        uint32_t paLo = TranslateRead(addr + 1);
+        if (BusErrorPending) return 0;
+        uint8_t lo = m_memory.ReadByte(paLo);
         uint16_t val = static_cast<uint16_t>((hi << 8) | lo);
         if (WatchpointsEnabled && OnMemoryAccess) OnMemoryAccess(addr, 2, false, val, val);
         return val;
     }
     uint32_t pa = TranslateRead(addr);
+    if (BusErrorPending) return 0;
     if (m_mmu.GetEnabled()) {
         _dataPageMask = m_mmu.CachedPageMask;
         _dataPageVA = addr & ~_dataPageMask;
@@ -196,6 +213,7 @@ uint16_t MC68030::ReadWord(uint32_t addr)
 
 uint32_t MC68030::ReadLong(uint32_t addr)
 {
+    if (BusErrorPending) return 0;
     // Data page cache fast path (read-only; MOVES invalidates cache before overriding FC)
     if (_dataCacheValid && (addr & ~_dataPageMask) == _dataPageVA
         && (addr & _dataPageMask) + 3 < _dataPageMask)
@@ -216,6 +234,7 @@ uint32_t MC68030::ReadLong(uint32_t addr)
         }
     }
     uint32_t pa = TranslateRead(addr);
+    if (BusErrorPending) return 0;
     if (m_mmu.GetEnabled()) {
         _dataPageMask = m_mmu.CachedPageMask;
         _dataPageVA = addr & ~_dataPageMask;
@@ -229,20 +248,25 @@ uint32_t MC68030::ReadLong(uint32_t addr)
 
 void MC68030::WriteByte(uint32_t addr, uint8_t val)
 {
+    if (BusErrorPending) return;
     _dataCacheValid = false;
     if (WatchpointsEnabled && OnMemoryAccess)
     {
         uint32_t pa = TranslateWrite(addr);
+        if (BusErrorPending) return;  // CRITICAL: don't write val to RAM[0] after a failed translation
         uint32_t oldVal = m_memory.ReadByte(pa);
         m_memory.WriteByte(pa, val);
         OnMemoryAccess(addr, 1, true, oldVal, val);
         return;
     }
-    m_memory.WriteByte(TranslateWrite(addr), val);
+    uint32_t pa = TranslateWrite(addr);
+    if (BusErrorPending) return;
+    m_memory.WriteByte(pa, val);
 }
 
 void MC68030::WriteWord(uint32_t addr, uint16_t val)
 {
+    if (BusErrorPending) return;
     _dataCacheValid = false;
     if (WatchpointsEnabled && OnMemoryAccess)
     {
@@ -253,6 +277,7 @@ void MC68030::WriteWord(uint32_t addr, uint16_t val)
             return;
         }
         uint32_t pa = TranslateWrite(addr);
+        if (BusErrorPending) return;
         uint32_t oldVal = m_memory.ReadWord(pa);
         m_memory.WriteWord(pa, val);
         OnMemoryAccess(addr, 2, true, oldVal, val);
@@ -260,15 +285,22 @@ void MC68030::WriteWord(uint32_t addr, uint16_t val)
     }
     if (m_mmu.GetEnabled() && (addr & m_mmu.CachedPageMask) == m_mmu.CachedPageMask)
     {
-        m_memory.WriteByte(TranslateWrite(addr), static_cast<uint8_t>(val >> 8));
-        m_memory.WriteByte(TranslateWrite(addr + 1), static_cast<uint8_t>(val));
+        uint32_t paHi = TranslateWrite(addr);
+        if (BusErrorPending) return;
+        m_memory.WriteByte(paHi, static_cast<uint8_t>(val >> 8));
+        uint32_t paLo = TranslateWrite(addr + 1);
+        if (BusErrorPending) return;
+        m_memory.WriteByte(paLo, static_cast<uint8_t>(val));
         return;
     }
-    m_memory.WriteWord(TranslateWrite(addr), val);
+    uint32_t pa = TranslateWrite(addr);
+    if (BusErrorPending) return;
+    m_memory.WriteWord(pa, val);
 }
 
 void MC68030::WriteLong(uint32_t addr, uint32_t val)
 {
+    if (BusErrorPending) return;
     _dataCacheValid = false;
     if (WatchpointsEnabled && OnMemoryAccess)
     {
@@ -283,6 +315,7 @@ void MC68030::WriteLong(uint32_t addr, uint32_t val)
             }
         }
         uint32_t pa = TranslateWrite(addr);
+        if (BusErrorPending) return;
         uint32_t oldVal = m_memory.ReadLong(pa);
         m_memory.WriteLong(pa, val);
         OnMemoryAccess(addr, 4, true, oldVal, val);
@@ -298,7 +331,9 @@ void MC68030::WriteLong(uint32_t addr, uint32_t val)
             return;
         }
     }
-    m_memory.WriteLong(TranslateWrite(addr), val);
+    uint32_t pa = TranslateWrite(addr);
+    if (BusErrorPending) return;
+    m_memory.WriteLong(pa, val);
 }
 
 // ============================================================================
@@ -307,6 +342,7 @@ void MC68030::WriteLong(uint32_t addr, uint32_t val)
 
 uint16_t MC68030::FetchWord()
 {
+    if (BusErrorPending) return 0;
     uint32_t pc = PC;
     if (_fetchCacheValid && (pc & ~_fetchPageMask) == _fetchPageVA
         && (pc & _fetchPageMask) + 1 < _fetchPageMask)
@@ -316,6 +352,7 @@ uint16_t MC68030::FetchWord()
         return val;
     }
     uint32_t pa = TranslateRead(pc, true);
+    if (BusErrorPending) return 0;  // fetch translation faulted — don't advance PC, don't touch memory
     if (m_mmu.GetEnabled())
     {
         _fetchPageMask = m_mmu.CachedPageMask;
@@ -436,31 +473,14 @@ bool MC68030::HasExternalDevices() const
 }
 
 // ============================================================================
-// Bus error fixup
+// HandleBusError — drains a pending bus error previously signalled via
+// SetBusError from Mmu / Memory. Safe no-op when BusErrorPending is false.
 // ============================================================================
 
-MC68030::FixupResult MC68030::FixupPhysicalBusError(const BusErrorException& ex)
+void MC68030::HandleBusError()
 {
-    uint8_t fc = ex.FunctionCode;
-    uint16_t ssw = ex.SpecialStatusWord;
+    if (!BusErrorPending) return;
 
-    if (ssw == 0 && fc == 0)
-    {
-        fc = GetFunctionCode(false); // Assume data access
-        ssw = static_cast<uint16_t>(fc & 7);      // FC bits 2-0
-        ssw |= 0x0100;               // DF bit 8
-        if (!ex.IsWrite) ssw |= 0x0040; // RW bit 6 (1=read, 0=write)
-    }
-
-    return { ex.FaultAddress, ex.IsWrite, fc, ssw };
-}
-
-// ============================================================================
-// HandleBusError
-// ============================================================================
-
-void MC68030::HandleBusError(const BusErrorException& ex)
-{
     PC = _lastPC;
     // If the deferred register snapshot was taken (EnsureRegSnapshot called),
     // restore A[]/D[] from the snapshot.  If not (bus error during opcode fetch
@@ -477,7 +497,27 @@ void MC68030::HandleBusError(const BusErrorException& ex)
     SR = _savedSR;
     _fetchCacheValid = false; // privilege mode may have changed
     _dataCacheValid = false;
-    auto [faultAddr, isWrite, fc, ssw] = FixupPhysicalBusError(ex);
+
+    // Memory::Read*/Write* signal physical-address faults with fc=0, ssw=0.
+    // Synthesize FC/SSW from the CPU's current mode in that case — matches
+    // the old FixupPhysicalBusError behavior.
+    uint32_t faultAddr = BusErrorFaultAddress;
+    bool     isWrite   = BusErrorIsWrite;
+    uint8_t  fc        = BusErrorFunctionCode;
+    uint16_t ssw       = BusErrorSSW;
+    if (ssw == 0 && fc == 0)
+    {
+        fc  = GetFunctionCode(false);                 // assume data access
+        ssw = static_cast<uint16_t>(fc & 7) | 0x0100;  // FC bits + DF bit 8
+        if (!isWrite) ssw |= 0x0040;                   // RW bit 6 (1=read)
+    }
+
+    // Clear before RaiseBusError: the frame-push inside RaiseBusError also
+    // goes through Read/Write wrappers, and those short-circuit on
+    // BusErrorPending. We want RaiseBusError's own fault-detection logic
+    // (double bus fault) to observe a clean flag that only gets set if the
+    // frame push actually faults.
+    ClearBusError();
     RaiseBusError(faultAddr, isWrite, fc, ssw);
 }
 
@@ -519,21 +559,8 @@ void MC68030::ExecuteStep()
             std::copy(std::begin(A), std::end(A), std::begin(_savedA));
             std::copy(std::begin(D), std::end(D), std::begin(_savedD));
             _savedSR = SR;
-            try
-            {
-                ProcessInterrupt(_pendingIPL);
-            }
-            catch (const BusErrorException& ex)
-            {
-                PC = _lastPC;
-                std::copy(std::begin(_savedA), std::end(_savedA), std::begin(A));
-                std::copy(std::begin(_savedD), std::end(_savedD), std::begin(D));
-                SR = _savedSR;
-                _fetchCacheValid = false;
-                _dataCacheValid = false;
-                auto [faultAddr, isWrite, fc, ssw] = FixupPhysicalBusError(ex);
-                RaiseBusError(faultAddr, isWrite, fc, ssw);
-            }
+            ProcessInterrupt(_pendingIPL);
+            if (BusErrorPending) HandleBusError();
             CycleCount += 34;  // Interrupt ACK approximate cycles
             InstructionCount++;
             return;
@@ -542,26 +569,16 @@ void MC68030::ExecuteStep()
 
     if (Stopped) return;
 
-    uint32_t savedPC = PC;
-    uint16_t savedSR = SR;
+    _lastPC = PC;
     std::copy(std::begin(A), std::end(A), std::begin(_savedA));
     std::copy(std::begin(D), std::end(D), std::begin(_savedD));
-    try
-    {
-        auto opcode = m_decoder->ExecuteNext();
+    _savedSR = SR;
+    auto opcode = m_decoder->ExecuteNext();
+    if (BusErrorPending) {
+        HandleBusError();
+    } else {
         CycleCount += InstructionDecoder::GetCycles(opcode);
         InstructionCount++;
-    }
-    catch (const BusErrorException& ex)
-    {
-        PC = savedPC;
-        std::copy(std::begin(_savedA), std::end(_savedA), std::begin(A));
-        std::copy(std::begin(_savedD), std::end(_savedD), std::begin(D));
-        SR = savedSR;
-        _fetchCacheValid = false;
-        _dataCacheValid = false;
-        auto [faultAddr, isWrite, fc, ssw] = FixupPhysicalBusError(ex);
-        RaiseBusError(faultAddr, isWrite, fc, ssw);
     }
 }
 
@@ -596,6 +613,7 @@ bool MC68030::ExecuteNextFast()
             std::copy(std::begin(D), std::end(D), std::begin(_savedD));
             _savedSR = SR;
             ProcessInterrupt(_pendingIPL);
+            if (BusErrorPending) HandleBusError();
             CycleCount += 34;
             InstructionCount++;
             return !Halted;
@@ -610,6 +628,10 @@ bool MC68030::ExecuteNextFast()
 
     auto opcode = m_decoder->ExecuteNext();
 
+    if (BusErrorPending) {
+        HandleBusError();
+        return !Halted;
+    }
     CycleCount += InstructionDecoder::GetCycles(opcode);
     InstructionCount++;
     return true;
@@ -647,6 +669,7 @@ bool MC68030::ExecuteNextFastJit()
             std::copy(std::begin(D), std::end(D), std::begin(_savedD));
             _savedSR = SR;
             ProcessInterrupt(_pendingIPL);
+            if (BusErrorPending) HandleBusError();
             CycleCount += 34;
             InstructionCount++;
             return !Halted;
@@ -670,6 +693,10 @@ bool MC68030::ExecuteNextFastJit()
 
     // Interpreter fallback (inline — no function call overhead)
     auto opcode = m_decoder->ExecuteNext();
+    if (BusErrorPending) {
+        HandleBusError();
+        return !Halted;
+    }
     CycleCount += InstructionDecoder::GetCycles(opcode);
     InstructionCount++;
     return true;
@@ -752,25 +779,20 @@ void MC68030::RaiseException(int vector)
     }
 
     // Push Format 0 exception frame: SR, PC, Format/Vector
-    // If a bus error occurs during frame push or vector read, it propagates
-    // to the execution loop which calls HandleBusError → RaiseBusError.
-    // RaiseBusError has double-fault protection, so cascading failures halt the CPU.
+    // The Push helpers short-circuit on BusErrorPending, so after the three
+    // pushes we check the flag. On fault, restore the pre-exception mode
+    // and let the outer loop's HandleBusError pass (RaiseBusError) handle
+    // the double-fault halt.
     uint16_t formatVector = static_cast<uint16_t>(0x0000 | ((vector * 4) & 0x0FFF)); // Format 0
-    try
+    PushWord(formatVector);
+    PushLong(PC);
+    PushWord(oldSR);
+    if (BusErrorPending)
     {
-        PushWord(formatVector);
-        PushLong(PC);
-        PushWord(oldSR);
-    }
-    catch (const BusErrorException&)
-    {
-        // Bus error during exception frame push.
-        // Restore to pre-exception state and re-throw so HandleBusError
-        // can process it properly (may result in double fault → halt).
         SR = oldSR;
         if ((oldSR & 0x2000) == 0)
             A[7] = USP;
-        throw;
+        return;
     }
 
     // Read vector address from vector table (supervisor data mode, through MMU)
@@ -913,67 +935,53 @@ void MC68030::RaiseBusError(uint32_t faultAddress, bool isWrite, uint8_t functio
             (SR & 0x2000) == 0 ? A[7] : USP));
     }
 
-    try
+    uint32_t oldPC = PC; // PC of faulting instruction (restored by ExecuteStep)
+    uint16_t oldSR = SR;
+    SetSupervisorMode(true);
+
+    // Swap to SSP if coming from user mode
+    if ((oldSR & 0x2000) == 0)
     {
-        uint32_t oldPC = PC; // PC of faulting instruction (restored by ExecuteStep)
-        uint16_t oldSR = SR;
-        SetSupervisorMode(true);
-
-        // Swap to SSP if coming from user mode
-        if ((oldSR & 0x2000) == 0)
-        {
-            USP = A[7];
-            A[7] = SSP;
-        }
-
-        // Format $A stack frame (MC68030 Short Bus Cycle Fault)
-        // Total: 16 words = 32 bytes
-        // Push from bottom of frame upward (stack pre-decrement)
-
-        // +$1C: Internal registers (4 bytes)
-        PushLong(0);
-        // +$18: Data output buffer (4 bytes)
-        PushLong(0);
-        // +$14: Internal register (2 bytes)
-        PushWord(0);
-        // +$16: Internal register (2 bytes)
-        PushWord(0);
-        // +$10: Data cycle fault address (4 bytes)
-        PushLong(faultAddress);
-        // +$0E: Instruction pipe stage B (2 bytes)
-        PushWord(0);
-        // +$0C: Instruction pipe stage C (2 bytes)
-        PushWord(0);
-        // +$0A: Special Status Word (2 bytes)
-        PushWord(ssw);
-        // +$08: Internal register (2 bytes)
-        PushWord(0);
-
-        // +$06: Format/Vector word: format=$A, vector offset = 2*4 = 8
-        uint16_t formatVector = static_cast<uint16_t>(0xA000 | (2 * 4));
-        PushWord(formatVector);
-        // +$02: PC (4 bytes)
-        PushLong(PC);
-        // +$00: SR (2 bytes)
-        PushWord(oldSR);
-
-        // Read vector from vector table (supervisor data mode, through MMU)
-        uint32_t vectorAddr = VBR + (2 * 4); // Vector 2 = bus error
-        uint32_t vectorPhys = TranslateRead(vectorAddr);
-        PC = m_memory.ReadLong(vectorPhys);
-
-        std::string modeTag = (oldSR & 0x2000) == 0 ? " [USER-FAULT]" : "";
-        if (ExceptionOccurred)
-        {
-            ExceptionOccurred(std::format(
-                "Bus Error at ${:08X}, SSW=${:04X}, SR=${:04X}{}, MMUSR=${:04X}, "
-                "vectorVA=${:08X}>PA=${:08X}, new PC=${:08X} (faulting PC=${:08X}, VBR=${:08X})",
-                faultAddress, ssw, oldSR, modeTag, savedMMUSR, vectorAddr, vectorPhys, PC, oldPC, VBR));
-        }
+        USP = A[7];
+        A[7] = SSP;
     }
-    catch (const BusErrorException& ex2)
+
+    // Format $A stack frame (MC68030 Short Bus Cycle Fault)
+    // Total: 16 words = 32 bytes
+    // Push from bottom of frame upward (stack pre-decrement)
+    //
+    // Each Push below short-circuits when BusErrorPending is set, so after
+    // all pushes and the vector read we check the flag. If it was set, the
+    // frame construction itself faulted — that's a double bus fault, and
+    // we halt the CPU below.
+
+    PushLong(0);            // +$1C: Internal registers (4 bytes)
+    PushLong(0);            // +$18: Data output buffer (4 bytes)
+    PushWord(0);            // +$14: Internal register (2 bytes)
+    PushWord(0);            // +$16: Internal register (2 bytes)
+    PushLong(faultAddress); // +$10: Data cycle fault address (4 bytes)
+    PushWord(0);            // +$0E: Instruction pipe stage B (2 bytes)
+    PushWord(0);            // +$0C: Instruction pipe stage C (2 bytes)
+    PushWord(ssw);          // +$0A: Special Status Word (2 bytes)
+    PushWord(0);            // +$08: Internal register (2 bytes)
+
+    // +$06: Format/Vector word: format=$A, vector offset = 2*4 = 8
+    uint16_t formatVector = static_cast<uint16_t>(0xA000 | (2 * 4));
+    PushWord(formatVector);
+    PushLong(PC);           // +$02: PC (4 bytes)
+    PushWord(oldSR);        // +$00: SR (2 bytes)
+
+    // Read vector from vector table (supervisor data mode, through MMU)
+    uint32_t vectorAddr = VBR + (2 * 4); // Vector 2 = bus error
+    uint32_t vectorPhys = TranslateRead(vectorAddr);
+    uint32_t newPC = ReadLong(vectorAddr); // read via wrapper (short-circuits on pending fault)
+
+    if (BusErrorPending)
     {
         // Bus error during bus error frame construction = double fault
+        uint32_t nestedAddr = BusErrorFaultAddress;
+        bool     nestedWrite = BusErrorIsWrite;
+        ClearBusError();
         Halted = true;
         StopReason = "Double bus fault (during stack frame construction)";
         auto msg = std::format(
@@ -983,11 +991,23 @@ void MC68030::RaiseBusError(uint32_t faultAddress, bool isWrite, uint8_t functio
             "  CPU: PC=${:08X}, SR=${:04X}, A7=${:08X}, SSP=${:08X}, USP=${:08X}, VBR=${:08X}\n"
             "  TC=${:08X}, CRP=${:016X}, SRP={:016X}\n",
             faultAddress, isWrite, functionCode, ssw,
-            ex2.FaultAddress, ex2.IsWrite,
+            nestedAddr, nestedWrite,
             PC, SR, A[7], SSP, USP, VBR,
             m_mmu.GetTC(), m_mmu.CRP, m_mmu.SRP);
         if (DiagnosticOutput) DiagnosticOutput(msg);
         if (ExceptionOccurred) ExceptionOccurred(msg);
+        return;
+    }
+
+    PC = newPC;
+
+    std::string modeTag = (oldSR & 0x2000) == 0 ? " [USER-FAULT]" : "";
+    if (ExceptionOccurred)
+    {
+        ExceptionOccurred(std::format(
+            "Bus Error at ${:08X}, SSW=${:04X}, SR=${:04X}{}, MMUSR=${:04X}, "
+            "vectorVA=${:08X}>PA=${:08X}, new PC=${:08X} (faulting PC=${:08X}, VBR=${:08X})",
+            faultAddress, ssw, oldSR, modeTag, savedMMUSR, vectorAddr, vectorPhys, PC, oldPC, VBR));
     }
 }
 

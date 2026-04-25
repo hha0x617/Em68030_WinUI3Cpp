@@ -14,6 +14,8 @@
 #include "pch.h"
 
 #include "Memory.h"
+#include "MC68030.h"
+#include "BusErrorException.h"
 
 namespace Em68030::Core {
 
@@ -157,6 +159,14 @@ inline void WriteUInt32BigEndian(uint8_t* ptr, uint32_t value)
 // Read/Write -- CPU execution (bus error on unmapped access)
 // ============================================================================
 
+// Helper: report an unmapped-physical-address fault on the attached CPU and
+// return a benign default. If no CPU is attached (e.g., early boot / tests),
+// the access silently returns 0 / no-op.
+void Memory::RaisePhysicalBusError(uint32_t address, bool isWrite)
+{
+    if (m_cpu) m_cpu->SetBusError(address, isWrite, 0, 0);
+}
+
 uint8_t Memory::ReadByte(uint32_t address)
 {
     // Fast path: address in base-0 RAM and below any device range
@@ -171,7 +181,8 @@ uint8_t Memory::ReadByte(uint32_t address)
     if (region != nullptr)
         return region->GetData()[address - region->GetBaseAddress()];
 
-    throw BusErrorException(address, false, 0, 0);
+    RaisePhysicalBusError(address, false);
+    return 0;
 }
 
 uint16_t Memory::ReadWord(uint32_t address)
@@ -191,7 +202,8 @@ uint16_t Memory::ReadWord(uint32_t address)
             return static_cast<uint16_t>((region->GetData()[offset] << 8) | region->GetData()[offset + 1]);
     }
 
-    throw BusErrorException(address, false, 0, 0);
+    RaisePhysicalBusError(address, false);
+    return 0;
 }
 
 uint32_t Memory::ReadLong(uint32_t address)
@@ -217,7 +229,8 @@ uint32_t Memory::ReadLong(uint32_t address)
         }
     }
 
-    throw BusErrorException(address, false, 0, 0);
+    RaisePhysicalBusError(address, false);
+    return 0;
 }
 
 void Memory::WriteByte(uint32_t address, uint8_t value)
@@ -237,7 +250,10 @@ void Memory::WriteByte(uint32_t address, uint8_t value)
 
     auto region = FindRegion(address);
     if (region == nullptr)
-        throw BusErrorException(address, true, 0, 0);
+    {
+        RaisePhysicalBusError(address, true);
+        return;
+    }
 
     if (region->GetType() == RegionType::Rom)
         return;
@@ -262,7 +278,10 @@ void Memory::WriteWord(uint32_t address, uint16_t value)
 
     auto region = FindRegion(address);
     if (region == nullptr)
-        throw BusErrorException(address, true, 0, 0);
+    {
+        RaisePhysicalBusError(address, true);
+        return;
+    }
 
     if (region->GetType() == RegionType::Rom)
         return;
@@ -292,7 +311,10 @@ void Memory::WriteLong(uint32_t address, uint32_t value)
 
     auto region = FindRegion(address);
     if (region == nullptr)
-        throw BusErrorException(address, true, 0, 0);
+    {
+        RaisePhysicalBusError(address, true);
+        return;
+    }
 
     if (region->GetType() == RegionType::Rom)
         return;
