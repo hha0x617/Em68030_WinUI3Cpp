@@ -69,6 +69,14 @@ void from_json(const nlohmann::json& j, ScsiDiskConfig& c)
 
 void to_json(nlohmann::json& j, const EmulatorConfig& c)
 {
+    // Reflect the active SCSI disk list back into the per-OS map under the
+    // current TargetOS so the on-disk JSON always has a consistent
+    // snapshot — even when callers modify Mvme147ScsiDisks without
+    // calling SyncScsiDisksForTargetOS.
+    auto disksByOS = c.Mvme147ScsiDisksByTargetOS;
+    if (!c.TargetOS.empty())
+        disksByOS[c.TargetOS] = c.Mvme147ScsiDisks;
+
     j = nlohmann::json{
         {"MemorySize",              c.MemorySize},
         {"MemoryRegions",           c.MemoryRegions},
@@ -84,7 +92,10 @@ void to_json(nlohmann::json& j, const EmulatorConfig& c)
         {"Theme",                   c.Theme},
         {"BoardType",               c.BoardType},
         {"Mvme147RomPath",          c.Mvme147RomPath},
+        // Legacy single-list field kept for backward compatibility with
+        // older builds that haven't learned about the per-OS map.
         {"Mvme147ScsiDisks",        c.Mvme147ScsiDisks},
+        {"Mvme147ScsiDisksByTargetOS", disksByOS},
         {"Mvme147ScsiCdromPath",    c.Mvme147ScsiCdromPath},
         {"Mvme147ScsiCdromId",      c.Mvme147ScsiCdromId},
         {"NetBsdKernelImagePath",   c.NetBsdKernelImagePath},
@@ -182,6 +193,26 @@ void from_json(const nlohmann::json& j, EmulatorConfig& c)
             if (!path2.empty())
                 c.Mvme147ScsiDisks.push_back({ path2, id2 });
         }
+    }
+
+    // Per-OS SCSI disk list. New configs persist this map as the source
+    // of truth; older configs only have the single Mvme147ScsiDisks list,
+    // which we copy into both NetBSD and Linux entries so the existing
+    // disk set remains visible regardless of which OS is selected.
+    if (j.contains("Mvme147ScsiDisksByTargetOS"))
+        j.at("Mvme147ScsiDisksByTargetOS").get_to(c.Mvme147ScsiDisksByTargetOS);
+    if (c.Mvme147ScsiDisksByTargetOS.empty() && !c.Mvme147ScsiDisks.empty())
+    {
+        c.Mvme147ScsiDisksByTargetOS["NetBSD"] = c.Mvme147ScsiDisks;
+        c.Mvme147ScsiDisksByTargetOS["Linux"]  = c.Mvme147ScsiDisks;
+    }
+    // Reseat the active list from the map's entry for the current TargetOS
+    // so callers always read a consistent view. Falls through to whatever
+    // was in Mvme147ScsiDisks (or empty) when there's no entry yet.
+    if (auto it = c.Mvme147ScsiDisksByTargetOS.find(c.TargetOS);
+        it != c.Mvme147ScsiDisksByTargetOS.end())
+    {
+        c.Mvme147ScsiDisks = it->second;
     }
 }
 
@@ -305,6 +336,26 @@ EmulatorConfig EmulatorConfig::Clone() const
 {
     nlohmann::json j = *this;
     return j.get<EmulatorConfig>();
+}
+
+// ============================================================================
+// SyncScsiDisksForTargetOS -- swap the active disk list when TargetOS changes
+// ============================================================================
+
+void EmulatorConfig::SyncScsiDisksForTargetOS(
+    const std::string& oldOS, const std::string& newOS)
+{
+    if (oldOS == newOS) {
+        TargetOS = newOS;
+        return;
+    }
+    if (!oldOS.empty())
+        Mvme147ScsiDisksByTargetOS[oldOS] = Mvme147ScsiDisks;
+    auto it = Mvme147ScsiDisksByTargetOS.find(newOS);
+    Mvme147ScsiDisks = (it != Mvme147ScsiDisksByTargetOS.end())
+        ? it->second
+        : std::vector<ScsiDiskConfig>{};
+    TargetOS = newOS;
 }
 
 } // namespace Em68030::Config

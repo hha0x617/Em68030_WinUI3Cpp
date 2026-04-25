@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 #include <filesystem>
@@ -72,7 +73,14 @@ public:
     std::string BoardType = "Generic";
 
     std::string Mvme147RomPath;
+    // Active SCSI disk list — a denormalized view of the corresponding entry
+    // in Mvme147ScsiDisksByTargetOS (below) for the currently-selected
+    // TargetOS. Reseated by SyncScsiDisksForTargetOS() on every OS switch.
     std::vector<ScsiDiskConfig> Mvme147ScsiDisks;
+    // Per-target-OS storage: NetBSD and Linux remember independent disk
+    // lists. The map is the source of truth; Mvme147ScsiDisks above is the
+    // currently-presented snapshot.
+    std::map<std::string, std::vector<ScsiDiskConfig>> Mvme147ScsiDisksByTargetOS;
     std::string Mvme147ScsiCdromPath;
     int Mvme147ScsiCdromId = 3;
 
@@ -144,6 +152,13 @@ public:
 
     // Deep-copy via JSON round-trip.
     EmulatorConfig Clone() const;
+
+    // Save the current Mvme147ScsiDisks under oldOS in
+    // Mvme147ScsiDisksByTargetOS, then reseat Mvme147ScsiDisks from the
+    // map's entry for newOS (empty if absent). Call this whenever
+    // TargetOS is about to change (or has just changed) so the two OS's
+    // disk lists stay independent. Also updates this->TargetOS to newOS.
+    void SyncScsiDisksForTargetOS(const std::string& oldOS, const std::string& newOS);
 
     // User-writable data directory (%LOCALAPPDATA%\Em68030_WinUI3Cpp\).
     // Falls back to exe directory if LOCALAPPDATA is unavailable.

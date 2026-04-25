@@ -17,6 +17,7 @@
 #include "Config/EmulatorConfig.h"
 #include "IO/TapNetworkHandler.h"
 #include <functional>
+#include <map>
 
 namespace winrt::Em68030::implementation
 {
@@ -89,7 +90,18 @@ namespace winrt::Em68030::implementation
         void RefreshScsiIdOptions();
         int GetSelectedScsiId(const Microsoft::UI::Xaml::Controls::ComboBox& box) const;
 
+        // Per-target-OS SCSI disk list management. The visible disk rows
+        // (m_diskRows) reflect whichever entry of m_disksByTargetOS
+        // matches m_currentTargetOS. When the Target OS Combo changes,
+        // we snapshot the rows back into the old OS's slot, then rebuild
+        // rows from the new OS's slot.
+        std::vector<::Em68030::Config::ScsiDiskConfig> ReadDiskRowsAsConfig() const;
+        void RebuildDiskRowsFromConfig(
+            const std::vector<::Em68030::Config::ScsiDiskConfig>& disks);
+
         std::vector<DiskRowState> m_diskRows;
+        std::map<std::string, std::vector<::Em68030::Config::ScsiDiskConfig>> m_disksByTargetOS;
+        std::string m_currentTargetOS = "NetBSD";
         std::vector<::Em68030::IO::TapAdapterInfo> m_tapAdapters;
         int m_desiredCdromId = 3; // desired CD-ROM SCSI ID (used during refresh)
         bool m_refreshingIds = false; // guard against re-entrant refresh
