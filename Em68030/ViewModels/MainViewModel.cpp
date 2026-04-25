@@ -269,25 +269,35 @@ namespace winrt::Em68030::implementation
         m_rtcDevice->SetMvme147Config(kernelRamEnd, ethAddr, sizeof(ethAddr));
         m_rtcDevice->LoadFromFile(GetNvramPath());
 
-        m_lanceDevice = std::make_unique<::Em68030::IO::LanceDevice>();
-        m_lanceDevice->AttachMemory(m_memory.get());
-        if (m_config.NetworkMode.find("TAP") != std::string::npos)
+        // LANCE Ethernet — NetworkMode="None" means "the LANCE isn't on this
+        // board at all", so we skip construction, memory mapping, interrupt
+        // wiring, and the tick. Reads at $FFFE1800 then fall through to the
+        // Mvme147IoSpaceDevice catch-all (returns 0), the guest autoconf
+        // probe fails the LANCE magic check, and no ethernet interface shows
+        // up in the guest. LanceDevice's ctor installs a VirtualNetworkHandler
+        // by default so "Virtual" is implicit (no override).
+        if (m_config.NetworkMode != "None")
         {
-            auto tapHandler = std::make_unique<::Em68030::IO::TapNetworkHandler>(m_config.TapAdapterGuid);
-            tapHandler->DiagnosticOutput = [this](const std::string& msg) {
-                if (m_traceWriter) *m_traceWriter << msg;
-            };
-            m_lanceDevice->SetNetworkHandler(std::move(tapHandler));
-        }
-        else if (m_config.NetworkMode.find("NAT") != std::string::npos)
-        {
-            auto gwIp = ::Em68030::IO::SlirpNetworkHandler::ParseIpAddress(m_config.NatGatewayIp);
-            auto gwMac = ::Em68030::IO::SlirpNetworkHandler::ParseMacAddress(m_config.NatGatewayMac);
-            auto natHandler = std::make_unique<::Em68030::IO::SlirpNetworkHandler>(gwIp, gwMac);
-            natHandler->DiagnosticOutput = [this](const std::string& msg) {
-                if (m_traceWriter) *m_traceWriter << msg;
-            };
-            m_lanceDevice->SetNetworkHandler(std::move(natHandler));
+            m_lanceDevice = std::make_unique<::Em68030::IO::LanceDevice>();
+            m_lanceDevice->AttachMemory(m_memory.get());
+            if (m_config.NetworkMode.find("TAP") != std::string::npos)
+            {
+                auto tapHandler = std::make_unique<::Em68030::IO::TapNetworkHandler>(m_config.TapAdapterGuid);
+                tapHandler->DiagnosticOutput = [this](const std::string& msg) {
+                    if (m_traceWriter) *m_traceWriter << msg;
+                };
+                m_lanceDevice->SetNetworkHandler(std::move(tapHandler));
+            }
+            else if (m_config.NetworkMode.find("NAT") != std::string::npos)
+            {
+                auto gwIp = ::Em68030::IO::SlirpNetworkHandler::ParseIpAddress(m_config.NatGatewayIp);
+                auto gwMac = ::Em68030::IO::SlirpNetworkHandler::ParseMacAddress(m_config.NatGatewayMac);
+                auto natHandler = std::make_unique<::Em68030::IO::SlirpNetworkHandler>(gwIp, gwMac);
+                natHandler->DiagnosticOutput = [this](const std::string& msg) {
+                    if (m_traceWriter) *m_traceWriter << msg;
+                };
+                m_lanceDevice->SetNetworkHandler(std::move(natHandler));
+            }
         }
 
         // Register catch-all for I/O space
@@ -299,7 +309,8 @@ namespace winrt::Em68030::implementation
         m_memory->RegisterDevice(0xFFFE3000, 8, m_sccDevice.get());
         m_memory->RegisterDevice(0xFFFE4000, 4, m_scsiDevice.get());
         m_memory->RegisterDevice(0xFFFE0000, 2048, m_rtcDevice.get());
-        m_memory->RegisterDevice(0xFFFE1800, 4, m_lanceDevice.get());
+        if (m_lanceDevice)
+            m_memory->RegisterDevice(0xFFFE1800, 4, m_lanceDevice.get());
 
         // Framebuffer control registers (VRAM is in RAM fast path)
         if (m_config.FramebufferEnabled)
@@ -320,10 +331,13 @@ namespace winrt::Em68030::implementation
             ClearVram();
         }
 
-        // Wire LANCE interrupt through PCC
-        m_lanceDevice->InterruptOutput = [this](bool active) {
-            m_pccDevice->SetDeviceInterrupt("lance", active);
-        };
+        // Wire LANCE interrupt through PCC (only when the board has one)
+        if (m_lanceDevice)
+        {
+            m_lanceDevice->InterruptOutput = [this](bool active) {
+                m_pccDevice->SetDeviceInterrupt("lance", active);
+            };
+        }
 
         // Wire SCC interrupt through PCC
         m_sccDevice->InterruptOutput = [this](bool active) {
@@ -374,10 +388,7 @@ namespace winrt::Em68030::implementation
         m_cpu->AddTickHandler([this]() {
             m_pccDevice->Tick();
             m_sccDevice->Tick(m_cpu->Stopped);
-            m_lanceDevice->Tick();
-
-
-
+            if (m_lanceDevice) m_lanceDevice->Tick();
         });
 
         // RESET instruction: reset all external devices (PCC timers, interrupt lines)
