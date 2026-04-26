@@ -73,16 +73,19 @@ public:
     std::string BoardType = "Generic";
 
     std::string Mvme147RomPath;
-    // Active SCSI disk list — a denormalized view of the corresponding entry
-    // in Mvme147ScsiDisksByTargetOS (below) for the currently-selected
-    // TargetOS. Reseated by SyncScsiDisksForTargetOS() on every OS switch.
+    // Active SCSI bus configuration — denormalized views of the corresponding
+    // entries in *ByTargetOS maps for the currently-selected TargetOS.
+    // Reseated by SyncMvme147ScsiForTargetOS() on every OS switch.
     std::vector<ScsiDiskConfig> Mvme147ScsiDisks;
-    // Per-target-OS storage: NetBSD and Linux remember independent disk
-    // lists. The map is the source of truth; Mvme147ScsiDisks above is the
-    // currently-presented snapshot.
-    std::map<std::string, std::vector<ScsiDiskConfig>> Mvme147ScsiDisksByTargetOS;
     std::string Mvme147ScsiCdromPath;
     int Mvme147ScsiCdromId = 3;
+    // Per-target-OS storage: NetBSD and Linux remember independent SCSI bus
+    // configurations (disk list + CD-ROM image + CD-ROM SCSI ID). These maps
+    // are the source of truth on disk; the active fields above are the
+    // in-memory snapshots for the current OS.
+    std::map<std::string, std::vector<ScsiDiskConfig>> Mvme147ScsiDisksByTargetOS;
+    std::map<std::string, std::string> Mvme147ScsiCdromPathByTargetOS;
+    std::map<std::string, int> Mvme147ScsiCdromIdByTargetOS;
 
     // Kernel image paths for auto-load on startup (per target OS)
     std::string NetBsdKernelImagePath;
@@ -153,12 +156,13 @@ public:
     // Deep-copy via JSON round-trip.
     EmulatorConfig Clone() const;
 
-    // Save the current Mvme147ScsiDisks under oldOS in
-    // Mvme147ScsiDisksByTargetOS, then reseat Mvme147ScsiDisks from the
-    // map's entry for newOS (empty if absent). Call this whenever
-    // TargetOS is about to change (or has just changed) so the two OS's
-    // disk lists stay independent. Also updates this->TargetOS to newOS.
-    void SyncScsiDisksForTargetOS(const std::string& oldOS, const std::string& newOS);
+    // Save the current MVME147 SCSI bus state (disk list + CD-ROM image +
+    // CD-ROM SCSI ID) under oldOS in the *ByTargetOS maps, then reseat all
+    // three from the map entries for newOS (defaults if absent). Call this
+    // whenever TargetOS is about to change (or has just changed) so the
+    // two OS's SCSI configurations stay independent. Also updates
+    // this->TargetOS to newOS.
+    void SyncMvme147ScsiForTargetOS(const std::string& oldOS, const std::string& newOS);
 
     // User-writable data directory (%LOCALAPPDATA%\Em68030_WinUI3Cpp\).
     // Falls back to exe directory if LOCALAPPDATA is unavailable.

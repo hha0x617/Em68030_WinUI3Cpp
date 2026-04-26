@@ -101,6 +101,11 @@ namespace winrt::Em68030::implementation
 
         std::vector<DiskRowState> m_diskRows;
         std::map<std::string, std::vector<::Em68030::Config::ScsiDiskConfig>> m_disksByTargetOS;
+        // CD-ROM is on the same SCSI bus, so it follows the same per-OS
+        // partition as the disk list — switching Target OS swaps the
+        // CD-ROM path + ID along with the disks.
+        std::map<std::string, std::string> m_cdromPathByTargetOS;
+        std::map<std::string, int>         m_cdromIdByTargetOS;
         std::string m_currentTargetOS = "NetBSD";
         std::vector<::Em68030::IO::TapAdapterInfo> m_tapAdapters;
         int m_desiredCdromId = 3; // desired CD-ROM SCSI ID (used during refresh)

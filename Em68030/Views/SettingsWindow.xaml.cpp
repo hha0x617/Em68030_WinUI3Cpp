@@ -213,19 +213,36 @@ namespace winrt::Em68030::implementation
         if (TargetOSBox())
         {
             TargetOSBox().SelectionChanged([this]([[maybe_unused]] auto const&, [[maybe_unused]] auto const&) {
-                // Snapshot the rows under the previous Target OS, swap to the
-                // new OS's stored list, then rebuild the visible rows. This
-                // keeps NetBSD and Linux disk lists independent across
-                // Target OS toggles within a single dialog session.
+                // Snapshot SCSI bus state under the previous Target OS, swap
+                // to the new OS's stored state (disks + CD-ROM path + CD-ROM
+                // SCSI ID), then rebuild the visible UI. NetBSD and Linux
+                // each remember their own SCSI bus configuration.
                 std::string newOS = GetSelectedItemText(TargetOSBox());
                 if (newOS != m_currentTargetOS)
                 {
+                    // Save current state under the old OS.
                     m_disksByTargetOS[m_currentTargetOS] = ReadDiskRowsAsConfig();
-                    auto it = m_disksByTargetOS.find(newOS);
-                    RebuildDiskRowsFromConfig(
-                        it != m_disksByTargetOS.end()
-                            ? it->second
-                            : std::vector<::Em68030::Config::ScsiDiskConfig>{});
+                    m_cdromPathByTargetOS[m_currentTargetOS] = winrt::to_string(ScsiCdromPathBox().Text());
+                    m_cdromIdByTargetOS[m_currentTargetOS] = GetSelectedScsiId(ScsiCdromIdBox());
+
+                    // Reseat from the new OS's slots.
+                    {
+                        auto it = m_disksByTargetOS.find(newOS);
+                        RebuildDiskRowsFromConfig(
+                            it != m_disksByTargetOS.end()
+                                ? it->second
+                                : std::vector<::Em68030::Config::ScsiDiskConfig>{});
+                    }
+                    {
+                        auto it = m_cdromPathByTargetOS.find(newOS);
+                        ScsiCdromPathBox().Text(winrt::to_hstring(
+                            it != m_cdromPathByTargetOS.end() ? it->second : std::string{}));
+                    }
+                    {
+                        auto it = m_cdromIdByTargetOS.find(newOS);
+                        m_desiredCdromId = std::clamp(
+                            it != m_cdromIdByTargetOS.end() ? it->second : 3, 0, 6);
+                    }
                     m_currentTargetOS = newOS;
                     RefreshScsiIdOptions();
                 }
@@ -669,13 +686,20 @@ namespace winrt::Em68030::implementation
         if (LinuxKernelImagePathBox())
             LinuxKernelImagePathBox().Text(winrt::to_hstring(config.LinuxKernelImagePath));
 
-        // SCSI Disks — seeded from the per-OS map; the active list
-        // (config.Mvme147ScsiDisks) is just the snapshot for the current
-        // Target OS and is what we display until the user toggles.
-        m_disksByTargetOS = config.Mvme147ScsiDisksByTargetOS;
-        m_currentTargetOS = config.TargetOS;
+        // SCSI bus state — seeded from the per-OS maps; the active fields
+        // (config.Mvme147ScsiDisks / Mvme147ScsiCdromPath / Mvme147ScsiCdromId)
+        // are the snapshot for the current Target OS and what we display
+        // until the user toggles.
+        m_disksByTargetOS     = config.Mvme147ScsiDisksByTargetOS;
+        m_cdromPathByTargetOS = config.Mvme147ScsiCdromPathByTargetOS;
+        m_cdromIdByTargetOS   = config.Mvme147ScsiCdromIdByTargetOS;
+        m_currentTargetOS     = config.TargetOS;
         if (m_disksByTargetOS.find(m_currentTargetOS) == m_disksByTargetOS.end())
             m_disksByTargetOS[m_currentTargetOS] = config.Mvme147ScsiDisks;
+        if (m_cdromPathByTargetOS.find(m_currentTargetOS) == m_cdromPathByTargetOS.end())
+            m_cdromPathByTargetOS[m_currentTargetOS] = config.Mvme147ScsiCdromPath;
+        if (m_cdromIdByTargetOS.find(m_currentTargetOS) == m_cdromIdByTargetOS.end())
+            m_cdromIdByTargetOS[m_currentTargetOS] = config.Mvme147ScsiCdromId;
         RebuildDiskRowsFromConfig(m_disksByTargetOS[m_currentTargetOS]);
 
         ScsiCdromPathBox().Text(winrt::to_hstring(config.Mvme147ScsiCdromPath));
@@ -881,22 +905,38 @@ namespace winrt::Em68030::implementation
         if (LinuxKernelImagePathBox())
             config.LinuxKernelImagePath = winrt::to_string(LinuxKernelImagePathBox().Text());
 
-        // SCSI Disks — snapshot the visible rows back to the current
-        // Target OS slot, then write the entire per-OS map to config.
-        // The active list is reseated from the slot for whatever
-        // TargetOS the user picked at OK time.
-        m_disksByTargetOS[m_currentTargetOS] = ReadDiskRowsAsConfig();
-        config.Mvme147ScsiDisksByTargetOS = m_disksByTargetOS;
+        // SCSI bus state — snapshot the visible UI back to the current
+        // Target OS's slots in each per-OS map, then write the maps and
+        // the active fields to config. The active fields are reseated
+        // from the slots for whatever TargetOS the user picked at OK.
+        m_disksByTargetOS[m_currentTargetOS]     = ReadDiskRowsAsConfig();
+        m_cdromPathByTargetOS[m_currentTargetOS] = winrt::to_string(ScsiCdromPathBox().Text());
+        m_cdromIdByTargetOS[m_currentTargetOS]   = GetSelectedScsiId(ScsiCdromIdBox());
+        config.Mvme147ScsiDisksByTargetOS     = m_disksByTargetOS;
+        config.Mvme147ScsiCdromPathByTargetOS = m_cdromPathByTargetOS;
+        config.Mvme147ScsiCdromIdByTargetOS   = m_cdromIdByTargetOS;
         std::string finalOS = TargetOSBox()
             ? GetSelectedItemText(TargetOSBox())
             : m_currentTargetOS;
-        auto activeIt = m_disksByTargetOS.find(finalOS);
-        config.Mvme147ScsiDisks = (activeIt != m_disksByTargetOS.end())
-            ? activeIt->second
-            : std::vector<::Em68030::Config::ScsiDiskConfig>{};
+        {
+            auto it = m_disksByTargetOS.find(finalOS);
+            config.Mvme147ScsiDisks = (it != m_disksByTargetOS.end())
+                ? it->second
+                : std::vector<::Em68030::Config::ScsiDiskConfig>{};
+        }
+        {
+            auto it = m_cdromPathByTargetOS.find(finalOS);
+            config.Mvme147ScsiCdromPath = (it != m_cdromPathByTargetOS.end())
+                ? it->second
+                : std::string{};
+        }
+        {
+            auto it = m_cdromIdByTargetOS.find(finalOS);
+            config.Mvme147ScsiCdromId = (it != m_cdromIdByTargetOS.end())
+                ? it->second
+                : 3;
+        }
 
-        config.Mvme147ScsiCdromPath = winrt::to_string(ScsiCdromPathBox().Text());
-        config.Mvme147ScsiCdromId = GetSelectedScsiId(ScsiCdromIdBox());
         if (BootPartitionBox())
             config.Mvme147BootPartition = BootPartitionBox().SelectedIndex();
         if (TargetOSBox())

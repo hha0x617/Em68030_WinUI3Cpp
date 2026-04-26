@@ -69,13 +69,18 @@ void from_json(const nlohmann::json& j, ScsiDiskConfig& c)
 
 void to_json(nlohmann::json& j, const EmulatorConfig& c)
 {
-    // Reflect the active SCSI disk list back into the per-OS map under the
-    // current TargetOS so the on-disk JSON always has a consistent
-    // snapshot — even when callers modify Mvme147ScsiDisks without
-    // calling SyncScsiDisksForTargetOS.
+    // Reflect the active SCSI bus state back into the per-OS maps under the
+    // current TargetOS so the on-disk JSON always has a consistent snapshot
+    // — even when callers modify Mvme147ScsiDisks/CdromPath/CdromId without
+    // calling SyncMvme147ScsiForTargetOS.
     auto disksByOS = c.Mvme147ScsiDisksByTargetOS;
-    if (!c.TargetOS.empty())
+    auto cdromPathByOS = c.Mvme147ScsiCdromPathByTargetOS;
+    auto cdromIdByOS = c.Mvme147ScsiCdromIdByTargetOS;
+    if (!c.TargetOS.empty()) {
         disksByOS[c.TargetOS] = c.Mvme147ScsiDisks;
+        cdromPathByOS[c.TargetOS] = c.Mvme147ScsiCdromPath;
+        cdromIdByOS[c.TargetOS] = c.Mvme147ScsiCdromId;
+    }
 
     j = nlohmann::json{
         {"MemorySize",              c.MemorySize},
@@ -92,12 +97,14 @@ void to_json(nlohmann::json& j, const EmulatorConfig& c)
         {"Theme",                   c.Theme},
         {"BoardType",               c.BoardType},
         {"Mvme147RomPath",          c.Mvme147RomPath},
-        // Legacy single-list field kept for backward compatibility with
-        // older builds that haven't learned about the per-OS map.
+        // Legacy single-value fields kept for backward compatibility with
+        // older builds that haven't learned about the per-OS maps.
         {"Mvme147ScsiDisks",        c.Mvme147ScsiDisks},
         {"Mvme147ScsiDisksByTargetOS", disksByOS},
         {"Mvme147ScsiCdromPath",    c.Mvme147ScsiCdromPath},
+        {"Mvme147ScsiCdromPathByTargetOS", cdromPathByOS},
         {"Mvme147ScsiCdromId",      c.Mvme147ScsiCdromId},
+        {"Mvme147ScsiCdromIdByTargetOS",   cdromIdByOS},
         {"NetBsdKernelImagePath",   c.NetBsdKernelImagePath},
         {"LinuxKernelImagePath",    c.LinuxKernelImagePath},
         {"Mvme147BootPartition",    c.Mvme147BootPartition},
@@ -195,25 +202,46 @@ void from_json(const nlohmann::json& j, EmulatorConfig& c)
         }
     }
 
-    // Per-OS SCSI disk list. New configs persist this map as the source
-    // of truth; older configs only have the single Mvme147ScsiDisks list,
-    // which we copy into both NetBSD and Linux entries so the existing
-    // disk set remains visible regardless of which OS is selected.
+    // Per-OS SCSI bus state. New configs persist these maps as the source
+    // of truth; older configs only have the single legacy fields
+    // (Mvme147ScsiDisks / Mvme147ScsiCdromPath / Mvme147ScsiCdromId), which
+    // we copy into both NetBSD and Linux entries so the existing devices
+    // remain visible regardless of which OS is selected.
     if (j.contains("Mvme147ScsiDisksByTargetOS"))
         j.at("Mvme147ScsiDisksByTargetOS").get_to(c.Mvme147ScsiDisksByTargetOS);
+    if (j.contains("Mvme147ScsiCdromPathByTargetOS"))
+        j.at("Mvme147ScsiCdromPathByTargetOS").get_to(c.Mvme147ScsiCdromPathByTargetOS);
+    if (j.contains("Mvme147ScsiCdromIdByTargetOS"))
+        j.at("Mvme147ScsiCdromIdByTargetOS").get_to(c.Mvme147ScsiCdromIdByTargetOS);
+
     if (c.Mvme147ScsiDisksByTargetOS.empty() && !c.Mvme147ScsiDisks.empty())
     {
         c.Mvme147ScsiDisksByTargetOS["NetBSD"] = c.Mvme147ScsiDisks;
         c.Mvme147ScsiDisksByTargetOS["Linux"]  = c.Mvme147ScsiDisks;
     }
-    // Reseat the active list from the map's entry for the current TargetOS
+    if (c.Mvme147ScsiCdromPathByTargetOS.empty() && !c.Mvme147ScsiCdromPath.empty())
+    {
+        c.Mvme147ScsiCdromPathByTargetOS["NetBSD"] = c.Mvme147ScsiCdromPath;
+        c.Mvme147ScsiCdromPathByTargetOS["Linux"]  = c.Mvme147ScsiCdromPath;
+    }
+    if (c.Mvme147ScsiCdromIdByTargetOS.empty())
+    {
+        c.Mvme147ScsiCdromIdByTargetOS["NetBSD"] = c.Mvme147ScsiCdromId;
+        c.Mvme147ScsiCdromIdByTargetOS["Linux"]  = c.Mvme147ScsiCdromId;
+    }
+
+    // Reseat the active fields from the map entries for the current TargetOS
     // so callers always read a consistent view. Falls through to whatever
-    // was in Mvme147ScsiDisks (or empty) when there's no entry yet.
+    // was in the legacy field (or default) when there's no entry yet.
     if (auto it = c.Mvme147ScsiDisksByTargetOS.find(c.TargetOS);
         it != c.Mvme147ScsiDisksByTargetOS.end())
-    {
         c.Mvme147ScsiDisks = it->second;
-    }
+    if (auto it = c.Mvme147ScsiCdromPathByTargetOS.find(c.TargetOS);
+        it != c.Mvme147ScsiCdromPathByTargetOS.end())
+        c.Mvme147ScsiCdromPath = it->second;
+    if (auto it = c.Mvme147ScsiCdromIdByTargetOS.find(c.TargetOS);
+        it != c.Mvme147ScsiCdromIdByTargetOS.end())
+        c.Mvme147ScsiCdromId = it->second;
 }
 
 // ============================================================================
@@ -339,22 +367,39 @@ EmulatorConfig EmulatorConfig::Clone() const
 }
 
 // ============================================================================
-// SyncScsiDisksForTargetOS -- swap the active disk list when TargetOS changes
+// SyncMvme147ScsiForTargetOS -- swap active SCSI bus state on TargetOS change
 // ============================================================================
 
-void EmulatorConfig::SyncScsiDisksForTargetOS(
+void EmulatorConfig::SyncMvme147ScsiForTargetOS(
     const std::string& oldOS, const std::string& newOS)
 {
     if (oldOS == newOS) {
         TargetOS = newOS;
         return;
     }
-    if (!oldOS.empty())
+    if (!oldOS.empty()) {
         Mvme147ScsiDisksByTargetOS[oldOS] = Mvme147ScsiDisks;
-    auto it = Mvme147ScsiDisksByTargetOS.find(newOS);
-    Mvme147ScsiDisks = (it != Mvme147ScsiDisksByTargetOS.end())
-        ? it->second
-        : std::vector<ScsiDiskConfig>{};
+        Mvme147ScsiCdromPathByTargetOS[oldOS] = Mvme147ScsiCdromPath;
+        Mvme147ScsiCdromIdByTargetOS[oldOS] = Mvme147ScsiCdromId;
+    }
+    {
+        auto it = Mvme147ScsiDisksByTargetOS.find(newOS);
+        Mvme147ScsiDisks = (it != Mvme147ScsiDisksByTargetOS.end())
+            ? it->second
+            : std::vector<ScsiDiskConfig>{};
+    }
+    {
+        auto it = Mvme147ScsiCdromPathByTargetOS.find(newOS);
+        Mvme147ScsiCdromPath = (it != Mvme147ScsiCdromPathByTargetOS.end())
+            ? it->second
+            : std::string{};
+    }
+    {
+        auto it = Mvme147ScsiCdromIdByTargetOS.find(newOS);
+        Mvme147ScsiCdromId = (it != Mvme147ScsiCdromIdByTargetOS.end())
+            ? it->second
+            : 3;
+    }
     TargetOS = newOS;
 }
 
