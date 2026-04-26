@@ -49,6 +49,28 @@ Em68030/x64/Release/Em68030.Tests.exe
   operands, expected vs observed register / memory state) so reviewers
   can reproduce it quickly.
 
+## WinUI 3 theming caveats
+
+WinUI 3's `Microsoft.UI.Xaml.Window` is **not** a `FrameworkElement`,
+so it cannot hold `RequestedTheme` itself. The theme lives on
+`Window.Content`'s root, and is **dropped on every Content swap** —
+the next render falls back to the system default (Light) until something
+re-applies the theme.
+
+This codebase mostly works around it by keeping content static (the
+Settings dialog is a XAML-defined `ContentDialog` rather than a
+dynamic Grid), so `MainWindow::ApplyTheme` calling `RequestedTheme`
+once per Window covers the common cases. **However**, if you ever
+introduce a window whose `Content` is rebuilt from code-behind
+(e.g. swapping `Grid` instances on a combo change), make sure to
+re-call `ApplyTheme` (or its `RequestedTheme` setter) after each
+swap, or the dialog will silently drop dark mode on the rebuild.
+
+(The plugin frontend `emfe_WinUI3Cpp` ran into this exact issue with
+its dynamic Settings dialog and now routes all Content swaps through
+a `SetThemedWindowContent` helper — see that repo's CONTRIBUTING for
+the rule.)
+
 ## Reporting bugs / requesting features
 
 Use the issue templates in [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/).
