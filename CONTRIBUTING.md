@@ -76,6 +76,13 @@ the rule.)
 Use the issue templates in [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/).
 Security vulnerabilities go through [`SECURITY.md`](SECURITY.md) instead.
 
+## Code of Conduct
+
+This project follows the [Contributor Covenant 2.1](CODE_OF_CONDUCT.md).
+By participating you are expected to uphold those standards.  Reports
+of unacceptable behaviour go to the contact address listed in the
+Code of Conduct.
+
 ## Parallel C# port
 
 The sibling C#/WPF port lives at

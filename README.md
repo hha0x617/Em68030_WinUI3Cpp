@@ -197,6 +197,12 @@ Em68030_WinUI3Cpp/
 
 - [Em68030 C#/WPF version](https://github.com/hha0x617/Em68030_CsWPF) - Same emulator implemented in C#/.NET
 
+## Contributing and Policies
+
+- Contribution workflow: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Code of Conduct: [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) (Contributor Covenant 2.1)
+- Security: [`SECURITY.md`](SECURITY.md)
+
 ## License
 
 [Apache License 2.0](LICENSE)
