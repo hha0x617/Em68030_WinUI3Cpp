@@ -174,7 +174,7 @@ void InputDevice::PushTextInput(const std::string& text) {
 
     for (char ch : text) {
         if (ch == '\r') continue; // Skip CR in CRLF — LF alone produces KEY_ENTER
-        auto [keyCode, needShift] = CharToLinuxKey(ch);
+        auto [keyCode, needShift] = CharToScancode(ch);
         if (keyCode == 0) continue;
 
         if (needShift)
