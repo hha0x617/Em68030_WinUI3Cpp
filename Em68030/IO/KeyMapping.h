@@ -148,9 +148,15 @@ inline uint16_t WindowsVkToLinuxKey(int vk)
     }
 }
 
-/// Maps an ASCII/UTF-8 character to a Linux KEY_* code and whether Shift is needed.
-/// Returns {keyCode, needShift}. keyCode==0 means unmapped.
-inline std::pair<uint16_t, bool> CharToLinuxKey(char ch)
+/// Maps an ASCII/UTF-8 character to an InputDevice MMIO scancode and whether
+/// Shift is needed.  Returns {scancode, needShift}; scancode==0 means unmapped.
+///
+/// The scancode value is a Linux input-event KEY_* code — that is the wire
+/// format the InputDevice MMIO FIFO uses, NOT a statement about the guest OS.
+/// Linux guests consume it directly via `input_report_key`; NetBSD guests
+/// (Em68030-Guest-NetBSD) translate the same value to AT Set 1 in the
+/// em68030kbd wscons driver before handing it to the keymap.
+inline std::pair<uint16_t, bool> CharToScancode(char ch)
 {
     // US keyboard layout assumed
     switch (ch)
